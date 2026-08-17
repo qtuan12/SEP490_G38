@@ -25,6 +25,7 @@ import { RoleGroup } from '../../auth/roles';
 import { isPWAMode } from '../../utils/pwaHelpers';
 import { usePWA } from '../../context/PWAContext';
 import { PWAUnsupportedScreenNotice } from '../PWARestrictedNotice';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 // Màn hình duy nhất mà chức vụ ngoài nhóm field vẫn xem được ở chế độ PWA.
 const PWA_ALLOWED_WHEN_BLOCKED = ['/profile'];
@@ -34,7 +35,6 @@ const PWA_ALLOWED_WHEN_BLOCKED = ['/profile'];
 const isFieldScopedRoute = (pathname: string): boolean => {
   if (pathname.startsWith('/field')) return true;
   if (pathname.startsWith('/tasks/')) return true;
-  if (pathname.startsWith('/incidents')) return true;
   if (pathname === '/notifications') return true;
   if (pathname === '/profile') return true;
   if (pathname === '/projects') return true;
@@ -52,6 +52,19 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   // Chức vụ ngoài nhóm field: khoá lại ở trang Cá nhân, mọi màn hình khác đều bị đưa về đó.
   // Nhân viên kỹ thuật: chặn tại chỗ những màn hình chưa tối ưu cho di động (mở từ link thông báo).
   const { shouldBlock, isUnsupportedScreen } = usePWA();
+
+  // Xác định dự án hiện tại nếu người dùng đang mở chi tiết dự án (/projects/:projectId...)
+  const projectMatch = location.pathname.match(/^\/projects\/([a-zA-Z0-9_-]+)/);
+  const activeProjectId = projectMatch ? projectMatch[1] : null;
+  const { isProjectLeader } = useProjectAccess(activeProjectId);
+
+  // Hiển thị vai trò linh hoạt: "Trưởng dự án" khi đang ở trong dự án mà người đó làm Leader
+  const displayRoleLabel = (activeProjectId && isProjectLeader)
+    ? 'Trưởng dự án'
+    : (user ? getRoleLabel(user.role) : '');
+  const displayRoleVariant = (activeProjectId && isProjectLeader)
+    ? 'info'
+    : (user ? getRoleVariant(user.role) : 'default');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -191,8 +204,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
               {!isCollapsed && (
                 <div className="overflow-hidden">
                   <div className="font-semibold text-sm truncate">{user.name}</div>
-                  <Badge variant={getRoleVariant(user.role)} className="mt-0.5 text-[10px]">
-                    {getRoleLabel(user.role)}
+                  <Badge variant={displayRoleVariant} className="mt-0.5 text-[10px]">
+                    {displayRoleLabel}
                   </Badge>
                 </div>
               )}

@@ -7,6 +7,7 @@ using BPG.Application.Features.Reports.Queries.GetInventoryLedgerReport;
 using BPG.Application.Features.Reports.Queries.GetInventoryMovementReport;
 using BPG.Application.Features.Reports.Queries.GetProcurementReport;
 using BPG.Application.Features.Reports.Queries.GetConsolidatedExecutiveReport;
+using BPG.Application.Features.Reports.Queries.GetMaterialReturnsAndSurplusReport;
 using BPG.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -74,4 +75,12 @@ public class ReportsController : BaseApiController
         var result = await Mediator.Send(new GetProcurementReportQuery(projectId, fromDate, toDate), ct);
         return ApiOk(result.Data);
     }
+
+    [HttpGet("project/{projectId}/returns-and-surplus")]
+    public async Task<IActionResult> GetMaterialReturnsAndSurplusReport(long projectId, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, CancellationToken ct)
+    {
+        var result = await Mediator.Send(new GetMaterialReturnsAndSurplusReportQuery(projectId, fromDate, toDate), ct);
+        return ApiOk(result.Data);
+    }
 }
+

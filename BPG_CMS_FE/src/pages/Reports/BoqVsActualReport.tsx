@@ -239,6 +239,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
               <table className="w-full text-xs text-left relative">
                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                   <tr>
+                    <th className="px-4 py-3 text-center w-12">STT</th>
                     <th className="px-4 py-3">Mã VT</th>
                     <th className="px-4 py-3">Tên vật tư</th>
                     <th className="px-4 py-3 text-center">ĐVT</th>
@@ -253,7 +254,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {(items || []).map(item => {
+                  {(items || []).map((item, index) => {
                     const isExceeding = !!item?.isExceeding;
                     const isEarnedExceeding = !!item?.isEarnedExceeding;
                     const totalReturned = item?.totalReturned || 0;
@@ -263,6 +264,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                         key={item.materialId}
                         className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isExceeding ? 'bg-red-50/30 dark:bg-red-950/10' : isEarnedExceeding ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''}`}
                       >
+                        <td className="px-4 py-3 text-center font-medium text-slate-500">{index + 1}</td>
                         <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{item?.materialCode || '—'}</td>
                         <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{item?.materialName || '—'}</td>
                         <td className="px-4 py-3 text-center text-slate-500">{item?.unitName || '—'}</td>
@@ -295,7 +297,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                   })}
                   {items.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
+                      <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
                         Chưa có dữ liệu định mức BOQ cho dự án này.
                       </td>
                     </tr>

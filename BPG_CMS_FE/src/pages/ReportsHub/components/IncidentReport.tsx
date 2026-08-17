@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search, TrendingUp, PieChart as PieChartIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertOctagon, CheckCircle, AlertTriangle, Wrench, Construction, Search, TrendingUp, ExternalLink, PieChart as PieChartIcon } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type IncidentReportDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -35,10 +36,21 @@ const TYPE_LABELS: Record<string, string> = {
   InventoryLoss: 'Thất thoát vật tư',
 };
 
-const getCleanDescription = (desc?: string): string => {
-  if (!desc) return '—';
+const getCleanDescription = (desc?: string): { title: string; subText?: string } => {
+  if (!desc) return { title: '—' };
+  const trimmed = desc.trim();
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      const title = parsed.moTaChiTiet || parsed.moTa || parsed.tieuDe || parsed.soBienBan || desc;
+      const subText = parsed.soBienBan ? `Biên bản: ${parsed.soBienBan}` : undefined;
+      return { title, subText };
+    } catch {
+      // fallback
+    }
+  }
   const clean = desc.split(/\\n\*\*|\n\*\*|\*\*Ngày\/Giờ/)[0].trim();
-  return clean || desc;
+  return { title: clean || desc };
 };
 
 export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate }) => {
@@ -121,14 +133,19 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
 
   const filteredIncidents = (data?.incidents || []).filter(i => {
     const status = i?.status || '';
-    const description = getCleanDescription(i?.description);
+    const descInfo = getCleanDescription(i?.description);
     const reporterName = i?.reporterName || '';
     const isResolved = resolvedStatuses.includes(status);
     const isOpen = !terminalStatuses.includes(status);
     if (filter === 'open' && !isOpen) return false;
     if (filter === 'resolved' && !isResolved) return false;
-    if (search && !description.toLowerCase().includes(search.toLowerCase()) &&
-      !reporterName.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      const matchDesc = descInfo.title.toLowerCase().includes(s) || (descInfo.subText && descInfo.subText.toLowerCase().includes(s));
+      const matchReporter = reporterName.toLowerCase().includes(s);
+      const matchId = String(i.incidentId).includes(s);
+      if (!matchDesc && !matchReporter && !matchId) return false;
+    }
     return true;
   });
 
@@ -327,53 +344,116 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
         </div>
 
         {/* Table Content */}
-        <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
+        <div className="max-h-[440px] overflow-y-auto overflow-x-auto custom-scrollbar">
           <table className="w-full text-xs text-left relative">
             <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
               <tr>
-                <th className="px-4 py-3">Mã phiếu</th>
-                <th className="px-4 py-3">Loại</th>
-                <th className="px-4 py-3">Mô tả & Người báo cáo</th>
-                <th className="px-4 py-3">Phase / Task</th>
-                <th className="px-4 py-3">Rework Task</th>
-                <th className="px-4 py-3">Ngày báo cáo</th>
-                <th className="px-4 py-3 text-center">Trạng thái Workflow</th>
+                <th className="px-4 py-3 text-center w-12">STT</th>
+                <th className="px-4 py-3 w-48">Sự cố & Ngày lập</th>
+                <th className="px-4 py-3">Nội dung sự cố & Người báo cáo</th>
+                <th className="px-4 py-3 w-56">Hạng mục / Công việc</th>
+                <th className="px-4 py-3 text-center w-36">Trạng thái Workflow</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {filteredIncidents.map(i => (
-                <tr key={i.incidentId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                  <td className="px-4 py-3 font-mono font-bold text-slate-500">#{i.incidentId}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
-                      {TYPE_LABELS[i.incidentType] || i.incidentType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 max-w-xs">
-                    <div className="font-bold text-slate-900 dark:text-white truncate" title={getCleanDescription(i.description)}>{getCleanDescription(i.description)}</div>
-                    <div className="text-[10px] text-slate-400">Báo bởi: {i.reporterName}</div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                    {i.phaseName && <div className="font-bold text-slate-800 dark:text-slate-200">{i.phaseName}</div>}
-                    {i.taskName && <div className="text-[10px] text-slate-400">{i.taskName}</div>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {i.hasReworkTask ? (
-                      <span className="text-indigo-600 font-bold text-xs flex items-center gap-1">
-                        <Construction size={13} />
-                        {i.reworkTaskName || 'Có rework task'}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">Không</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatDate(i.createdAt)}</td>
-                  <td className="px-4 py-3 text-center">{getStatusBadge(i.status)}</td>
-                </tr>
-              ))}
+              {filteredIncidents.map((i, index) => {
+                const descInfo = getCleanDescription(i.description);
+                const targetProjectId = i.projectId || (projectId !== 'all' ? projectId : null);
+                const incidentUrl = targetProjectId
+                  ? `/projects/${targetProjectId}?tab=incidents&incidentId=${i.incidentId}`
+                  : `/projects?incidentId=${i.incidentId}`;
+                return (
+                  <tr key={i.incidentId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-4 py-3.5 text-center font-medium text-slate-400">{index + 1}</td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          to={incidentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                          title="Chuyển đến chi tiết sự cố"
+                        >
+                          #{i.incidentId}
+                          <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
+                        </Link>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                          {TYPE_LABELS[i.incidentType] || i.incidentType}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1">
+                        {formatDate(i.createdAt)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Link
+                        to={incidentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline inline-flex items-center gap-1.5"
+                        title="Xem chi tiết sự cố"
+                      >
+                        <span>{descInfo.title}</span>
+                      </Link>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span>Báo bởi: <strong>{i.reporterName}</strong></span>
+                        {descInfo.subText && (
+                          <span className="font-mono text-slate-400">({descInfo.subText})</span>
+                        )}
+                        {i.hasReworkTask && (
+                          i.reworkTaskId ? (
+                            <Link
+                              to={`/tasks/${i.reworkTaskId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-bold text-[10px] hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
+                              title="Chuyển đến task sửa chữa (Rework Task)"
+                            >
+                              <Construction size={11} />
+                              Rework: {i.reworkTaskName || 'Xem nhiệm vụ sửa chữa'}
+                              <ExternalLink size={10} />
+                            </Link>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-bold text-[10px]">
+                              <Construction size={11} />
+                              Rework: {i.reworkTaskName || 'Có rework task'}
+                            </span>
+                          )
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {i.phaseName ? (
+                        <div className="font-bold text-slate-800 dark:text-slate-200">{i.phaseName}</div>
+                      ) : (
+                        <div className="text-slate-400">—</div>
+                      )}
+                      {i.taskName && (
+                        i.taskId ? (
+                          <Link
+                            to={`/tasks/${i.taskId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline mt-0.5 inline-flex items-center gap-1"
+                            title="Chuyển đến công việc thi công"
+                          >
+                            <span>{i.taskName}</span>
+                            <ExternalLink size={10} className="opacity-70" />
+                          </Link>
+                        ) : (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{i.taskName}</div>
+                        )
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                      {getStatusBadge(i.status)}
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredIncidents.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-slate-400">Không có sự cố nào phù hợp với bộ lọc.</td>
+                  <td colSpan={5} className="px-4 py-12 text-center text-slate-400">Không có sự cố nào phù hợp với bộ lọc.</td>
                 </tr>
               )}
             </tbody>

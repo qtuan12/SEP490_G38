@@ -259,17 +259,20 @@ public record IncidentReportDto
 public record IncidentSummaryDto
 {
     public long IncidentId { get; init; }
+    public long? ProjectId { get; init; }
     public string IncidentType { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
     public string ReporterName { get; init; } = string.Empty;
     public string? ReviewerName { get; init; }
+    public long? TaskId { get; init; }
     public string? TaskName { get; init; }
     public string? PhaseName { get; init; }
     public string? DamageDescription { get; init; }
     public decimal? EstimatedMaterialLoss { get; init; }
     public int? EstimatedDelayDays { get; init; }
     public bool HasReworkTask { get; init; }
+    public long? ReworkTaskId { get; init; }
     public string? ReworkTaskName { get; init; }
     public DateTime CreatedAt { get; init; }
 }
@@ -448,4 +451,162 @@ public record ConsolidatedExecutiveReportDto
     public List<ProjectComparisonMatrixItemDto> CrossProjectMatrix { get; init; } = new();
     public List<string> ExecutiveInsights { get; init; } = new();
 }
+
+// ============================================================
+// Material Returns & Surplus Handling Report
+// ============================================================
+
+public record MaterialReturnsAndSurplusReportDto
+{
+    public long ProjectId { get; init; }
+    public string ProjectName { get; init; } = string.Empty;
+    public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
+    public DateTime? FromDate { get; init; }
+    public DateTime? ToDate { get; init; }
+
+    // KPI Summary Metrics
+    public int TotalReturnSlips { get; init; }
+    public int TotalReturnItemsCount { get; init; }
+    public decimal TotalReturnVolume { get; init; }
+    public decimal TotalReturnEstimatedValue { get; init; }
+
+    public int TotalSurplusBatches { get; init; }
+    public int TotalSurplusItems { get; init; }
+    public decimal TotalSurplusQuantity { get; init; }
+    public decimal TotalSurplusProcessedQuantity { get; init; }
+    public decimal TotalSurplusRemainingQuantity { get; init; }
+    public decimal SurplusResolutionRatePercent { get; init; }
+
+    public decimal TotalFinancialRecoveryAmount { get; init; }
+    public decimal TotalSupplierRefundAmount { get; init; }
+    public decimal TotalLiquidationAmount { get; init; }
+    public decimal TotalTransferredQuantity { get; init; }
+    public int TotalTransferredActionsCount { get; init; }
+
+    // Visual Charts / Breakdown
+    public SurplusMethodBreakdownDto SurplusMethodBreakdown { get; init; } = new();
+    public List<ReturnAndSurplusMonthlyTrendDto> MonthlyTrends { get; init; } = new();
+    public List<TopReturnedMaterialDto> TopReturnedMaterials { get; init; } = new();
+    public List<ProjectSurplusComparisonDto> CrossProjectMatrix { get; init; } = new();
+
+    // Detailed Item Records
+    public List<MaterialReturnReportItemDto> MaterialReturns { get; init; } = new();
+    public List<SurplusRequestReportItemDto> SurplusRequests { get; init; } = new();
+    public List<SurplusActionDetailDto> SurplusActions { get; init; } = new();
+}
+
+public record SurplusMethodBreakdownDto
+{
+    public decimal ReturnSupplierQuantity { get; init; }
+    public decimal TransferQuantity { get; init; }
+    public decimal LiquidationQuantity { get; init; }
+    public decimal PendingRemainingQuantity { get; init; }
+    public decimal ReturnSupplierValueVnd { get; init; }
+    public decimal LiquidationValueVnd { get; init; }
+}
+
+public record ReturnAndSurplusMonthlyTrendDto
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public string MonthLabel { get; init; } = string.Empty;
+    public int ReturnSlipCount { get; init; }
+    public decimal ReturnQuantity { get; init; }
+    public decimal ReturnEstimatedValueVnd { get; init; }
+    public decimal SurplusProcessedQuantity { get; init; }
+    public decimal FinancialRecoveryAmountVnd { get; init; }
+}
+
+public record TopReturnedMaterialDto
+{
+    public long MaterialId { get; init; }
+    public string MaterialCode { get; init; } = string.Empty;
+    public string MaterialName { get; init; } = string.Empty;
+    public string UnitName { get; init; } = string.Empty;
+    public decimal TotalQuantity { get; init; }
+    public decimal EstimatedValueVnd { get; init; }
+    public int ReturnCount { get; init; }
+}
+
+public record ProjectSurplusComparisonDto
+{
+    public long ProjectId { get; init; }
+    public string ProjectName { get; init; } = string.Empty;
+    public int ReturnSlipCount { get; init; }
+    public decimal ReturnEstimatedValueVnd { get; init; }
+    public int SurplusItemCount { get; init; }
+    public decimal SurplusTotalQuantity { get; init; }
+    public decimal SurplusProcessedQuantity { get; init; }
+    public decimal SurplusResolutionRatePercent { get; init; }
+    public decimal FinancialRecoveryAmountVnd { get; init; }
+}
+
+public record MaterialReturnReportItemDto
+{
+    public long MaterialReturnId { get; init; }
+    public string ReturnNo { get; init; } = string.Empty;
+    public long ProjectId { get; init; }
+    public string ProjectName { get; init; } = string.Empty;
+    public long OriginalIssuanceId { get; init; }
+    public string OriginalIssuanceNo { get; init; } = string.Empty;
+    public long TaskId { get; init; }
+    public string TaskName { get; init; } = string.Empty;
+    public string Reason { get; init; } = string.Empty;
+    public DateTime ReturnDate { get; init; }
+    public string CreatedByName { get; init; } = string.Empty;
+    public int TotalItems { get; init; }
+    public decimal TotalEstimatedValueVnd { get; init; }
+    public List<MaterialReturnItemDetailDto> Items { get; init; } = new();
+}
+
+public record MaterialReturnItemDetailDto
+{
+    public long ReturnItemId { get; init; }
+    public long MaterialId { get; init; }
+    public string MaterialCode { get; init; } = string.Empty;
+    public string MaterialName { get; init; } = string.Empty;
+    public string UnitName { get; init; } = string.Empty;
+    public decimal Quantity { get; init; }
+    public decimal UnitPrice { get; init; }
+    public decimal EstimatedValueVnd { get; init; }
+}
+
+public record SurplusRequestReportItemDto
+{
+    public long SurplusRequestId { get; init; }
+    public long SurplusRequestItemId { get; init; }
+    public long ProjectId { get; init; }
+    public string ProjectName { get; init; } = string.Empty;
+    public long MaterialId { get; init; }
+    public string MaterialCode { get; init; } = string.Empty;
+    public string MaterialName { get; init; } = string.Empty;
+    public string UnitName { get; init; } = string.Empty;
+    public decimal SurplusQuantity { get; init; }
+    public decimal ProcessedQuantity { get; init; }
+    public decimal RemainingQuantity { get; init; }
+    public decimal ResolutionPercent => SurplusQuantity > 0 ? Math.Min(100, Math.Round((ProcessedQuantity / SurplusQuantity) * 100, 1)) : 0;
+    public string Status { get; init; } = string.Empty;
+    public string? Reason { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public string CreatedByName { get; init; } = string.Empty;
+}
+
+public record SurplusActionDetailDto
+{
+    public string ActionType { get; init; } = string.Empty; // "ReturnSupplier" | "Transfer" | "Liquidation"
+    public long ActionId { get; init; }
+    public long SurplusRequestItemId { get; init; }
+    public long ProjectId { get; init; }
+    public string ProjectName { get; init; } = string.Empty;
+    public string MaterialCode { get; init; } = string.Empty;
+    public string MaterialName { get; init; } = string.Empty;
+    public string UnitName { get; init; } = string.Empty;
+    public decimal Quantity { get; init; }
+    public decimal? FinancialValueVnd { get; init; }
+    public string PartnerOrDestination { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public DateTime ActionDate { get; init; }
+    public string? Note { get; init; }
+}
+
 

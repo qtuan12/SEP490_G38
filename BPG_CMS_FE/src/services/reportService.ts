@@ -276,17 +276,20 @@ export interface MonthlyBoqConsumptionTrendDto {
 // ============================================================
 export interface IncidentSummaryDto {
   incidentId: number;
+  projectId?: number;
   incidentType: string;
   description: string;
   status: string;
   reporterName: string;
   reviewerName?: string;
+  taskId?: number;
   taskName?: string;
   phaseName?: string;
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedDelayDays?: number;
   hasReworkTask: boolean;
+  reworkTaskId?: number;
   reworkTaskName?: string;
   createdAt: string;
 }
@@ -393,6 +396,150 @@ export interface InventoryMovementReportDto {
   items: InventoryMovementItemDto[];
 }
 
+// ============================================================
+// Material Returns & Surplus Handling Report
+// ============================================================
+export interface SurplusMethodBreakdownDto {
+  returnSupplierQuantity: number;
+  transferQuantity: number;
+  liquidationQuantity: number;
+  pendingRemainingQuantity: number;
+  returnSupplierValueVnd: number;
+  liquidationValueVnd: number;
+}
+
+export interface ReturnAndSurplusMonthlyTrendDto {
+  year: number;
+  month: number;
+  monthLabel: string;
+  returnSlipCount: number;
+  returnQuantity: number;
+  returnEstimatedValueVnd: number;
+  surplusProcessedQuantity: number;
+  financialRecoveryAmountVnd: number;
+}
+
+export interface TopReturnedMaterialDto {
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitName: string;
+  totalQuantity: number;
+  estimatedValueVnd: number;
+  returnCount: number;
+}
+
+export interface ProjectSurplusComparisonDto {
+  projectId: number;
+  projectName: string;
+  returnSlipCount: number;
+  returnEstimatedValueVnd: number;
+  surplusItemCount: number;
+  surplusTotalQuantity: number;
+  surplusProcessedQuantity: number;
+  surplusResolutionRatePercent: number;
+  financialRecoveryAmountVnd: number;
+}
+
+export interface MaterialReturnItemDetailDto {
+  returnItemId: number;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitName: string;
+  quantity: number;
+  unitPrice: number;
+  estimatedValueVnd: number;
+}
+
+export interface MaterialReturnReportItemDto {
+  materialReturnId: number;
+  returnNo: string;
+  projectId: number;
+  projectName: string;
+  originalIssuanceId: number;
+  originalIssuanceNo: string;
+  taskId: number;
+  taskName: string;
+  reason: string;
+  returnDate: string;
+  createdByName: string;
+  totalItems: number;
+  totalEstimatedValueVnd: number;
+  items: MaterialReturnItemDetailDto[];
+}
+
+export interface SurplusRequestReportItemDto {
+  surplusRequestId: number;
+  surplusRequestItemId: number;
+  projectId: number;
+  projectName: string;
+  materialId: number;
+  materialCode: string;
+  materialName: string;
+  unitName: string;
+  surplusQuantity: number;
+  processedQuantity: number;
+  remainingQuantity: number;
+  resolutionPercent: number;
+  status: string;
+  reason?: string;
+  createdAt: string;
+  createdByName: string;
+}
+
+export interface SurplusActionDetailDto {
+  actionType: 'ReturnSupplier' | 'Transfer' | 'Liquidation' | string;
+  actionId: number;
+  surplusRequestItemId: number;
+  projectId: number;
+  projectName: string;
+  materialCode: string;
+  materialName: string;
+  unitName: string;
+  quantity: number;
+  financialValueVnd?: number;
+  partnerOrDestination: string;
+  status: string;
+  actionDate: string;
+  note?: string;
+}
+
+export interface MaterialReturnsAndSurplusReportDto {
+  projectId: number;
+  projectName: string;
+  generatedAt: string;
+  fromDate?: string;
+  toDate?: string;
+
+  totalReturnSlips: number;
+  totalReturnItemsCount: number;
+  totalReturnVolume: number;
+  totalReturnEstimatedValue: number;
+
+  totalSurplusBatches: number;
+  totalSurplusItems: number;
+  totalSurplusQuantity: number;
+  totalSurplusProcessedQuantity: number;
+  totalSurplusRemainingQuantity: number;
+  surplusResolutionRatePercent: number;
+
+  totalFinancialRecoveryAmount: number;
+  totalSupplierRefundAmount: number;
+  totalLiquidationAmount: number;
+  totalTransferredQuantity: number;
+  totalTransferredActionsCount: number;
+
+  surplusMethodBreakdown: SurplusMethodBreakdownDto;
+  monthlyTrends: ReturnAndSurplusMonthlyTrendDto[];
+  topReturnedMaterials: TopReturnedMaterialDto[];
+  crossProjectMatrix: ProjectSurplusComparisonDto[];
+
+  materialReturns: MaterialReturnReportItemDto[];
+  surplusRequests: SurplusRequestReportItemDto[];
+  surplusActions: SurplusActionDetailDto[];
+}
+
 export interface ReportFilterParams {
   [key: string]: string | number | boolean | undefined;
   fromDate?: string;
@@ -451,6 +598,12 @@ export const reportService = {
 
   async getConsolidatedExecutiveReport(projectId: number, params?: ReportFilterParams): Promise<ConsolidatedExecutiveReportDto> {
     const response = await apiClient.get<ApiResponse<ConsolidatedExecutiveReportDto>>(`/reports/project/${projectId}/consolidated-executive`, { params });
+    return response.data;
+  },
+
+  async getReturnsAndSurplusReport(projectId: number | string, params?: ReportFilterParams): Promise<MaterialReturnsAndSurplusReportDto> {
+    const numericId = projectId === 'all' ? 0 : Number(projectId);
+    const response = await apiClient.get<ApiResponse<MaterialReturnsAndSurplusReportDto>>(`/reports/project/${numericId}/returns-and-surplus`, { params });
     return response.data;
   },
 };
