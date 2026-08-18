@@ -325,10 +325,10 @@ export const ProjectLayoutHub: React.FC = () => {
       } else if (newStatus === 'paused') {
         setPauseReason("");
         setIsPauseModalOpen(true);
-      } else {
+      } else if (newStatus === 'done') {
         // Optimistic update UI real-time
-        setProject(prev => prev ? { ...prev, status: newStatus } : null);
-        await projectService.updateProject(project.id, { status: newStatus });
+        setProject(prev => prev ? { ...prev, status: 'done' } : null);
+        await projectService.completeProject(project.id);
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         fetchProjectDetails(false);
       }

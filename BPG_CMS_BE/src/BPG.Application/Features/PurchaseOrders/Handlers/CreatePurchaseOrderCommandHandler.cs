@@ -220,9 +220,18 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             var notiTitle = "Đơn hàng mới chờ duyệt";
             var notiContent = $"Đơn hàng {po.PONumber} cho giai đoạn '{phase.Name}' đang chờ Giám đốc duyệt. Tổng giá trị: {totalAmount:N0}đ.";
 
-            await _notificationService.SendNotificationToRoleAsync(
-                UserRole.Director, notiTitle, notiContent,
-                NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+            if (currentUserId.HasValue)
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    UserRole.Director, notiTitle, notiContent,
+                    NotificationType.Procurement, currentUserId.Value, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+            }
+            else
+            {
+                await _notificationService.SendNotificationToRoleAsync(
+                    UserRole.Director, notiTitle, notiContent,
+                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+            }
 
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
                 .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && m.UserId != currentUserId)

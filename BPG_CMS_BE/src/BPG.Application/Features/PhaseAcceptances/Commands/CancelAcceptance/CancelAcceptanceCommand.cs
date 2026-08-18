@@ -94,25 +94,27 @@ public class CancelAcceptanceCommandHandler : IRequestHandler<CancelAcceptanceCo
         // Gửi thông báo realtime
         try
         {
+            var userId = _currentUserService.GetRequiredUserId();
             var project = acceptance.Phase?.Project;
             var phaseName = acceptance.Phase?.Name ?? "Giai đoạn";
             var projectName = project?.Name ?? "Dự án";
 
-            // 1. Gửi thông báo đến Giám đốc
+            // 1. Gửi thông báo đến Giám đốc (trừ người thực hiện)
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Director,
                 "Hủy nghiệm thu giai đoạn",
                 $"Biên bản nghiệm thu của giai đoạn '{phaseName}' thuộc dự án '{projectName}' đã bị hủy.",
                 NotificationType.Progress,
+                userId,
                 $"/projects/{acceptance.Phase?.ProjectId}/phases/{acceptance.Phase?.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
 
-            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án
+            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án (trừ người thực hiện)
             if (project != null)
             {
                 var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
-                    .FirstOrDefaultAsync(pm => pm.ProjectId == project.ProjectId && pm.IsLeader, ct);
+                    .FirstOrDefaultAsync(pm => pm.ProjectId == project.ProjectId && pm.IsLeader && pm.UserId != userId, ct);
                 if (projectLeader != null)
                 {
                     await _notificationService.SendNotificationAsync(
