@@ -15,6 +15,9 @@ namespace BPG.Application.Features.PurchaseOrders.Commands
         public string? Notes { get; init; }
         public long RequestId { get; init; }
         public List<CreatePOItemDto> Items { get; init; } = new();
+
+        /// <summary>Ảnh hoặc PDF báo giá của nhà cung cấp — bắt buộc phải có ít nhất một tệp.</summary>
+        public List<POQuotationFileDto> QuotationFiles { get; init; } = new();
     }
 }
 

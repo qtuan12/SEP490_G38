@@ -6,8 +6,8 @@ namespace BPG.Application.Features.Users.Validators
 {
     public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
     {
-        private static readonly Regex NamePattern = new(@"^\p{L}\s+$", RegexOptions.Compiled);
-        private static readonly Regex PhonePattern = new(@"^(00-9{9}|\+840-9{9})$", RegexOptions.Compiled);
+        private static readonly Regex NamePattern = new(@"^[\p{L}\s]+$", RegexOptions.Compiled);
+        private static readonly Regex PhonePattern = new(@"^(0[0-9]{9}|\+84[0-9]{9})$", RegexOptions.Compiled);
 
         public CreateUserCommandValidator()
         {

@@ -36,6 +36,8 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private readonly Mock<IGenericRepository<PurchaseOrderItem>> _mockPoItemRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
+        private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
+        private readonly List<Attachment> _savedAttachments = [];
         private readonly CreatePurchaseOrderCommandHandler _handler;
 
         public CreatePurchaseOrderCommandHandlerTests()
@@ -47,6 +49,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockPoItemRepo = new Mock<IGenericRepository<PurchaseOrderItem>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
+            _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             var mockCurrentUserService = new Mock<ICurrentUserService>();
 
             _mockUow.Setup(u => u.Repository<MaterialRequest>()).Returns(_mockRequestRepo.Object);
@@ -55,11 +58,16 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockUow.Setup(u => u.Repository<PurchaseOrderItem>()).Returns(_mockPoItemRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
+            _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            _mockAttachmentRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()))
+                .Callback<IEnumerable<Attachment>, CancellationToken>((items, _) => _savedAttachments.AddRange(items))
                 .Returns(Task.CompletedTask);
 
             _mockPoItemRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<PurchaseOrderItem>>(), It.IsAny<CancellationToken>()))
@@ -125,52 +133,45 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             exception.Which.ErrorCode.Should().Be("BIZ_001");
         }
 
-        [Fact]
-        public async Task UTCID05_Handle_OrderDateBeforeProjectStart_ShouldThrowBusinessException()
+        [Theory]
+        [InlineData(ProjectStatus.Draft)]
+        [InlineData(ProjectStatus.Paused)]
+        [InlineData(ProjectStatus.Completed)]
+        [InlineData(ProjectStatus.Closed)]
+        public async Task UTCID05_Handle_ProjectNotInProgress_ShouldThrowBusinessException(string projectStatus)
         {
-            var command = Command(orderDate: ProjectStart.AddDays(-1));
+            SetupProjects(ProjectEntity(status: projectStatus));
 
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+            Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoOrderDateBeforeProject);
+            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoProjectNotActive);
+        }
+
+        // Ngày đơn hàng / hạn giao hàng không còn bị ràng buộc theo ngày dự án & giai đoạn:
+        // đặt trước cho giai đoạn sau, hoặc hẹn giao sau ngày kết thúc giai đoạn, đều hợp lệ.
+        [Fact]
+        public async Task UTCID06_Handle_OrderDateOutsideProjectAndPhaseRange_ShouldReturnCreatedPOId()
+        {
+            var command = Command(orderDate: PhaseEnd.AddDays(1), expectedDeliveryDate: PhaseEnd.AddDays(30));
+
+            var result = await _handler.Handle(command, CancellationToken.None);
+
+            result.Should().Be(GeneratedPOId);
         }
 
         [Fact]
-        public async Task UTCID06_Handle_OrderDateAfterPhaseEnd_ShouldThrowBusinessException()
-        {
-            var command = Command(orderDate: PhaseEnd.AddDays(1));
-
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoOrderDateAfterPhase);
-        }
-
-        [Fact]
-        public async Task UTCID07_Handle_DeliveryDateBeforeProjectStart_ShouldThrowBusinessException()
+        public async Task UTCID07_Handle_DeliveryDateBeforeProjectStart_ShouldReturnCreatedPOId()
         {
             var command = Command(expectedDeliveryDate: ProjectStart.AddDays(-1));
 
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+            var result = await _handler.Handle(command, CancellationToken.None);
 
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoDeliveryDateBeforeProject);
+            result.Should().Be(GeneratedPOId);
         }
 
         [Fact]
-        public async Task UTCID08_Handle_DeliveryDateAfterPhaseEnd_ShouldThrowBusinessException()
-        {
-            var command = Command(expectedDeliveryDate: PhaseEnd.AddDays(1));
-
-            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
-
-            var exception = await act.Should().ThrowAsync<BusinessException>();
-            exception.Which.ErrorCode.Should().Be(ErrorCodes.PoDeliveryDateAfterPhase);
-        }
-
-        [Fact]
-        public async Task UTCID09_Handle_MaterialNotInLinkedRequest_ShouldThrowBusinessException()
+        public async Task UTCID08_Handle_MaterialNotInLinkedRequest_ShouldThrowBusinessException()
         {
             var command = Command(items: [Item(materialId: 99, quantity: 5)]);
 
@@ -181,7 +182,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID10_Handle_QuantityExceedsRemainingOfRequest_ShouldThrowBusinessException()
+        public async Task UTCID09_Handle_QuantityExceedsRemainingOfRequest_ShouldThrowBusinessException()
         {
             SetupExistingPOItems(ExistingPOItem(poId: 200, PurchaseOrderStatus.Sent, quantity: 60));
 
@@ -194,7 +195,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID11_Handle_QuantityEqualsRemainingOfRequest_ShouldReturnCreatedPOId()
+        public async Task UTCID10_Handle_QuantityEqualsRemainingOfRequest_ShouldReturnCreatedPOId()
         {
             SetupExistingPOItems(ExistingPOItem(poId: 200, PurchaseOrderStatus.Sent, quantity: 60));
 
@@ -204,7 +205,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID12_Handle_CancelledAndRejectedPOsDoNotHoldQuantity_ShouldReturnCreatedPOId()
+        public async Task UTCID11_Handle_CancelledAndRejectedPOsDoNotHoldQuantity_ShouldReturnCreatedPOId()
         {
             SetupExistingPOItems(
                 ExistingPOItem(poId: 200, PurchaseOrderStatus.Cancelled, quantity: 60),
@@ -216,7 +217,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID13_Handle_ClosedPOOnlyHoldsReceivedQuantity_ShouldThrowWhenExceedingReleasedRemainder()
+        public async Task UTCID12_Handle_ClosedPOOnlyHoldsReceivedQuantity_ShouldThrowWhenExceedingReleasedRemainder()
         {
             // PO đã đóng đặt 60 nhưng chỉ nhận 20 → chỉ 20 còn giữ chỗ, còn được đặt tối đa 80.
             SetupExistingPOItems(ExistingPOItem(poId: 200, PurchaseOrderStatus.Closed, quantity: 60));
@@ -229,7 +230,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID14_Handle_FractionalQuantityForDiscreteUnit_ShouldThrowBusinessException()
+        public async Task UTCID13_Handle_FractionalQuantityForDiscreteUnit_ShouldThrowBusinessException()
         {
             SetupMaterialRequests(ApprovedRequest(isDiscreteUnit: true));
 
@@ -242,7 +243,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID15_Handle_ManualPONumberAlreadyExists_ShouldThrowBusinessException()
+        public async Task UTCID14_Handle_ManualPONumberAlreadyExists_ShouldThrowBusinessException()
         {
             SetupExistingPurchaseOrders(new PurchaseOrder { POId = 200, PONumber = "PO-20260310-0001" });
 
@@ -255,11 +256,28 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         }
 
         [Fact]
-        public async Task UTCID16_Handle_ManualPONumberNotUsed_ShouldReturnCreatedPOId()
+        public async Task UTCID15_Handle_ManualPONumberNotUsed_ShouldReturnCreatedPOId()
         {
             var result = await _handler.Handle(Command(poNumber: "PO-CUSTOM-01"), CancellationToken.None);
 
             result.Should().Be(GeneratedPOId);
+        }
+
+        [Fact]
+        public async Task UTCID16_Handle_ValidRequest_ShouldSaveQuotationAttachments()
+        {
+            await _handler.Handle(
+                Command(quotationFiles: [QuotationFile("bao-gia-01.pdf"), QuotationFile("bao-gia-02.jpg")]),
+                CancellationToken.None);
+
+            _savedAttachments.Should().HaveCount(2);
+            _savedAttachments.Should().OnlyContain(a =>
+                a.EntityType == EntityType.PurchaseOrder
+                && a.EntityId == GeneratedPOId
+                && a.AttachmentType == AttachmentType.Quotation
+                && a.CreatedBy == CurrentUserId);
+            _savedAttachments.Select(a => a.FileName)
+                .Should().BeEquivalentTo(["bao-gia-01.pdf", "bao-gia-02.jpg"]);
         }
 
         private static CreatePurchaseOrderCommand Command(
@@ -267,7 +285,8 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             DateOnly? orderDate = null,
             DateOnly? expectedDeliveryDate = null,
             long requestId = RequestId,
-            IEnumerable<CreatePOItemDto>? items = null)
+            IEnumerable<CreatePOItemDto>? items = null,
+            IEnumerable<POQuotationFileDto>? quotationFiles = null)
             => new()
             {
                 PONumber = poNumber,
@@ -278,7 +297,17 @@ namespace BPG.Application.UnitTests.PurchaseOrders
                 DeliveryAddress = "Công trường Long Biên",
                 Notes = "Giao trong giờ hành chính",
                 RequestId = requestId,
-                Items = items?.ToList() ?? [Item(CementId, quantity: 10)]
+                Items = items?.ToList() ?? [Item(CementId, quantity: 10)],
+                QuotationFiles = quotationFiles?.ToList() ?? [QuotationFile()]
+            };
+
+        private static POQuotationFileDto QuotationFile(string fileName = "bao-gia-xi-mang.pdf")
+            => new()
+            {
+                FileName = fileName,
+                FileUrl = $"https://cdn.test/purchase-orders/quotations/{fileName}",
+                ContentType = "application/pdf",
+                FileSizeBytes = 2048
             };
 
         private static CreatePOItemDto Item(long materialId, decimal quantity)
@@ -326,12 +355,12 @@ namespace BPG.Application.UnitTests.PurchaseOrders
                 ]
             };
 
-        private static Project ProjectEntity()
+        private static Project ProjectEntity(string status = ProjectStatus.InProgress)
             => new()
             {
                 ProjectId = ProjectId,
                 Name = "Nhà máy Bắc Ninh",
-                Status = ProjectStatus.InProgress,
+                Status = status,
                 PlannedStart = ProjectStart,
                 PlannedEnd = new DateOnly(2027, 1, 1)
             };

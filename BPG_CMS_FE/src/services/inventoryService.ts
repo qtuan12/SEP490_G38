@@ -57,6 +57,15 @@ export interface CreatePurchaseOrderCommand {
   notes?: string;
   requestId: number;
   items: CreatePOItemDto[];
+  /** Ảnh hoặc PDF báo giá nhà cung cấp — bắt buộc ít nhất một tệp. */
+  quotationFiles: POQuotationFileDto[];
+}
+
+export interface POQuotationFileDto {
+  fileName: string;
+  fileUrl: string;
+  contentType?: string;
+  fileSizeBytes?: number;
 }
 
 export interface CreatePOItemDto {
@@ -92,6 +101,15 @@ export interface PurchaseOrderDetailDto {
   rejectedReason?: string;
   items: PODetailItemDto[];
   linkedRequests: LinkedRequestDto[];
+  quotationFiles: POQuotationDto[];
+}
+
+export interface POQuotationDto {
+  attachmentId: number;
+  fileName: string;
+  fileUrl: string;
+  contentType?: string;
+  fileSizeBytes?: number;
 }
 
 export interface PODetailItemDto {

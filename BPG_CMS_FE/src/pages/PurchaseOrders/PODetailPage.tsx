@@ -370,6 +370,45 @@ export const PODetailPage: React.FC = () => {
             <span style={{ ...infoValue, color: 'hsl(var(--text-secondary))' }}>{po.notes}</span>
           </div>
         )}
+        {/* Báo giá đính kèm — căn cứ để Giám đốc đối chiếu giá trước khi duyệt.
+            Đơn cũ tạo trước khi bắt buộc báo giá thì không có tệp nào, ẩn luôn khối này. */}
+        {po.quotationFiles?.length > 0 && (
+          <div style={{ ...infoRow, gridColumn: '1 / -1' }}>
+            <span style={infoLabel}>Báo giá nhà cung cấp</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
+              {po.quotationFiles.map((file) => {
+                const isPdf = file.contentType === 'application/pdf'
+                  || file.fileName.toLowerCase().endsWith('.pdf');
+                return (
+                  <a
+                    key={file.attachmentId}
+                    href={file.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={file.fileName}
+                    style={{
+                      width: 96, height: 96, borderRadius: 'var(--radius-sm)', overflow: 'hidden',
+                      border: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-card))',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      gap: 6, textDecoration: 'none', color: 'hsl(var(--text-secondary))',
+                    }}
+                  >
+                    {isPdf ? (
+                      <>
+                        <FileText size={28} style={{ color: 'hsl(var(--danger))' }} />
+                        <span style={{ fontSize: 10, lineHeight: 1.2, textAlign: 'center', padding: '0 6px', wordBreak: 'break-all' }}>
+                          {file.fileName.length > 24 ? `${file.fileName.slice(0, 21)}...` : file.fileName}
+                        </span>
+                      </>
+                    ) : (
+                      <img src={file.fileUrl} alt={file.fileName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Items table */}
