@@ -5,6 +5,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import type { InventoryTransaction } from '../../../types/inventory';
 import { getTransactionTypeDetails, formatDateTimeVN } from '../../../utils/inventoryHelpers';
 import { useVirtualRows } from '../../../hooks/useVirtualRows';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface LedgerHistoryTabProps {
   projectId: number;
@@ -184,11 +185,11 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                           </td>
                           <td className={`px-4 py-3.5 text-right font-bold ${t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
                             }`}>
-                            {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
+                            {t.quantityChange > 0 ? `+${formatNumber(t.quantityChange)}` : formatNumber(t.quantityChange)}{' '}
                             <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                           </td>
                           <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                            {t.balanceAfter}{' '}
+                            {formatNumber(t.balanceAfter)}{' '}
                             <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                           </td>
                           <td className="px-4 py-3.5 text-slate-700">

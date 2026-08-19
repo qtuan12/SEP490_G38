@@ -3,6 +3,7 @@ import { Modal, Button, Input, FormItem, ConfirmDialog, LoadingSpinner } from '.
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 import type { GoodsReceiptDetail, GoodsReceiptItemDetail } from '../../../types/inventory';
 import {
   Calendar,
@@ -514,7 +515,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
                           {item.specification || 'Chưa cập nhật'}
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-slate-950">
-                          {item.quantity} <span className="text-xs text-slate-500 font-normal">{item.unitName}</span>
+                          {formatNumber(item.quantity)} <span className="text-xs text-slate-500 font-normal">{item.unitName}</span>
                         </td>
                       </tr>
                     ))}

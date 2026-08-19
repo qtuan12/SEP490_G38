@@ -3,6 +3,7 @@ import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, Ch
 import ExcelJS from 'exceljs';
 import type { CurrentInventory } from '../../../types/inventory';
 import { Pagination } from '../../../components/ui';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface CurrentStockTabProps {
   inventoryList: CurrentInventory[];
@@ -21,12 +22,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
 
-
-  // Định dạng số lượng theo chuẩn tiếng Việt
-  const formatQty = (num: number): string => {
-    if (num === undefined || num === null) return '0';
-    return num.toLocaleString('vi-VN', { maximumFractionDigits: 3 });
-  };
 
   // Xác định trạng thái cảnh báo của từng vật tư
   const getItemStatus = (item: CurrentInventory): 'over_boq' | 'approaching' | 'low_stock' | 'stable' => {
@@ -258,7 +253,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             <span>Đã vượt định mức</span>
           </span>
           <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / Định mức: {formatQty(boq)}
+            Đã dùng: {formatNumber(used)} / Định mức: {formatNumber(boq)}
           </span>
           {boq > 0 && (
             <div className="w-24 bg-rose-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${Math.round((used / boq) * 100)}% định mức`}>
@@ -280,7 +275,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             <span>Sắp vượt định mức ({percent}%)</span>
           </span>
           <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / Định mức: {formatQty(boq)}
+            Đã dùng: {formatNumber(used)} / Định mức: {formatNumber(boq)}
           </span>
           <div className="w-24 bg-orange-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
             <div className="bg-orange-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
@@ -300,7 +295,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             <span>Tồn kho thấp</span>
           </span>
           <span className="text-[10px] text-slate-400 font-medium">
-            Khả dụng &le; Ngưỡng an toàn ({formatQty(safety)})
+            Khả dụng &le; Ngưỡng an toàn ({formatNumber(safety)})
           </span>
           {boq > 0 && (
             <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
@@ -435,18 +430,18 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         <div className="font-semibold text-slate-700">{item.specification || 'Không có'}</div>
                       </td>
                       <td className="px-4 py-3.5 text-right font-medium text-slate-900">
-                        {formatQty(item.quantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
+                        {formatNumber(item.quantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
                       </td>
                       <td className="px-4 py-3.5 text-right text-slate-500">
                         {item.reservedQuantity > 0 ? (
-                          <span className="text-rose-600 font-medium">{formatQty(item.reservedQuantity)}</span>
+                          <span className="text-rose-600 font-medium">{formatNumber(item.reservedQuantity)}</span>
                         ) : (
                           '0'
                         )}{' '}
                         <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
                       </td>
                       <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                        {formatQty(item.availableQuantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
+                        {formatNumber(item.availableQuantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
                       </td>
                       <td className="px-4 py-3.5 text-center text-xs text-slate-500">
                         {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString('vi-VN', {
@@ -519,10 +514,10 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                             {phase.phaseName}
                                           </td>
                                           <td className="px-3 py-2 text-right">
-                                            {formatQty(phase.boqQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
+                                            {formatNumber(phase.boqQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
                                           </td>
                                           <td className="px-3 py-2 text-right font-medium text-slate-900">
-                                            {formatQty(phase.usedQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
+                                            {formatNumber(phase.usedQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
                                           </td>
                                           <td className="px-3 py-2 text-right text-slate-500 font-mono">
                                             {phase.boqQuantity > 0 ? `${percent}%` : '-'}
