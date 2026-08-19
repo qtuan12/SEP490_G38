@@ -34,6 +34,11 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({ isOpen
     },
   });
 
+  const templateMutation = useMutation({
+    mutationFn: () => supplierService.downloadTemplate(),
+    onError: (err: Error) => toast.error(err.message || 'Không thể tải file mẫu.'),
+  });
+
   const handleFile = (f: File) => {
     if (!f.name.match(/\.(xlsx|xls)$/i)) {
       toast.error('Chỉ chấp nhận file .xlsx hoặc .xls');
@@ -56,20 +61,7 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({ isOpen
     onClose();
   };
 
-  const downloadTemplate = () => {
-    const rows = [
-      'STT,Tên nhà cung cấp (*),Thông tin liên hệ,Địa chỉ,Khu vực phục vụ,Đánh giá (0-5),Ghi chú đánh giá',
-      '1,Công ty TNHH ABC,0901234567,Số 1 Lê Lợi - Q.1 - TP.HCM,TP. Hồ Chí Minh,4.5,Nhà cung cấp uy tín',
-      '2,Nhà cung cấp XYZ,0912345678,123 Nguyễn Huệ - Hà Nội,Hà Nội,,',
-    ];
-    const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'template_nha_cung_cap.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const downloadTemplate = () => templateMutation.mutate();
 
   const footer = step === 'select' ? (
     <>

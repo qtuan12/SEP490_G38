@@ -55,4 +55,20 @@ export const supplierService = {
       })
     );
   },
+
+  async downloadTemplate(): Promise<void> {
+    const token = localStorage.getItem('bpg_token');
+    const BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7111/api';
+    const response = await fetch(`${BASE_URL}/suppliers/template`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Không thể tải file mẫu.');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mau_nha_cung_cap.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

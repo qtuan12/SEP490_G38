@@ -11,6 +11,7 @@ import {
   Search,
   Plus,
   Upload,
+  Download,
   Edit2,
   Trash2,
   AlertCircle,
@@ -66,10 +67,15 @@ export const SupplierManagement: React.FC = () => {
       showSuccess(result.message || `Đã xóa nhà cung cấp ${selectedSupplier?.supplierName} thành công.`);
       setSelectedSupplier(null);
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       toast.error(err.message || 'Không thể xóa nhà cung cấp.');
       setIsDeleteOpen(false);
     },
+  });
+
+  const templateMutation = useMutation({
+    mutationFn: () => supplierService.downloadTemplate(),
+    onError: (err: Error) => toast.error(err.message || 'Không thể tải file mẫu.'),
   });
 
   const handleDeleteConfirm = () => {
@@ -261,7 +267,16 @@ export const SupplierManagement: React.FC = () => {
           </div>
 
           {canManageSuppliers && (
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Button
+                variant="secondary"
+                isLoading={templateMutation.isPending}
+                onClick={() => templateMutation.mutate()}
+                className="h-10 font-semibold flex items-center gap-1.5"
+              >
+                <Download size={15} />
+                <span>Tải mẫu</span>
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() => setIsImportOpen(true)}
