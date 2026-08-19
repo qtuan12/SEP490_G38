@@ -1,5 +1,5 @@
 import { apiClient } from './api';
-import type { Supplier, GetSuppliersQuery } from '../types/supplier';
+import type { Supplier, GetSuppliersQuery, ImportSuppliersResult } from '../types/supplier';
 import type { PagedList } from './notificationService';
 import type { ApiResult } from '../types/api';
 
@@ -44,5 +44,15 @@ export const supplierService = {
 
   async deleteSupplier(id: number): Promise<ApiResult<null>> {
     return unwrapWithMessage(await apiClient.delete<ApiResponse<null>>(`/suppliers/${id}`));
-  }
+  },
+
+  async importSuppliers(file: File): Promise<ApiResult<ImportSuppliersResult>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return unwrapWithMessage(
+      await apiClient.post<ApiResponse<ImportSuppliersResult>>('/suppliers/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    );
+  },
 };

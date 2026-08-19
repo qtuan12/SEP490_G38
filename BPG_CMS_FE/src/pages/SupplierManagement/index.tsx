@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supplierService } from '../../services/supplierService';
 import { SupplierFormModal } from './modals/SupplierFormModal';
+import { ImportSupplierModal } from './modals/ImportSupplierModal';
 import { ConfirmDialog, Button, Select, Badge, DataTable, Pagination, TableLoader } from '../../components/ui';
 import type { Supplier } from '../../types/supplier';
 import { useAuth } from '../../context/AuthContext';
@@ -9,6 +10,7 @@ import { RoleGroup } from '../../auth/roles';
 import {
   Search,
   Plus,
+  Upload,
   Edit2,
   Trash2,
   AlertCircle,
@@ -30,6 +32,7 @@ export const SupplierManagement: React.FC = () => {
   // Modal control states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Message states
   const [error, setError] = useState<string | null>(null);
@@ -258,10 +261,20 @@ export const SupplierManagement: React.FC = () => {
           </div>
 
           {canManageSuppliers && (
-            <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
-              <Plus size={18} />
-              <span>Thêm Nhà cung cấp</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setIsImportOpen(true)}
+                className="h-10 font-semibold flex items-center gap-1.5"
+              >
+                <Upload size={16} />
+                <span>Import Excel</span>
+              </Button>
+              <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
+                <Plus size={18} />
+                <span>Thêm Nhà cung cấp</span>
+              </Button>
+            </div>
           )}
         </div>
 
@@ -295,6 +308,12 @@ export const SupplierManagement: React.FC = () => {
             onClose={() => setIsFormOpen(false)}
             supplier={selectedSupplier}
             onSuccess={showSuccess}
+          />
+
+          {/* Import Excel Modal */}
+          <ImportSupplierModal
+            isOpen={isImportOpen}
+            onClose={() => setIsImportOpen(false)}
           />
 
           {/* Soft Delete Confirmation Modal */}

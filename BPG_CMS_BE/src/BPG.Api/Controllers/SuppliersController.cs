@@ -65,5 +65,14 @@ namespace BPG.Api.Controllers
             await Mediator.Send(new DeleteSupplierCommand(id));
             return ApiOk("Xóa nhà cung cấp thành công");
         }
+
+        [HttpPost("import")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = RolePolicies.SupplierManagers)]
+        public async Task<IActionResult> ImportSuppliers(IFormFile file)
+        {
+            var result = await Mediator.Send(new ImportSuppliersCommand(file));
+            return ApiOk(result, "Import nhà cung cấp hoàn thành.");
+        }
     }
 }
