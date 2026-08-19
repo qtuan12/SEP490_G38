@@ -1,3 +1,4 @@
+import { formatNumber } from '../../../utils/formatNumber';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
@@ -24,7 +25,6 @@ import { Modal } from '../../../components/ui/Modal';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
 import {
-import { formatNumber } from '../../../utils/formatNumber';
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
 } from '../../../constants/realtimeEntities';

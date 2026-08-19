@@ -216,7 +216,7 @@ public class ConfirmIncidentCommandHandlerTests
     public async Task UTCID08A_Handle_ProgressDecreaseWithParent_ShouldRecalculateAncestors()
     {
         var incident = ConstructionIncident();
-        incident.Task.ParentTaskId = 301;
+        incident.Task!.ParentTaskId = 301;
         SetupIncident(incident);
         SetRoles(UserRoleConstants.TechnicalManager);
         SetupTaskProject();

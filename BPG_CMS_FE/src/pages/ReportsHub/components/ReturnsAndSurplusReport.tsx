@@ -1,3 +1,4 @@
+import { formatNumber } from '../../../utils/formatNumber';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -11,7 +12,6 @@ import {
   type MaterialReturnReportItemDto
 } from '../../../services/reportService';
 import {
-import { formatNumber } from '../../../utils/formatNumber';
   ResponsiveContainer, PieChart, Pie, Cell,
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, BarChart

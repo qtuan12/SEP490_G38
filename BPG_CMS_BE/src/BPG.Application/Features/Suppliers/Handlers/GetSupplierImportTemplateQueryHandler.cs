@@ -9,7 +9,7 @@ namespace BPG.Application.Features.Suppliers.Handlers
 {
     public class GetSupplierImportTemplateQueryHandler : IRequestHandler<GetSupplierImportTemplateQuery, byte[]>
     {
-        public async Task<byte[]> Handle(GetSupplierImportTemplateQuery request, CancellationToken cancellationToken)
+        public Task<byte[]> Handle(GetSupplierImportTemplateQuery request, CancellationToken cancellationToken)
         {
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add("Nhà cung cấp");
@@ -42,7 +42,7 @@ namespace BPG.Application.Features.Suppliers.Handlers
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            return stream.ToArray();
+            return Task.FromResult(stream.ToArray());
         }
     }
 }

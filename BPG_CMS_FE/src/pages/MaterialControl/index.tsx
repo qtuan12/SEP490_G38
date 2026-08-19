@@ -1,3 +1,4 @@
+import { formatNumber } from '../../utils/formatNumber';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
@@ -11,7 +12,6 @@ import { Boxes, Search } from 'lucide-react';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import {
-import { formatNumber } from '../../utils/formatNumber';
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
 } from '../../constants/realtimeEntities';
