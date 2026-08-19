@@ -109,6 +109,7 @@ public static class AttachmentType
     public const string IncidentPhoto = "IncidentPhoto"; // Ảnh sự cố (Incident)
     public const string AcceptancePdf = "AcceptancePdf"; // PDF nghiệm thu phase
     public const string SurplusEvidence = "SurplusEvidence"; // Ảnh/Hóa đơn minh chứng thanh lý/trả NCC
+    public const string Quotation = "Quotation";         // Ảnh/PDF báo giá nhà cung cấp (PurchaseOrder)
     public const string Other = "Other";                 // Khác
 }
 

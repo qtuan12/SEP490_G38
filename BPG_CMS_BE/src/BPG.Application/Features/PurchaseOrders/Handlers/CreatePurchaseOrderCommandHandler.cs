@@ -202,6 +202,23 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 }).ToList();
 
                 await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
+
+                // 5. Lưu tệp báo giá đính kèm — bắt buộc, là căn cứ để Giám đốc duyệt giá đơn hàng.
+                var quotationAttachments = request.QuotationFiles.Select(f => new Attachment
+                {
+                    EntityType = EntityType.PurchaseOrder,
+                    EntityId = po.POId,
+                    AttachmentType = AttachmentType.Quotation,
+                    FileName = f.FileName,
+                    FileUrl = f.FileUrl,
+                    ContentType = f.ContentType,
+                    FileSizeBytes = f.FileSizeBytes,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserService.UserId,
+                    IsDeleted = false
+                }).ToList();
+
+                await _uow.Repository<Attachment>().AddRangeAsync(quotationAttachments, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
 
                 await _uow.CommitTransactionAsync(cancellationToken);

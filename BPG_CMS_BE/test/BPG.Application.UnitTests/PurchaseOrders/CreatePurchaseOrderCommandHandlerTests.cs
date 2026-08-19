@@ -36,6 +36,8 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private readonly Mock<IGenericRepository<PurchaseOrderItem>> _mockPoItemRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
+        private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
+        private readonly List<Attachment> _savedAttachments = [];
         private readonly CreatePurchaseOrderCommandHandler _handler;
 
         public CreatePurchaseOrderCommandHandlerTests()
@@ -47,6 +49,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockPoItemRepo = new Mock<IGenericRepository<PurchaseOrderItem>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
+            _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             var mockCurrentUserService = new Mock<ICurrentUserService>();
 
             _mockUow.Setup(u => u.Repository<MaterialRequest>()).Returns(_mockRequestRepo.Object);
@@ -55,11 +58,16 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockUow.Setup(u => u.Repository<PurchaseOrderItem>()).Returns(_mockPoItemRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
+            _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             _mockUow.Setup(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.ExecuteSqlAsync(It.IsAny<FormattableString>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            _mockAttachmentRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<Attachment>>(), It.IsAny<CancellationToken>()))
+                .Callback<IEnumerable<Attachment>, CancellationToken>((items, _) => _savedAttachments.AddRange(items))
                 .Returns(Task.CompletedTask);
 
             _mockPoItemRepo.Setup(r => r.AddRangeAsync(It.IsAny<IEnumerable<PurchaseOrderItem>>(), It.IsAny<CancellationToken>()))
@@ -255,12 +263,30 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             result.Should().Be(GeneratedPOId);
         }
 
+        [Fact]
+        public async Task UTCID16_Handle_ValidRequest_ShouldSaveQuotationAttachments()
+        {
+            await _handler.Handle(
+                Command(quotationFiles: [QuotationFile("bao-gia-01.pdf"), QuotationFile("bao-gia-02.jpg")]),
+                CancellationToken.None);
+
+            _savedAttachments.Should().HaveCount(2);
+            _savedAttachments.Should().OnlyContain(a =>
+                a.EntityType == EntityType.PurchaseOrder
+                && a.EntityId == GeneratedPOId
+                && a.AttachmentType == AttachmentType.Quotation
+                && a.CreatedBy == CurrentUserId);
+            _savedAttachments.Select(a => a.FileName)
+                .Should().BeEquivalentTo(["bao-gia-01.pdf", "bao-gia-02.jpg"]);
+        }
+
         private static CreatePurchaseOrderCommand Command(
             string? poNumber = null,
             DateOnly? orderDate = null,
             DateOnly? expectedDeliveryDate = null,
             long requestId = RequestId,
-            IEnumerable<CreatePOItemDto>? items = null)
+            IEnumerable<CreatePOItemDto>? items = null,
+            IEnumerable<POQuotationFileDto>? quotationFiles = null)
             => new()
             {
                 PONumber = poNumber,
@@ -271,7 +297,17 @@ namespace BPG.Application.UnitTests.PurchaseOrders
                 DeliveryAddress = "Công trường Long Biên",
                 Notes = "Giao trong giờ hành chính",
                 RequestId = requestId,
-                Items = items?.ToList() ?? [Item(CementId, quantity: 10)]
+                Items = items?.ToList() ?? [Item(CementId, quantity: 10)],
+                QuotationFiles = quotationFiles?.ToList() ?? [QuotationFile()]
+            };
+
+        private static POQuotationFileDto QuotationFile(string fileName = "bao-gia-xi-mang.pdf")
+            => new()
+            {
+                FileName = fileName,
+                FileUrl = $"https://cdn.test/purchase-orders/quotations/{fileName}",
+                ContentType = "application/pdf",
+                FileSizeBytes = 2048
             };
 
         private static CreatePOItemDto Item(long materialId, decimal quantity)

@@ -1,14 +1,32 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
 import { projectService } from '../../services/projectService';
 import { Button, Input, Select } from '../../components/ui';
-import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart, Upload, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
 import { todayVnISO } from '../../utils/dateHelpers';
+import { compressAndUploadFile } from '../../utils/uploadHelper';
+
+/** Ảnh/PDF báo giá đang chờ tải lên hoặc đã có URL trên Cloudinary. */
+interface QuotationFileState {
+  id: string;
+  name: string;
+  /** Ảnh: URL preview (blob khi đang tải, URL thật khi xong). PDF: chỉ có URL thật. */
+  url?: string;
+  isPdf: boolean;
+  contentType?: string;
+  fileSizeBytes?: number;
+  status: 'uploading' | 'success' | 'error';
+}
+
+const QUOTATION_FOLDER = 'purchase-orders/quotations';
+/** Trùng UploadFilePolicy.MaxFilesPerRequest và MaxFileSizeBytes của backend. */
+const MAX_QUOTATION_FILES = 5;
+const MAX_QUOTATION_SIZE_BYTES = 10 * 1024 * 1024;
 
 interface POItem {
   materialId: number;
@@ -90,6 +108,10 @@ export const CreatePOPage: React.FC = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [headerNotes, setHeaderNotes] = useState('');
+
+  // Báo giá nhà cung cấp (ảnh hoặc PDF) — bắt buộc phải có ít nhất một tệp mới tạo được đơn.
+  const [quotationFiles, setQuotationFiles] = useState<QuotationFileState[]>([]);
+  const quotationInputRef = useRef<HTMLInputElement>(null);
 
   // Item table
   const [items, setItems] = useState<POItem[]>([]);
@@ -269,6 +291,78 @@ export const CreatePOPage: React.FC = () => {
     return byIndex;
   }, [apiFieldErrors]);
 
+  // ---- Báo giá đính kèm ----
+  const uploadedQuotations = useMemo(
+    () => quotationFiles.filter((f) => f.status === 'success' && f.url),
+    [quotationFiles]
+  );
+  const isUploadingQuotation = quotationFiles.some((f) => f.status === 'uploading');
+  const quotationError =
+    apiFieldErrors.quotationFiles ||
+    (attemptedSubmit && uploadedQuotations.length === 0
+      ? 'Bắt buộc phải đính kèm báo giá của nhà cung cấp (ảnh hoặc PDF).'
+      : null);
+
+  const handleQuotationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    if (quotationInputRef.current) quotationInputRef.current.value = '';
+    if (!picked.length) return;
+
+    const accepted = picked.filter((f) => f.type.startsWith('image/') || f.type === 'application/pdf');
+    if (accepted.length < picked.length) toast.error('Chỉ hỗ trợ ảnh (jpg, png, ...) hoặc file PDF.');
+
+    const withinSize = accepted.filter((f) => f.size <= MAX_QUOTATION_SIZE_BYTES);
+    if (withinSize.length < accepted.length) toast.error('Mỗi tệp báo giá không được vượt quá 10 MB.');
+
+    const slots = MAX_QUOTATION_FILES - quotationFiles.length;
+    if (slots <= 0) {
+      toast.error(`Chỉ được đính kèm tối đa ${MAX_QUOTATION_FILES} tệp báo giá.`);
+      return;
+    }
+    const files = withinSize.slice(0, slots);
+    if (withinSize.length > slots) toast.error(`Chỉ được đính kèm tối đa ${MAX_QUOTATION_FILES} tệp báo giá.`);
+
+    files.forEach((file) => {
+      const tempId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const isPdf = file.type === 'application/pdf';
+
+      setQuotationFiles((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          name: file.name,
+          url: isPdf ? undefined : URL.createObjectURL(file),
+          isPdf,
+          contentType: file.type,
+          fileSizeBytes: file.size,
+          status: 'uploading',
+        },
+      ]);
+      clearApiFieldError('quotationFiles');
+
+      compressAndUploadFile(
+        file,
+        QUOTATION_FOLDER,
+        (uploadedUrl) =>
+          setQuotationFiles((prev) =>
+            prev.map((f) => (f.id === tempId ? { ...f, status: 'success', url: uploadedUrl } : f))
+          ),
+        (message) => {
+          toast.error(`Không thể tải báo giá ${file.name} lên. ${message}`);
+          setQuotationFiles((prev) => prev.map((f) => (f.id === tempId ? { ...f, status: 'error' } : f)));
+        }
+      );
+    });
+  };
+
+  const removeQuotation = (id: string) =>
+    setQuotationFiles((prev) => {
+      const target = prev.find((f) => f.id === id);
+      // Chỉ thu hồi blob preview do trang này tạo, không đụng vào URL Cloudinary.
+      if (target?.url?.startsWith('blob:')) URL.revokeObjectURL(target.url);
+      return prev.filter((f) => f.id !== id);
+    });
+
   const mutation = useMutation({
     mutationFn: (submitOrderDate: string) =>
       inventoryService.createPurchaseOrder({
@@ -285,6 +379,12 @@ export const CreatePOPage: React.FC = () => {
           quantity: num(it.quantity),
           unitPrice: num(it.unitPrice),
           notes: it.notes.trim() || undefined,
+        })),
+        quotationFiles: uploadedQuotations.map((f) => ({
+          fileName: f.name,
+          fileUrl: f.url!,
+          contentType: f.contentType,
+          fileSizeBytes: f.fileSizeBytes,
         })),
       }),
     onSuccess: (result) => {
@@ -317,6 +417,16 @@ export const CreatePOPage: React.FC = () => {
 
   const handleSubmit = () => {
     setAttemptedSubmit(true);
+    // Chặn tại chỗ hai trường hợp API không thể tự sửa giúp: báo giá đang tải dở (URL chưa có)
+    // và chưa đính kèm tệp nào — gửi lên cũng chỉ nhận lại lỗi 400.
+    if (isUploadingQuotation) {
+      toast.error('Báo giá đang được tải lên, vui lòng đợi trong giây lát.');
+      return;
+    }
+    if (uploadedQuotations.length === 0) {
+      toast.error('Vui lòng đính kèm báo giá của nhà cung cấp (ảnh hoặc PDF).');
+      return;
+    }
     // Xóa lỗi của lần gửi trước rồi gọi API — để backend là nơi quyết định trường nào còn thiếu/sai,
     // FE chỉ hiển thị lại đúng vị trí.
     setFormError(null);
@@ -717,6 +827,114 @@ export const CreatePOPage: React.FC = () => {
         </div>
       )}
 
+      {/* Quotation attachments */}
+      <div className="glass-panel p-6">
+        <h3 style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
+          Báo giá nhà cung cấp <span style={{ color: 'hsl(var(--danger))' }}>*</span>
+        </h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start' }}>
+          {quotationFiles.map((file) => (
+            <div key={file.id} style={{ position: 'relative' }}>
+              <div
+                style={{
+                  width: 96, height: 96, borderRadius: 'var(--radius-sm)', overflow: 'hidden',
+                  border: `1px solid ${file.status === 'error' ? '#dc2626' : file.status === 'success' ? '#16a34a' : 'hsl(var(--border))'}`,
+                  background: 'hsl(var(--bg-card))', position: 'relative',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {file.isPdf ? (
+                  <a
+                    href={file.status === 'success' ? file.url : undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                      padding: 8, textDecoration: 'none', color: 'hsl(var(--text-secondary))',
+                      cursor: file.status === 'success' ? 'pointer' : 'default',
+                    }}
+                  >
+                    <FileText size={28} color="hsl(var(--danger))" />
+                    <span style={{ fontSize: 10, lineHeight: 1.2, textAlign: 'center', wordBreak: 'break-all' }}>
+                      {file.name.length > 24 ? `${file.name.slice(0, 21)}...` : file.name}
+                    </span>
+                  </a>
+                ) : (
+                  <img
+                    src={file.url}
+                    alt={file.name}
+                    onClick={() => file.status === 'success' && file.url && window.open(file.url, '_blank', 'noreferrer')}
+                    style={{
+                      width: '100%', height: '100%', objectFit: 'cover',
+                      cursor: file.status === 'success' ? 'zoom-in' : 'default',
+                    }}
+                  />
+                )}
+
+                {file.status === 'uploading' && (
+                  <div style={{
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.45)',
+                  }}>
+                    <Loader2 size={20} color="#fff" className="animate-spin" />
+                  </div>
+                )}
+                {file.status === 'error' && (
+                  <div style={{
+                    position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(220,38,38,0.15)',
+                  }}>
+                    <AlertCircle size={20} color="#dc2626" />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => removeQuotation(file.id)}
+                aria-label={`Xóa tệp ${file.name}`}
+                style={{
+                  position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%',
+                  border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+
+          {quotationFiles.length < MAX_QUOTATION_FILES && (
+            <button
+              type="button"
+              onClick={() => quotationInputRef.current?.click()}
+              style={{
+                width: 96, height: 96, borderRadius: 'var(--radius-sm)',
+                border: '1px dashed hsl(var(--border))', background: 'transparent',
+                color: 'hsl(var(--text-muted))', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Upload size={18} />
+              <span style={{ fontSize: 11 }}>Thêm báo giá</span>
+            </button>
+          )}
+        </div>
+
+        <input
+          ref={quotationInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          style={{ display: 'none' }}
+          onChange={handleQuotationChange}
+        />
+
+        {quotationError && (
+          <p style={{ margin: '8px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{quotationError}</p>
+        )}
+      </div>
+
       {/* Actions */}
       <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingBottom: 24 }}>
         <button
@@ -731,7 +949,7 @@ export const CreatePOPage: React.FC = () => {
         >
           Hủy
         </button>
-        <Button type="button" variant="primary" disabled={mutation.isPending} className="font-semibold" onClick={handleSubmit}>
+        <Button type="button" variant="primary" disabled={mutation.isPending || isUploadingQuotation} className="font-semibold" onClick={handleSubmit}>
           {mutation.isPending ? <><Loader2 size={16} className="animate-spin" /> Đang lưu...</> : <><Plus size={16} /> Tạo đơn hàng</>}
         </Button>
       </div>
