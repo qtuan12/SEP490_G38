@@ -149,7 +149,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
         item.reservedQuantity,
         item.availableQuantity,
         item.unitName,
-        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
+        item.lastUpdated ? new formatNumber(Date(item.lastUpdated)) : 'Chưa cập nhật',
         statusLabel,
       ];
 

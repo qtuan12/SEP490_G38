@@ -3,6 +3,7 @@ import { Boxes, CheckCircle, XCircle, FileCheck2 } from 'lucide-react';
 import type { MaterialRequest } from '../../../types/common';
 import { Badge, Button } from '../../../components/ui';
 import { formatDate } from '../../../utils/dateHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface MaterialCompensationTableProps {
   materialRequests: MaterialRequest[];
@@ -106,7 +107,7 @@ export const MaterialCompensationTable: React.FC<MaterialCompensationTableProps>
                               )}
                             </div>
                           </td>
-                          <td className="px-3 py-3 align-top font-bold text-right text-[hsl(var(--text-primary))] whitespace-nowrap">{totalVal > 0 ? `${totalVal.toLocaleString('vi-VN')} đ` : '—'}</td>
+                          <td className="px-3 py-3 align-top font-bold text-right text-[hsl(var(--text-primary))] whitespace-nowrap">{totalVal > 0 ? `${formatNumber(totalVal)} đ` : '—'}</td>
                           <td className="px-3 py-3 align-top">
                             {req.type === 'emergency' ? (
                               <Badge variant="warning" className="text-[9px] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-1.5 normal-case font-semibold">Khẩn cấp (Direct Purchase)</Badge>

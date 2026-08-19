@@ -61,7 +61,7 @@ export const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Vật tư vượt định mức</span>
           <strong className={`text-2xl font-extrabold mt-1 ${overBOQCount > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-900'}`}>
-            {overBOQCount.toLocaleString('vi-VN')}
+            {formatNumber(overBOQCount)}
           </strong>
         </div>
         <div className={`p-3 rounded-xl ${overBOQCount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>

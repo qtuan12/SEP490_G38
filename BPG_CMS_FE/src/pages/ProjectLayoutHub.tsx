@@ -49,6 +49,7 @@ import { GlobalInventoryIncidents } from './InventoryAdjustments/components/Glob
 import { isPWAMode } from '../utils/pwaHelpers';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { RoleGroup } from '../auth/roles';
+import { formatNumber } from '../utils/formatNumber';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -462,8 +463,8 @@ export const ProjectLayoutHub: React.FC = () => {
               const lastPause = [...history].reverse().find(h => h.type === 'pause');
               const pauseUser = lastPause?.user || "Hệ thống";
               const pauseTime = lastPause?.timestamp
-                ? new Date(lastPause.timestamp).toLocaleString('vi-VN')
-                : (project.pausedAt ? new Date(project.pausedAt).toLocaleString('vi-VN') : null);
+                ? new formatNumber(Date(lastPause.timestamp))
+                : (project.pausedAt ? new formatNumber(Date(project.pausedAt)) : null);
 
               return (
                 <div style={{ marginTop: '12px', padding: '10px 14px', backgroundColor: 'hsl(var(--warning) / 0.1)', borderLeft: '4px solid hsl(var(--warning))', color: 'hsl(var(--warning))', fontSize: '0.9rem', borderRadius: '4px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
@@ -1006,7 +1007,7 @@ export const ProjectLayoutHub: React.FC = () => {
             <div style={{ position: 'relative', paddingLeft: '24px', borderLeft: '2px solid hsl(var(--border))', marginLeft: '12px', display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '10px' }}>
               {parseStatusHistory(project.pauseReason).map((item, index) => {
                 const isPause = item.type === 'pause';
-                const formattedDate = item.timestamp ? new Date(item.timestamp).toLocaleString('vi-VN') : 'Không rõ thời gian';
+                const formattedDate = item.timestamp ? new formatNumber(Date(item.timestamp)) : 'Không rõ thời gian';
 
                 return (
                   <div key={index} style={{ position: 'relative' }}>

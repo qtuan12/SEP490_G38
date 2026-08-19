@@ -102,6 +102,11 @@ Mục tiêu tối thượng của bạn là: **TỐI ĐA HÓA TÁI SỬ DỤNG (
 * **Xử lý Form & Validation:** Sử dụng `react-hook-form` kết hợp với `zod` để quản lý trạng thái form và tự động validate dữ liệu theo schema khớp với DTO của Backend.
 * **TypeScript Strict Mode:** KHÔNG sử dụng kiểu `any`. Mọi response từ api và props component phải có `interface` rõ ràng khớp với DTO backend.
 
+### C. Định dạng hiển thị Số lượng & Đơn vị (Formatting)
+* **Bắt buộc dùng `formatNumber`:** Tất cả các con số hiển thị trên giao diện (số lượng tồn kho, định mức, thực nhận, biến động) đều PHẢI sử dụng hàm `formatNumber` (import từ `src/utils/formatNumber.ts`).
+* **Chuẩn Việt Nam (vi-VN):** Hàm này sử dụng dấu chấm (`.`) để phân cách phần nghìn và dấu phẩy (`,`) cho phần thập phân (Ví dụ: `100.000`, `1.000,5`). Tự động làm tròn tối đa 3 chữ số thập phân và bỏ các số `0` dư thừa ở đuôi (số nguyên `1` sẽ giữ nguyên là `1`, không bị biến thành `1.000`).
+* **Tuyệt đối KHÔNG:** Không dùng `toLocaleString('vi-VN')` rải rác trong từng thẻ HTML. Không dùng `.toFixed()` khi hiển thị lên giao diện trừ những trường hợp đặc thù bắt buộc phải có trailing zeros.
+
 ---
 
 ## 4. TRÌNH TỰ CODE BẮT BUỘC (DEVELOPMENT WORKFLOW)

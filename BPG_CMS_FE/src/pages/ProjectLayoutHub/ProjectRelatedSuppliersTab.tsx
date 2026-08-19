@@ -5,6 +5,7 @@ import { Badge, DataTable, Input, TableLoader, type ColumnDef } from '../../comp
 import { supplierService } from '../../services/supplierService';
 import { surplusService } from '../../services/surplusService';
 import type { Supplier } from '../../types/supplier';
+import { formatNumber } from '../../utils/formatNumber';
 
 interface Props {
   projectId: number;
@@ -153,7 +154,7 @@ export const ProjectRelatedSuppliersTab: React.FC<Props> = ({ projectId }) => {
           <div>
             <h3 className="text-lg font-bold m-0 text-[hsl(var(--text-primary))]">{text.title}</h3>
             <p className="text-sm text-[hsl(var(--text-muted))] m-0 mt-1">
-              {suppliers.length.toLocaleString('vi-VN')} {text.countSuffix}
+              {formatNumber(suppliers.length)} {text.countSuffix}
             </p>
           </div>
           <div className="relative w-full sm:w-80">

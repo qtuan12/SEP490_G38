@@ -11,6 +11,7 @@ import { Boxes, Search } from 'lucide-react';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import {
+import { formatNumber } from '../../utils/formatNumber';
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
 } from '../../constants/realtimeEntities';
@@ -143,7 +144,7 @@ export const MaterialControl: React.FC = () => {
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
+      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${formatNumber(totalCost)} VND.`);
       fetchMaterialRequests();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');

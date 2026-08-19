@@ -13,6 +13,7 @@ import type { CurrentInventory } from '../../../types/inventory';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import { LazyImage } from '../../../utils/imageOptimizer';
 import { parseInventoryIncidentDamage } from '../../../utils/inventoryIncidentDamage';
+import { formatNumber } from '../../../utils/formatNumber';
 interface IncidentDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -312,7 +313,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                 </tbody>
               </table>
 
-              <p><strong>Chi phí dự kiến:</strong> ${incident.recoveryEstimateCost ? incident.recoveryEstimateCost.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</p>
+              <p><strong>Chi phí dự kiến:</strong> ${incident.recoveryEstimateCost ? formatNumber(incident.recoveryEstimateCost) + ' VNĐ' : '0 VNĐ'}</p>
               
               <p style="margin-top: 15px;"><strong>Điều kiện nghiệm thu:</strong> ${doc.dieuKienNghiemThu || ''}</p>
             </div>
@@ -403,12 +404,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                 <tr>
                   <td style="border:1px solid #000;padding:5px 8px;text-align:center;">${idx + 1}</td>
                   <td style="border:1px solid #000;padding:5px 8px;">${it.tenVatLieu || ''}</td>
-                  <td style="border:1px solid #000;padding:5px 8px;text-align:right;">${it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') : '0'}</td>
+                  <td style="border:1px solid #000;padding:5px 8px;text-align:right;">${it.chiPhiSoBo ? formatNumber(it.chiPhiSoBo) : '0'}</td>
                 </tr>
               `).join('')}
               <tr style="font-weight:bold;">
                 <td colspan="2" style="border:1px solid #000;padding:5px 8px;text-align:right;font-weight:bold;">Tổng thiệt hại:</td>
-                <td style="border:1px solid #000;padding:5px 8px;text-align:right;color:red;font-weight:bold;">${total.toLocaleString('vi-VN')} VNĐ</td>
+                <td style="border:1px solid #000;padding:5px 8px;text-align:right;color:red;font-weight:bold;">${formatNumber(total)} VNĐ</td>
               </tr>
             </tbody>
           </table>
@@ -678,7 +679,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         <div style="margin-bottom: 25px; font-size: 12pt;">
           <strong>Dự án:</strong> ${incident.projectName || 'Không xác định'}<br/>
           <strong>Người lập báo cáo:</strong> ${incident.reviewerName || 'Trưởng phòng Kỹ thuật'}<br/>
-          <strong>Tổng kinh phí dự kiến:</strong> ${incident.recoveryEstimateCost ? incident.recoveryEstimateCost.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
+          <strong>Tổng kinh phí dự kiến:</strong> ${incident.recoveryEstimateCost ? formatNumber(incident.recoveryEstimateCost) + ' VNĐ' : 'Chưa xác định'}
         </div>
         
         <hr style="border: 0.5px solid #000; margin-bottom: 25px;"/>
@@ -832,7 +833,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         <div style="margin-bottom: 20px;">
           <strong>Dự án:</strong> ${incident.projectName || 'Không xác định'}<br/>
           <strong>Người lập báo cáo:</strong> ${incident.reviewerName || 'Trưởng phòng Kỹ thuật'}<br/>
-          <strong>Tổng kinh phí dự kiến:</strong> ${incident.recoveryEstimateCost ? incident.recoveryEstimateCost.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
+          <strong>Tổng kinh phí dự kiến:</strong> ${incident.recoveryEstimateCost ? formatNumber(incident.recoveryEstimateCost) + ' VNĐ' : 'Chưa xác định'}
         </div>
         
         <hr style="border: 0.5px solid #000; margin-bottom: 20px;"/>
@@ -1146,12 +1147,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                                   <tr key={idx}>
                                     <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'center' }}>{it.stt}</td>
                                     <td style={{ border: '1px solid #000', padding: '6px' }}>{it.tenVatLieu}</td>
-                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') : '0'}</td>
+                                    <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>{it.chiPhiSoBo ? formatNumber(it.chiPhiSoBo) : '0'}</td>
                                   </tr>
                                 ))}
                                 <tr style={{ fontWeight: 'bold', background: '#f9f9f9' }}>
                                   <td colSpan={2} style={{ border: '1px solid #000', padding: '6px', textAlign: 'right' }}>Tổng thiệt hại:</td>
-                                  <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: 'red' }}>{total.toLocaleString('vi-VN')} VNĐ</td>
+                                  <td style={{ border: '1px solid #000', padding: '6px', textAlign: 'right', color: 'red' }}>{formatNumber(total)} VNĐ</td>
                                 </tr>
                               </tbody>
                             </table>
@@ -1318,7 +1319,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                         Ước tính chi phí vật tư sơ bộ
                       </div>
                       <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                        {incident.estimatedMaterialLoss.toLocaleString('vi-VN')} VNĐ
+                        {formatNumber(incident.estimatedMaterialLoss)} VNĐ
                       </strong>
                     </div>
                   )}
@@ -1445,12 +1446,12 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                                   <tr key={idx} style={{ borderBottom: idx < items.length - 1 ? '1px solid hsl(var(--border))' : 'none' }}>
                                     <td style={{ padding: '6px 10px', textAlign: 'center', color: 'hsl(var(--text-secondary))' }}>{it.stt}</td>
                                     <td style={{ padding: '6px 10px', color: 'hsl(var(--text-primary))' }}>{it.tenVatLieu}</td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: 'hsl(var(--text-primary))', fontWeight: 600 }}>{it.chiPhiSoBo ? it.chiPhiSoBo.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</td>
+                                    <td style={{ padding: '6px 10px', textAlign: 'right', color: 'hsl(var(--text-primary))', fontWeight: 600 }}>{it.chiPhiSoBo ? formatNumber(it.chiPhiSoBo) + ' VNĐ' : '0 VNĐ'}</td>
                                   </tr>
                                 ))}
                                 <tr style={{ background: 'hsl(var(--bg-muted))', fontWeight: 700 }}>
                                   <td colSpan={2} style={{ padding: '8px 10px', textAlign: 'right', color: 'hsl(var(--text-secondary))' }}>Tổng thiệt hại:</td>
-                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: 'red' }}>{total.toLocaleString('vi-VN')} VNĐ</td>
+                                  <td style={{ padding: '8px 10px', textAlign: 'right', color: 'red' }}>{formatNumber(total)} VNĐ</td>
                                 </tr>
                               </tbody>
                             </table>
@@ -1481,7 +1482,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {incident.recoveryEstimateCost !== undefined && incident.recoveryEstimateCost !== null && (
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'hsl(var(--primary))', marginRight: '8px' }}>
-                  Tổng dự toán: {incident.recoveryEstimateCost.toLocaleString('vi-VN')} VNĐ
+                  Tổng dự toán: {formatNumber(incident.recoveryEstimateCost)} VNĐ
                 </span>
               )}
               {!parsedDoc?.isImported && (
@@ -1666,7 +1667,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
 
                     <p style={{ margin: '16px 0 6px 0' }}><strong>3. Chi phí dự kiến khắc phục</strong></p>
                     <div style={{ paddingLeft: '14px', marginBottom: '14px' }}>
-                      - Tổng dự toán chi phí khắc phục: <strong>{incident.recoveryEstimateCost ? incident.recoveryEstimateCost.toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</strong>
+                      - Tổng dự toán chi phí khắc phục: <strong>{incident.recoveryEstimateCost ? formatNumber(incident.recoveryEstimateCost) + ' VNĐ' : '0 VNĐ'}</strong>
                     </div>
 
                     <p style={{ margin: '16px 0 6px 0' }}><strong>4. Điều kiện nghiệm thu hoàn thành</strong></p>
