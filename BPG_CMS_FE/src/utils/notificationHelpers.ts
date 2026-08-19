@@ -32,7 +32,7 @@ export const resolveNotificationUrl = (noti: any): string | null => {
           return referenceId ? `/inventory-adjustments?adjustmentId=${referenceId}` : '/inventory-adjustments';
         }
         if (tab === 'inventoryincidents' || tab === 'incidents') {
-          return referenceId ? `/incidents?incidentId=${referenceId}` : '/incidents';
+          return '/projects';
         }
       }
 
@@ -108,7 +108,7 @@ export const resolveNotificationUrl = (noti: any): string | null => {
   }
 
   if (referenceType === 'Incident' || referenceType === 'IncidentReported' || referenceType === 'InventoryIncidentReported' || referenceType === 'EmergencyStop') {
-    return referenceId ? `/incidents?incidentId=${referenceId}` : `/incidents`;
+    return `/projects`;
   }
 
   if (referenceType === 'PhaseAcceptance') {

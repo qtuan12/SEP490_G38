@@ -6,10 +6,11 @@ import { PortfolioDashboard } from './components/PortfolioDashboard';
 import { ConstructionProgressReport } from './components/ConstructionProgressReport';
 import { IncidentReport } from './components/IncidentReport';
 import { ProcurementReport } from './components/ProcurementReport';
+import { ReturnsAndSurplusReport } from './components/ReturnsAndSurplusReport';
 import { BoqVsActualReport } from '../Reports/BoqVsActualReport';
 import {
   LayoutDashboard, HardHat, AlertOctagon, Package, ShoppingCart,
-  Calendar, ChevronDown, Check, FolderKanban
+  RotateCcw, Calendar, ChevronDown, Check, FolderKanban
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { TableLoader } from '../../components/ui';
@@ -67,7 +68,7 @@ export const ReportsHub: React.FC = () => {
 
   useEffect(() => {
     const validTabs = new Set([
-      'executive', 'construction', 'incidents', 'boq', 'procurement'
+      'executive', 'construction', 'incidents', 'boq', 'procurement', 'returns-surplus'
     ]);
     const projectOnlyTabs = new Set(['construction', 'incidents']);
     if (!validTabs.has(activeTab)
@@ -130,6 +131,7 @@ export const ReportsHub: React.FC = () => {
     { id: 'incidents', label: 'Sự cố', icon: <AlertOctagon size={16} />, showForAll: false },
     { id: 'boq', label: 'Định mức BOQ', icon: <Package size={16} />, showForAll: true },
     { id: 'procurement', label: 'Mua sắm & Chi phí', icon: <ShoppingCart size={16} />, showForAll: true },
+    { id: 'returns-surplus', label: 'Hoàn trả & Vật tư thừa', icon: <RotateCcw size={16} />, showForAll: true },
   ];
 
   const visibleTabs = tabs.filter(tab => {
@@ -328,6 +330,9 @@ export const ReportsHub: React.FC = () => {
               )}
               {activeTab === 'procurement' && (
                 <ProcurementReport projectId={selectedProjectId} {...filterProps} />
+              )}
+              {activeTab === 'returns-surplus' && (
+                <ReturnsAndSurplusReport projectId={selectedProjectId} {...filterProps} />
               )}
             </div>
           </ReportErrorBoundary>

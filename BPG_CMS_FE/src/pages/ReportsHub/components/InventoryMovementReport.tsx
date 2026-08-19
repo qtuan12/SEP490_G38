@@ -98,6 +98,7 @@ export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, 
           <table className="w-full text-sm text-left">
             <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
               <tr>
+                <th className="px-4 py-3 font-medium text-center w-12">STT</th>
                 <th className="px-4 py-3 font-medium">Mã VT</th>
                 <th className="px-4 py-3 font-medium">Tên vật tư</th>
                 <th className="px-4 py-3 font-medium text-center">ĐVT</th>
@@ -110,8 +111,9 @@ export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, 
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--border))]">
-              {data.items.map(item => (
+              {data.items.map((item, index) => (
                 <tr key={item.materialId} className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors">
+                  <td className="px-4 py-3 text-center font-medium text-[hsl(var(--text-muted))]">{index + 1}</td>
                   <td className="px-4 py-3 font-medium">{item.materialCode}</td>
                   <td className="px-4 py-3 font-medium text-[hsl(var(--primary-hover))]">{item.materialName}</td>
                   <td className="px-4 py-3 text-center text-[hsl(var(--text-muted))]">{item.unitName}</td>
@@ -125,6 +127,11 @@ export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, 
                   <td className="px-4 py-3 text-right font-bold">{item.closingBalance.toLocaleString()}</td>
                 </tr>
               ))}
+              {data.items.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">Không có dữ liệu biến động tồn kho.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -4,14 +4,14 @@ import type { ProjectMember } from '../types/common';
 import type { UserProfile } from '../services/authService';
 import { Modal } from './ui/Modal';
 import { LoadingSpinner } from './ui/LoadingSpinner';
-import { Crown, UserPlus, UserX, UserCheck, Phone } from 'lucide-react';
+import { Crown, UserPlus, UserX, UserCheck, Phone, Search } from 'lucide-react';
 import { useSignalREvent } from '../hooks/useSignalREvent';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { RoleGroup } from '../auth/roles';
 
 interface AvailableEngineer extends UserProfile {
-  leaderProjectName?: string;
+  leaderProjectNames?: string[];
 }
 
 interface ProjectMembersProps {
@@ -31,7 +31,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState<{id: string, name: string} | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<{ id: string, name: string } | null>(null);
   const loadRequestIdRef = React.useRef(0);
 
   const isTechManagerOrAdmin = hasAnyRole(RoleGroup.Technical) || hasAnyRole(RoleGroup.AdminOnly);
@@ -74,8 +74,8 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         const allMembersPromises = allProjects.map(p => projectService.getMembers(p.id));
         const allMembersArrays = await Promise.all(allMembersPromises);
         if (requestId !== loadRequestIdRef.current) return;
-        
-        const leaderMap = new Map<string, string>();
+
+        const leaderMap = new Map<string, string[]>();
         allMembersArrays.forEach((mems, index) => {
           const project = allProjects[index];
           const statusLower = (project.status || '').toLowerCase();
@@ -85,14 +85,15 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
           }
           mems.forEach(m => {
             if (m.isLeader) {
-              leaderMap.set(m.userId, project.name);
+              const currentProjects = leaderMap.get(m.userId) || [];
+              leaderMap.set(m.userId, [...currentProjects, project.name]);
             }
           });
         });
 
         const engineersWithLeaderInfo: AvailableEngineer[] = engineers.map(e => ({
           ...e,
-          leaderProjectName: leaderMap.get(e.id)
+          leaderProjectNames: leaderMap.get(e.id) || []
         }));
 
         setAvailableEngineers(engineersWithLeaderInfo);
@@ -193,7 +194,7 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
   // - TPKT/Admin: Hiển thị tất cả kỹ sư, đồng thời gán mác "Trưởng nhóm - [Tên dự án]" cho người đang làm PL ở dự án chưa hoàn thành.
   // - Trưởng dự án (PL): Chỉ hiển thị những kỹ sư KHÔNG phải là Trưởng nhóm của dự án chưa hoàn thành.
   const candidateEngineers = availableEngineers.filter(u => {
-    if (!isTechManagerOrAdmin && u.leaderProjectName) {
+    if (!isTechManagerOrAdmin && u.leaderProjectNames && u.leaderProjectNames.length > 0) {
       return false;
     }
     const roleLower = (u.role || '').toLowerCase();
@@ -282,99 +283,99 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                 </div>
               )}
 
-            {/* Profile info */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: '50%',
-                backgroundColor: m.isLeader ? 'hsl(var(--primary-glow))' : 'hsl(var(--border))',
-                color: m.isLeader ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 600,
-                fontSize: '1rem'
-              }}>
-                {m.userName.charAt(0)}
-              </div>
-              <div style={{ overflow: 'hidden' }}>
-                <h4 style={{ fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {m.userName}
-                </h4>
-                <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {m.userEmail}
-                </p>
-                {m.userPhone && (
-                  <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                    <Phone size={10} />
-                    {m.userPhone}
+              {/* Profile info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: m.isLeader ? 'hsl(var(--primary-glow))' : 'hsl(var(--border))',
+                  color: m.isLeader ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                  fontSize: '1rem'
+                }}>
+                  {m.userName.charAt(0)}
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <h4 style={{ fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {m.userName}
+                  </h4>
+                  <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {m.userEmail}
                   </p>
-                )}
+                  {m.userPhone && (
+                    <p style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <Phone size={10} />
+                      {m.userPhone}
+                    </p>
+                  )}
+                </div>
               </div>
+
+              {/* Actions for TPKT & Project Leader */}
+              {canManageMembers && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: '6px',
+                  borderTop: '1px solid hsl(var(--border) / 0.5)',
+                  paddingTop: '12px',
+                  marginTop: '4px'
+                }}>
+                  {/* Crown Assign Checkbox/Button: TPKT/Admin only */}
+                  {canToggleLeader && (!hasLeader || m.isLeader) ? (
+                    <button
+                      onClick={() => handleToggleLeader(m.userId, m.userName)}
+                      className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        color: m.isLeader ? 'hsl(var(--text-secondary))' : 'goldenrod',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title={m.isLeader ? 'Bỏ vai trò Trưởng nhóm' : 'Gán làm Trưởng nhóm'}
+                    >
+                      <Crown size={14} fill={m.isLeader ? 'none' : 'currentColor'} />
+                      <span>{m.isLeader ? 'Hủy trưởng nhóm' : 'Gán trưởng nhóm'}</span>
+                    </button>
+                  ) : null}
+
+                  {/* Remove member button: TPKT/Admin or Leader (on non-leader engineers) */}
+                  {(canToggleLeader || !m.isLeader) && (
+                    <button
+                      onClick={() => handleRemoveMember(m.userId, m.userName)}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        color: 'hsl(var(--danger))',
+                        borderColor: 'hsl(var(--danger) / 0.2)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <UserX size={14} />
+                      <span>Xóa</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Informational Read-only icons for other users */}
+              {!canManageMembers && (
+                <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <UserCheck size={14} />
+                  <span>Kỹ sư thi công dự án</span>
+                </div>
+              )}
             </div>
-
-            {/* Actions for TPKT & Project Leader */}
-            {canManageMembers && (
-              <div style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: '6px',
-                borderTop: '1px solid hsl(var(--border) / 0.5)',
-                paddingTop: '12px',
-                marginTop: '4px'
-              }}>
-                {/* Crown Assign Checkbox/Button: TPKT/Admin only */}
-                {canToggleLeader && (!hasLeader || m.isLeader) ? (
-                  <button
-                    onClick={() => handleToggleLeader(m.userId, m.userName)}
-                    className={`btn ${m.isLeader ? 'btn-secondary' : 'btn-secondary'}`}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '0.75rem',
-                      color: m.isLeader ? 'hsl(var(--text-secondary))' : 'goldenrod',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                    title={m.isLeader ? 'Bỏ vai trò Trưởng nhóm' : 'Gán làm Trưởng nhóm'}
-                  >
-                    <Crown size={14} fill={m.isLeader ? 'none' : 'currentColor'} />
-                    <span>{m.isLeader ? 'Hủy trưởng nhóm' : 'Gán trưởng nhóm'}</span>
-                  </button>
-                ) : null}
-
-                {/* Remove member button: TPKT/Admin or Leader (on non-leader engineers) */}
-                {(canToggleLeader || !m.isLeader) && (
-                  <button
-                    onClick={() => handleRemoveMember(m.userId, m.userName)}
-                    className="btn btn-secondary"
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '0.75rem',
-                      color: 'hsl(var(--danger))',
-                      borderColor: 'hsl(var(--danger) / 0.2)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <UserX size={14} />
-                    <span>Xóa</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Informational Read-only icons for other users */}
-            {!canManageMembers && (
-              <div style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <UserCheck size={14} />
-                <span>Kỹ sư thi công dự án</span>
-              </div>
-            )}
-          </div>
           );
         })}
 
@@ -385,30 +386,37 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
         )}
       </div>
 
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Thêm Kỹ sư vào Dự án">
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Thêm Kỹ sư vào Dự án" width="md">
         <form onSubmit={handleAddMember} className="flex flex-col gap-3 sm:gap-4">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <label className="font-medium text-sm sm:text-base">Chọn Kỹ sư từ Hệ thống</label>
+              <label className="font-medium text-sm sm:text-base text-slate-800 dark:text-slate-200">Chọn Kỹ sư từ Hệ thống</label>
               {selectedUserIds.length > 0 && (
-                <span className="text-xs sm:text-sm font-semibold text-[hsl(var(--primary))]">
+                <span className="text-xs sm:text-sm font-semibold text-[hsl(var(--primary))] bg-[hsl(var(--primary-glow)/0.15)] px-2 py-0.5 rounded-full">
                   Đã chọn {selectedUserIds.length}
                 </span>
               )}
             </div>
-            <input
-              type="text"
-              placeholder="Tìm kiếm tên hoặc email..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="input w-full mb-2 p-2 sm:p-2.5 text-sm sm:text-base rounded-[var(--radius-sm)] border border-[hsl(var(--border))]"
-            />
-            <div className="max-h-[45vh] sm:max-h-[300px] overflow-y-auto border border-[hsl(var(--border))] rounded-[var(--radius-sm)] bg-[hsl(var(--bg-card))]">
+
+            <div className="relative mb-2">
+              <input
+                type="text"
+                placeholder="Tìm kiếm tên hoặc email..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="input w-full pl-9 pr-3 py-2 text-sm sm:text-base rounded-[var(--radius-sm)] border border-[hsl(var(--border))]"
+                autoFocus
+              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+
+            {/* Fixed height container to prevent modal resizing when filtering/typing */}
+            <div className="h-[330px] min-h-[330px] max-h-[330px] overflow-y-auto custom-scrollbar border border-[hsl(var(--border))] rounded-[var(--radius-sm)] bg-[hsl(var(--bg-card))] flex flex-col divide-y divide-[hsl(var(--border)/0.4)]">
               {searchedEngineers.length > 0 ? (
                 searchedEngineers.map((eng) => (
                   <label
                     key={eng.id}
-                    className="flex items-center gap-3 p-3 border-b border-[hsl(var(--border)/0.5)] cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)]"
+                    className="flex items-center gap-3 p-3 cursor-pointer transition-colors hover:bg-[hsl(var(--primary-glow)/0.05)] shrink-0"
                     style={{ backgroundColor: selectedUserIds.includes(eng.id) ? 'hsl(var(--primary-glow) / 0.1)' : 'transparent' }}
                   >
                     <input
@@ -432,32 +440,43 @@ export const ProjectMembers: React.FC<ProjectMembersProps> = ({ projectId }) => 
                         <div className="text-xs sm:text-[0.75rem] text-[hsl(var(--text-muted))] truncate">{eng.email}</div>
                       </div>
                     </div>
-                    {eng.leaderProjectName && (
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2" style={{
-                        backgroundColor: 'hsl(var(--primary-glow) / 0.15)',
-                        color: 'hsl(var(--primary))',
-                        padding: '4px 8px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        border: '1px solid hsl(var(--primary) / 0.3)'
-                      }}>
-                        <Crown size={12} fill="currentColor" />
-                        <span className="hidden sm:inline">Trưởng nhóm - {eng.leaderProjectName}</span>
-                        <span className="sm:hidden">TN - {eng.leaderProjectName}</span>
-                      </div>
-                    )}
+                    {eng.leaderProjectNames && eng.leaderProjectNames.length > 0 && (() => {
+                      const count = eng.leaderProjectNames.length;
+                      const tooltipText = count === 1
+                        ? `Đang là Trưởng dự án tại: ${eng.leaderProjectNames[0]}`
+                        : `Đang là Trưởng dự án tại ${count} dự án:\n${eng.leaderProjectNames.map(name => `• ${name}`).join('\n')}`;
+
+                      return (
+                        <div
+                          className="flex items-center gap-1.5 shrink-0 ml-2 max-w-[170px] sm:max-w-[210px] px-2.5 py-1 rounded-full bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[11px] font-semibold transition-all cursor-help"
+                          title={tooltipText}
+                        >
+                          <Crown size={12} className="shrink-0 text-amber-500 fill-amber-500" />
+                          {count === 1 ? (
+                            <span className="truncate">
+                              TDA: {eng.leaderProjectNames[0]}
+                            </span>
+                          ) : (
+                            <span className="font-bold whitespace-nowrap">
+                              Trưởng Dự Án ({count} )
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </label>
                 ))
               ) : (
-                <div style={{ padding: '20px', color: 'hsl(var(--text-muted))', fontSize: '0.85rem', textAlign: 'center' }}>
-                  Không tìm thấy kỹ sư nào phù hợp.
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400">
+                  <Search size={32} className="mb-2 opacity-30 text-slate-400" />
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Không tìm thấy kỹ sư nào phù hợp</p>
+                  <p className="text-xs text-slate-400 mt-1">Hãy thử tìm kiếm với tên hoặc email khác.</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 sm:gap-3 mt-1 sm:mt-2">
+          <div className="flex justify-end gap-2 sm:gap-3 mt-1 sm:mt-2 pt-2 border-t border-[hsl(var(--border)/0.5)]">
             <button type="button" className="btn btn-secondary px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base flex-1 sm:flex-none" onClick={() => setIsAddOpen(false)}>Hủy</button>
             <button
               type="submit"
