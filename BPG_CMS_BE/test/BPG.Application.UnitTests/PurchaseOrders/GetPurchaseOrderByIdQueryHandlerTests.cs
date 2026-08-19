@@ -30,6 +30,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private readonly Mock<IGenericRepository<PurchaseOrder>> _mockPoRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<Supplier>> _mockSupplierRepo;
+        private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly Mock<IProjectAccessService> _mockProjectAccessService;
         private readonly GetPurchaseOrderByIdQueryHandler _handler;
 
@@ -39,15 +40,18 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockPoRepo = new Mock<IGenericRepository<PurchaseOrder>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockSupplierRepo = new Mock<IGenericRepository<Supplier>>();
+            _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             _mockProjectAccessService = new Mock<IProjectAccessService>();
 
             _mockUow.Setup(u => u.Repository<PurchaseOrder>()).Returns(_mockPoRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(u => u.Repository<Supplier>()).Returns(_mockSupplierRepo.Object);
+            _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
 
             SetupAccessibleProjects(ProjectId);
             SetupPurchaseOrders(FullPurchaseOrder());
             SetupApprovedReceiptItems();
+            SetupAttachments(QuotationAttachment());
 
             _handler = new GetPurchaseOrderByIdQueryHandler(
                 _mockUow.Object,
@@ -76,6 +80,11 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             result.SupplierContactInfo.Should().Be("0901234567");
             result.ProjectId.Should().Be(ProjectId);
             result.ProjectName.Should().Be("Nhà máy Bắc Ninh");
+
+            var quotation = result.QuotationFiles.Should().ContainSingle().Subject;
+            quotation.AttachmentId.Should().Be(900);
+            quotation.FileName.Should().Be("bao-gia-xi-mang.pdf");
+            quotation.ContentType.Should().Be("application/pdf");
 
             var item = result.Items.Should().ContainSingle().Subject;
             item.MaterialId.Should().Be(CementId);
@@ -221,6 +230,22 @@ namespace BPG.Application.UnitTests.PurchaseOrders
 
         private void SetupApprovedReceiptItems(params GoodsReceiptItem[] items)
             => _mockReceiptItemRepo.Setup(r => r.Query()).Returns(items.AsQueryable().BuildMock());
+
+        private void SetupAttachments(params Attachment[] attachments)
+            => _mockAttachmentRepo.Setup(r => r.Query()).Returns(attachments.AsQueryable().BuildMock());
+
+        private static Attachment QuotationAttachment()
+            => new()
+            {
+                AttachmentId = 900,
+                EntityType = EntityType.PurchaseOrder,
+                EntityId = POId,
+                AttachmentType = AttachmentType.Quotation,
+                FileName = "bao-gia-xi-mang.pdf",
+                FileUrl = "https://cdn.test/purchase-orders/quotations/bao-gia-xi-mang.pdf",
+                ContentType = "application/pdf",
+                FileSizeBytes = 2048
+            };
 
         private void SetupAccessibleProjects(params long[] projectIds)
             => _mockProjectAccessService

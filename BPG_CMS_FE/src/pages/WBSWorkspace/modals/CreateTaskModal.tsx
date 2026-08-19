@@ -424,7 +424,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
           <button type="button" className="btn btn-secondary px-5" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
           <button type="submit" className="btn btn-primary px-5" disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : (parentTaskId ? 'Thêm Công việc con' : 'Tạo mới Task')}
+            {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : (parentTaskId ? 'Thêm Công việc con' : 'Tạo mới Công việc')}
           </button>
         </div>
       </form>

@@ -81,6 +81,8 @@ public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand,
 
         foreach (var pm in projectMembers)
         {
+            if (userId.HasValue && pm.UserId == userId.Value) continue;
+
             await _notificationService.SendNotificationAsync(
                 pm.UserId,
                 "🚀 Dự án đã tiếp tục thi công",
@@ -91,27 +93,39 @@ public class ResumeProjectCommandHandler : IRequestHandler<ResumeProjectCommand,
         }
 
         // Notify Key Roles (Director, TechnicalManager, Accountant)
-        await _notificationService.SendNotificationToRoleAsync(
-            BPG.Domain.Constants.UserRole.Director,
-            "🚀 Dự án đã tiếp tục thi công",
-            $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
-            "ProjectResumed",
-            $"/projects/{project.ProjectId}/workspace/incidents"
-        );
-        await _notificationService.SendNotificationToRoleAsync(
-            BPG.Domain.Constants.UserRole.TechnicalManager,
-            "🚀 Dự án đã tiếp tục thi công",
-            $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
-            "ProjectResumed",
-            $"/projects/{project.ProjectId}/workspace/incidents"
-        );
-        await _notificationService.SendNotificationToRoleAsync(
-            BPG.Domain.Constants.UserRole.Accountant,
-            "🚀 Dự án đã tiếp tục thi công",
-            $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
-            "ProjectResumed",
-            $"/projects/{project.ProjectId}/workspace/incidents"
-        );
+        if (userId.HasValue)
+        {
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Director,
+                "🚀 Dự án đã tiếp tục thi công",
+                $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+                "ProjectResumed",
+                userId.Value,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                null,
+                cancellationToken
+            );
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                "🚀 Dự án đã tiếp tục thi công",
+                $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+                "ProjectResumed",
+                userId.Value,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                null,
+                cancellationToken
+            );
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Accountant,
+                "🚀 Dự án đã tiếp tục thi công",
+                $"Dự án {project.Name} đã chính thức được kích hoạt lại và tiếp tục thi công.",
+                "ProjectResumed",
+                userId.Value,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                null,
+                cancellationToken
+            );
+        }
 
         // Realtime: broadcast ProjectUpdated event
         await _realtimeSender.SendToGroupAsync(

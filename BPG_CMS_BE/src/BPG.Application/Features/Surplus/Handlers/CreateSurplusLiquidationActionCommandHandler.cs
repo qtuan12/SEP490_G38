@@ -118,6 +118,16 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
                 userId,
                 ct);
 
+            // 🔓 Giải phóng ReservedQuantity tương ứng vì hàng đã rời kho thực sự (thanh lý)
+            var invToRelease = await _uow.Repository<CurrentInventory>().Query()
+                .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct);
+            if (invToRelease != null)
+            {
+                invToRelease.ReservedQuantity = Math.Max(0, invToRelease.ReservedQuantity - request.LiquidationQuantity);
+                invToRelease.LastUpdated = DateTime.UtcNow;
+                _uow.Repository<CurrentInventory>().Update(invToRelease);
+            }
+
             await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
             await _uow.CommitTransactionAsync(ct);
         }
@@ -131,21 +141,25 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
         var notiTitle = "Thông báo thanh lý vật tư thừa";
         var notiContent = $"Vật tư thừa từ dự án {item.SurplusRequest.Project.Name} đã được thanh lý.";
 
-        // 1. Notify Accountant
+        // 1. Notify Accountant (trừ người thực hiện)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.Accountant,
             notiTitle, notiContent,
-            NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+            NotificationType.Procurement,
+            excludeUserId: userId,
+            NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
 
-        // 2. Notify Technical Manager
+        // 2. Notify Technical Manager (trừ người thực hiện)
         await _notificationService.SendNotificationToRoleAsync(
             Domain.Constants.UserRole.TechnicalManager,
             notiTitle, notiContent,
-            NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+            NotificationType.Procurement,
+            excludeUserId: userId,
+            NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
 
-        // 3. Notify Project Leader
+        // 3. Notify Project Leader (trừ người thực hiện)
         var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
-            .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader)
+            .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader && pm.UserId != userId)
             .Select(pm => pm.UserId)
             .FirstOrDefaultAsync(ct);
         if (projectLeaderId > 0)

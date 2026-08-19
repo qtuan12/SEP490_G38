@@ -38,10 +38,7 @@ export const ErrorCodes = {
   PoRequestNotApproved: 'BIZ_016',
   PoMaterialNotInRequest: 'BIZ_017',
   PoQtyExceedsRequest: 'BIZ_018',
-  PoOrderDateBeforeProject: 'BIZ_019',
-  PoOrderDateAfterPhase: 'BIZ_020',
-  PoDeliveryDateBeforeProject: 'BIZ_021',
-  PoDeliveryDateAfterPhase: 'BIZ_022',
+  PoProjectNotActive: 'BIZ_051',
 
   // Mua hàng trực tiếp (DP)
   DpNotDraft: 'BIZ_023',
@@ -65,18 +62,6 @@ export const ErrorCodes = {
   DpInvalidUnit: 'BIZ_044',
   DpMaterialNotInBoq: 'BIZ_049',
 } as const;
-
-/** Mã lỗi liên quan tới ô "Ngày đơn hàng" khi tạo PO. */
-export const PO_ORDER_DATE_ERRORS: readonly string[] = [
-  ErrorCodes.PoOrderDateBeforeProject,
-  ErrorCodes.PoOrderDateAfterPhase,
-];
-
-/** Mã lỗi liên quan tới ô "Hạn giao hàng" khi tạo PO. */
-export const PO_DELIVERY_DATE_ERRORS: readonly string[] = [
-  ErrorCodes.PoDeliveryDateBeforeProject,
-  ErrorCodes.PoDeliveryDateAfterPhase,
-];
 
 /**
  * Các mã OTP mà cách xử lý duy nhất là xin mã mới — hiển thị kèm gợi ý bấm "Gửi lại".

@@ -206,6 +206,14 @@ public static class UploadFilePolicy
         AddAliases(
             destinations,
             new UploadDestination(
+                StorageFolders.PoQuotations,
+                ImagesAndPdf,
+                new[] { UserRole.Accountant }),
+            "purchaseorders",
+            StorageFolders.PoQuotations);
+        AddAliases(
+            destinations,
+            new UploadDestination(
                 "incidents",
                 IncidentFiles,
                 new[] { UserRole.TechnicalManager, UserRole.SiteEngineer }),

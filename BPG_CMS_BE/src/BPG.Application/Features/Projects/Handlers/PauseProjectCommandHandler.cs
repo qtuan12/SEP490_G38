@@ -70,6 +70,8 @@ public class PauseProjectCommandHandler : IRequestHandler<PauseProjectCommand, b
 
         foreach (var pm in projectMembers)
         {
+            if (userId.HasValue && pm.UserId == userId.Value) continue;
+
             await _notificationService.SendNotificationAsync(
                 pm.UserId,
                 "🛑 Dự án đã tạm dừng thi công",
@@ -80,27 +82,39 @@ public class PauseProjectCommandHandler : IRequestHandler<PauseProjectCommand, b
         }
 
         // Notify Key Roles (Director, TechnicalManager, Accountant)
-        await _notificationService.SendNotificationToRoleAsync(
-            BPG.Domain.Constants.UserRole.Director,
-            "🛑 Dự án đã tạm dừng thi công",
-            $"Dự án {project.Name} đã được chuyển sang trạng thái Tạm dừng thi công.",
-            "ProjectPaused",
-            $"/projects/{project.ProjectId}/workspace/incidents"
-        );
-        await _notificationService.SendNotificationToRoleAsync(
-            BPG.Domain.Constants.UserRole.TechnicalManager,
-            "🛑 Dự án đã tạm dừng thi công",
-            $"Dự án {project.Name} đã được chuyển sang trạng thái Tạm dừng thi công.",
-            "ProjectPaused",
-            $"/projects/{project.ProjectId}/workspace/incidents"
-        );
-        await _notificationService.SendNotificationToRoleAsync(
-            BPG.Domain.Constants.UserRole.Accountant,
-            "🛑 Dự án đã tạm dừng thi công",
-            $"Dự án {project.Name} đã được chuyển sang trạng thái Tạm dừng thi công.",
-            "ProjectPaused",
-            $"/projects/{project.ProjectId}/workspace/incidents"
-        );
+        if (userId.HasValue)
+        {
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Director,
+                "🛑 Dự án đã tạm dừng thi công",
+                $"Dự án {project.Name} đã được chuyển sang trạng thái Tạm dừng thi công.",
+                "ProjectPaused",
+                userId.Value,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                null,
+                cancellationToken
+            );
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.TechnicalManager,
+                "🛑 Dự án đã tạm dừng thi công",
+                $"Dự án {project.Name} đã được chuyển sang trạng thái Tạm dừng thi công.",
+                "ProjectPaused",
+                userId.Value,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                null,
+                cancellationToken
+            );
+            await _notificationService.SendNotificationToRoleAsync(
+                BPG.Domain.Constants.UserRole.Accountant,
+                "🛑 Dự án đã tạm dừng thi công",
+                $"Dự án {project.Name} đã được chuyển sang trạng thái Tạm dừng thi công.",
+                "ProjectPaused",
+                userId.Value,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                null,
+                cancellationToken
+            );
+        }
 
         // Realtime: broadcast ProjectUpdated event
         await _realtimeSender.SendToGroupAsync(

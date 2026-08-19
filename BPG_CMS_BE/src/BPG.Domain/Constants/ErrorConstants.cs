@@ -50,13 +50,12 @@ public static class ErrorCodes
     public const string PoRequestNotApproved = "BIZ_016";        // Yêu cầu vật tư chưa được duyệt
     public const string PoMaterialNotInRequest = "BIZ_017";      // Vật tư không thuộc yêu cầu đã chọn
     public const string PoQtyExceedsRequest = "BIZ_018";         // SL đặt vượt SL còn lại của yêu cầu
-    public const string PoOrderDateBeforeProject = "BIZ_019";    // Ngày đơn hàng trước ngày bắt đầu dự án
-    public const string PoOrderDateAfterPhase = "BIZ_020";       // Ngày đơn hàng sau ngày kết thúc giai đoạn
-    public const string PoDeliveryDateBeforeProject = "BIZ_021"; // Hạn giao hàng trước ngày bắt đầu dự án
-    public const string PoDeliveryDateAfterPhase = "BIZ_022";    // Hạn giao hàng sau ngày kết thúc giai đoạn
+    // BIZ_019..BIZ_022 (ngày PO / hạn giao hàng so với ngày dự án & giai đoạn) đã bỏ:
+    // đơn hàng chỉ cần dự án còn đang thi công, không ràng buộc theo mốc ngày nữa. Không tái sử dụng mã.
     public const string PoNotPendingApproval = "BIZ_041";        // PO không ở trạng thái chờ Giám đốc duyệt
     public const string PoRejectReasonRequired = "BIZ_042";      // Thiếu lý do khi Giám đốc từ chối PO
     public const string PoNotApproved = "BIZ_043";               // PO chưa được Giám đốc duyệt
+    public const string PoProjectNotActive = "BIZ_051";          // Dự án không ở trạng thái đang thi công
 
     // ==================== MUA HÀNG TRỰC TIẾP (DP) ====================
     public const string DpNotDraft = "BIZ_023";                  // Phiếu không còn ở trạng thái Nháp

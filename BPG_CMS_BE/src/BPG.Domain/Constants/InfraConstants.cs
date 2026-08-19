@@ -62,6 +62,7 @@ public static class StorageFolders
     public const string DeliveryPhotos = "goods-receipts/photos";     // Ảnh phiếu giao hàng
     public const string InvoicePhotos = "direct-purchases/invoices";  // Ảnh hóa đơn mua ngoài
     public const string IncidentPhotos = "incidents/photos";           // Ảnh sự cố
+    public const string PoQuotations = "purchase-orders/quotations";  // Ảnh/PDF báo giá đính kèm đơn mua hàng
     public const string AcceptanceDocs = "phase-acceptances/docs";    // PDF nghiệm thu
     public const string Avatars = "users/avatars";                     // Ảnh đại diện người dùng
     public const string Temp = "temp";                                 // Upload tạm, xóa sau 24h

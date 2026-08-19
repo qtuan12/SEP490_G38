@@ -231,7 +231,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                 "📦 Báo cáo sự cố vật tư kho mới",
                 $"Dự án {project.Name} vừa báo cáo sự cố vật tư kho. Vui lòng xác minh và tạo phiếu kiểm kê giảm tồn kho.",
                 "InventoryIncidentReported",
-                $"/projects/{project.ProjectId}/workspace/incidents"
+                currentUserId,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                incident.IncidentId,
+                cancellationToken
             );
 
             await _notificationService.SendNotificationToRoleAsync(
@@ -239,7 +242,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                 "📦 Báo cáo sự cố vật tư kho mới",
                 $"Dự án {project.Name} vừa báo cáo sự cố vật tư kho.",
                 "InventoryIncidentReported",
-                $"/projects/{project.ProjectId}/workspace/incidents"
+                currentUserId,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                incident.IncidentId,
+                cancellationToken
             );
 
             await _notificationService.SendNotificationToRoleAsync(
@@ -247,7 +253,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                 "📦 Báo cáo sự cố vật tư kho mới",
                 $"Dự án {project.Name} vừa báo cáo sự cố vật tư kho.",
                 "InventoryIncidentReported",
-                $"/projects/{project.ProjectId}/workspace/incidents"
+                currentUserId,
+                $"/projects/{project.ProjectId}/workspace/incidents",
+                incident.IncidentId,
+                cancellationToken
             );
         }
         else
@@ -259,7 +268,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                     "🚨 Yêu cầu dừng thi công khẩn cấp",
                     $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng. Vui lòng thẩm định ngay!",
                     "EmergencyStop",
-                    $"/projects/{project.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{project.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
@@ -267,7 +279,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                     "🚨 Yêu cầu dừng thi công khẩn cấp",
                     $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
                     "EmergencyStop",
-                    $"/projects/{project.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{project.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
@@ -275,7 +290,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                     "🚨 Yêu cầu dừng thi công khẩn cấp",
                     $"Dự án {project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
                     "EmergencyStop",
-                    $"/projects/{project.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{project.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 // Notify all project members
@@ -305,7 +323,10 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                     "Báo cáo sự cố mới",
                     $"Có một sự cố thi công mới tại dự án {project.Name} đang chờ Trưởng phòng Kỹ thuật thẩm định.",
                     "IncidentReported",
-                    $"/projects/{project.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{project.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
             }
         }

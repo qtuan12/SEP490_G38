@@ -1,3 +1,4 @@
+using BPG.Application.Common.Files;
 using BPG.Application.Features.PurchaseOrders.Commands;
 using BPG.Domain.Common;
 using FluentValidation;
@@ -24,6 +25,20 @@ namespace BPG.Application.Features.PurchaseOrders.Validators
                 .Must((command, deliveryDate) => !deliveryDate.HasValue || deliveryDate.Value >= command.OrderDate)
                 .WithMessage("Hạn giao hàng không được trước ngày đơn hàng.");
             RuleFor(x => x.Items).NotEmpty().WithMessage("Đơn hàng phải có ít nhất một dòng vật tư.");
+            // Báo giá là căn cứ để Giám đốc duyệt giá: không có tệp báo giá thì không tạo được đơn.
+            RuleFor(x => x.QuotationFiles)
+                .NotEmpty().WithMessage("Vui lòng đính kèm ít nhất một tệp báo giá (ảnh hoặc PDF).")
+                .Must(files => files == null || files.Count <= UploadFilePolicy.MaxFilesPerRequest)
+                .WithMessage("Chỉ được đính kèm tối đa " + UploadFilePolicy.MaxFilesPerRequest + " tệp báo giá.");
+            RuleForEach(x => x.QuotationFiles).ChildRules(file =>
+            {
+                file.RuleFor(f => f.FileUrl)
+                    .NotEmpty().WithMessage("Đường dẫn tệp báo giá không hợp lệ.")
+                    .MaximumLength(500);
+                file.RuleFor(f => f.FileName)
+                    .NotEmpty().WithMessage("Tên tệp báo giá không hợp lệ.")
+                    .MaximumLength(255);
+            });
             RuleFor(x => x.PONumber).MaximumLength(50).When(x => !string.IsNullOrEmpty(x.PONumber));
             RuleForEach(x => x.Items).ChildRules(item =>
             {

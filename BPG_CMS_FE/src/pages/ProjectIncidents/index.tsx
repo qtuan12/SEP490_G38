@@ -28,7 +28,7 @@ interface Props {
 
 export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) => {
   const { user } = useAuth();
-  const { isProjectLeader } = useProjectAccess(projectId);
+  const { isProjectLeader, isProjectActive } = useProjectAccess(projectId);
   const [incidents, setIncidents] = useState<IncidentReport[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
@@ -38,6 +38,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [projName, setProjName] = useState(projectName || '');
   const [searchParams] = useSearchParams();
   const taskIdFilterStr = searchParams.get('taskId');
+  const incidentIdParam = searchParams.get('incidentId');
 
   useEffect(() => {
     if (!projectName && projectId) {
@@ -68,6 +69,17 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [isResolveOpen, setIsResolveOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
+
+  // Auto-open incident detail when incidentId is in query params
+  useEffect(() => {
+    if (incidentIdParam && incidents.length > 0) {
+      const target = incidents.find(i => i.id === incidentIdParam);
+      if (target) {
+        setSelectedIncident(target);
+        setIsDetailOpen(true);
+      }
+    }
+  }, [incidentIdParam, incidents]);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -367,7 +379,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           <h4 className="text-[0.95rem] font-semibold text-[hsl(var(--text-secondary))]">
             Danh sách Báo cáo sự cố toàn dự án
           </h4>
-          {isPL && !hasActiveEmergencyStop && (
+          {isPL && isProjectActive && !hasActiveEmergencyStop && (
             <Button
               onClick={() => setIsEmergencyModalOpen(true)}
               className="bg-[hsl(0_72%_45%)] hover:bg-[hsl(0_72%_35%)] text-white font-medium py-1.5 px-3 rounded text-[0.8rem] flex items-center gap-1.5"

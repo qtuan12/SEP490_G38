@@ -128,80 +128,98 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
       {/* Top Stat Analytics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1: Actual vs Expected Progress */}
-        <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tiến độ Thực tế vs Kế hoạch</span>
-            <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
-              <HardHat size={18} />
+        <div className="bg-gradient-to-br from-indigo-50/70 to-white dark:from-slate-900 dark:to-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tiến độ Thực tế</span>
+              <div className="p-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                <HardHat size={18} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between">
+              <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{data.overallProgressPercent}%</div>
+              <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${varianceBadgeClass}`}>
+                {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}%` : `${variancePercent.toFixed(1)}%`} vs Baseline
+              </span>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{data.overallProgressPercent}%</div>
-            <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${varianceBadgeClass}`}>
-              {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}%` : `${variancePercent.toFixed(1)}%`} vs Baseline
-            </span>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-indigo-100/60 dark:border-indigo-900/30 flex items-center justify-between">
+            <span>Kế hoạch kỳ vọng:</span>
+            <strong className="text-slate-700 dark:text-slate-200">{data.expectedProgressPercent || 0}%</strong>
           </div>
-          <div className="text-xs font-medium text-slate-500 mt-1">
-            Kế hoạch kỳ vọng: <strong>{data.expectedProgressPercent || 0}%</strong>
-            {varianceTone !== 'ok' && (
-              <> · ngưỡng cảnh báo <strong>{delayThreshold}%</strong></>
-            )}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">Thực tế được tổng hợp theo trọng số công việc; kế hoạch kỳ vọng được tính theo thời gian bắt đầu - kết thúc.</div>
         </div>
 
         {/* Metric 2: Schedule Variance in Days */}
-        <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Độ lệch Tiến độ (Variance)</span>
-            <div className="p-2 bg-red-500/10 text-red-600 rounded-xl">
-              <Clock size={18} />
+        <div className="bg-gradient-to-br from-red-50/70 to-white dark:from-slate-900 dark:to-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Độ lệch Tiến độ</span>
+              <div className="p-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl">
+                <Clock size={18} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between">
+              <div className={`text-3xl font-black ${(data.scheduleVarianceDays || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {(data.scheduleVarianceDays || 0) > 0 ? `-${data.scheduleVarianceDays}` : '0'} <span className="text-sm font-semibold">ngày</span>
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${(data.scheduleVarianceDays || 0) > 0 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}`}>
+                {(data.scheduleVarianceDays || 0) > 0 ? 'Trễ hạn' : 'Đúng tiến độ'}
+              </span>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className={`text-3xl font-black ${(data.scheduleVarianceDays || 0) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {(data.scheduleVarianceDays || 0) > 0 ? `-${data.scheduleVarianceDays}` : '0'} <span className="text-sm font-semibold">ngày</span>
-            </div>
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${(data.scheduleVarianceDays || 0) > 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-              {(data.scheduleVarianceDays || 0) > 0 ? 'Trễ hạn' : 'Đúng tiến độ'}
-            </span>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-red-100/60 dark:border-red-900/30 flex items-center justify-between">
+            <span>Tình trạng:</span>
+            <strong className="text-slate-700 dark:text-slate-200">
+              {(data.scheduleVarianceDays || 0) > 0 ? `Chậm ${data.scheduleVarianceDays} ngày` : 'Theo sát mốc Baseline'}
+            </strong>
           </div>
-          <div className="text-xs font-medium text-slate-500 mt-1">Tính theo thời gian Baseline Phase</div>
         </div>
 
         {/* Metric 3: Forecasted Completion Date */}
-        <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-purple-950/30 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Dự báo Ngày Bàn giao</span>
-            <div className="p-2 bg-purple-500/10 text-purple-600 rounded-xl">
-              <CheckCircle size={18} />
+        <div className="bg-gradient-to-br from-purple-50/70 to-white dark:from-slate-900 dark:to-purple-950/30 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Dự báo Bàn giao</span>
+              <div className="p-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl">
+                <CheckCircle size={18} />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-black text-purple-700 dark:text-purple-300">
+                {data.forecastedEndDate || 'Đang cập nhật'}
+              </div>
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-xl font-black text-purple-700 dark:text-purple-300">
-              {data.forecastedEndDate || 'Đang cập nhật'}
-            </div>
-            <div className="text-xs font-medium text-slate-500 mt-2">Tính theo vận tốc thi công ròng</div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-purple-100/60 dark:border-purple-900/30 flex items-center justify-between">
+            <span>Dự kiến:</span>
+            <strong className="text-slate-700 dark:text-slate-200">Hoàn thành công trình</strong>
           </div>
         </div>
 
         {/* Metric 4: Tasks Progress & Delayed Count */}
-        <div className="bg-gradient-to-br from-amber-50 to-white dark:from-slate-900 dark:to-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Công việc Hoàn thành</span>
-            <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
-              <AlertTriangle size={18} />
+        <div className="bg-gradient-to-br from-amber-50/70 to-white dark:from-slate-900 dark:to-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Công việc Hoàn thành</span>
+              <div className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
+                <AlertTriangle size={18} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between">
+              <div className="text-3xl font-black text-slate-900 dark:text-white">
+                {data.doneTasks} <span className="text-sm text-slate-400 font-semibold">/ {data.totalTasks}</span>
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${data.phases.reduce((sum, p) => sum + p.delayedTasks.length, 0) > 0 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}`}>
+                {data.phases.reduce((sum, p) => sum + p.delayedTasks.length, 0)} trễ
+              </span>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-3xl font-black text-slate-900 dark:text-white">
-              {data.doneTasks} <span className="text-sm text-slate-400 font-semibold">/ {data.totalTasks}</span>
-            </div>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-              {data.phases.reduce((sum, p) => sum + p.delayedTasks.length, 0)} trễ
-            </span>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-amber-100/60 dark:border-amber-900/30 flex items-center justify-between">
+            <span>Tỷ lệ hoàn tất:</span>
+            <strong className="text-slate-700 dark:text-slate-200">
+              {data.totalTasks > 0 ? `${Math.round((data.doneTasks / data.totalTasks) * 100)}% đầu việc` : '0%'}
+            </strong>
           </div>
-          <div className="text-xs font-medium text-slate-500 mt-1">Đã nghiệm thu / Đang thi công</div>
         </div>
       </div>
 
