@@ -6,7 +6,7 @@ import { useVirtualRows } from '../../hooks/useVirtualRows';
 export interface ColumnDef<T> {
   key: string;
   header: string;
-  render?: (item: T) => React.ReactNode;
+  render?: (item: T, index: number) => React.ReactNode;
   width?: string;
   align?: 'left' | 'center' | 'right';
 }
@@ -90,7 +90,7 @@ export function DataTable<T>({
                     <td colSpan={columns.length} style={{ height: virtual.topPadding, padding: 0 }} />
                   </tr>
                 )}
-                {virtual.visibleRows.map(({ item }) => (
+                {virtual.visibleRows.map(({ item, index }) => (
                 <tr
                   key={keyExtractor(item)}
                   className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
@@ -104,7 +104,7 @@ export function DataTable<T>({
                         col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                       }`}
                     >
-                      {col.render ? col.render(item) : (item as any)[col.key]}
+                      {col.render ? col.render(item, index) : (item as any)[col.key]}
                     </td>
                   ))}
                 </tr>

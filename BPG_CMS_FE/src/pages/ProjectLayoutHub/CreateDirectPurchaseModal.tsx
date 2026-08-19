@@ -17,6 +17,7 @@ import { DP_PURCHASE_DATE_ERRORS } from '../../constants/errorCodes';
 import { todayVnISO, toInputDate } from '../../utils/dateHelpers';
 import { compressAndUploadFile } from '../../utils/uploadHelper';
 import type { UploadedFileState } from '../../utils/uploadHelper';
+import { formatNumber } from '../../utils/formatNumber';
 
 interface Props {
   isOpen: boolean;
@@ -893,7 +894,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                           <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{priceError ?? ''}</div>
                         </td>
                         <td style={{ ...bodyCellStyle, textAlign: 'right', fontWeight: lineTotal > 0 ? 600 : 400, whiteSpace: 'nowrap', color: lineTotal > 0 ? undefined : 'hsl(var(--text-muted))', paddingTop: '14px' }}>
-                          {lineTotal > 0 ? lineTotal.toLocaleString('vi-VN') + ' ₫' : '—'}
+                          {lineTotal > 0 ? formatNumber(lineTotal) + ' ₫' : '—'}
                         </td>
                         <td style={{ padding: '10px 4px', verticalAlign: 'top' }}>
                           <button onClick={() => removeRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(var(--danger))', padding: '4px' }}>
@@ -907,7 +908,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
               </table>
               {totalAmount > 0 && (
                 <div style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', borderTop: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-sidebar))' }}>
-                  Tổng cộng: {totalAmount.toLocaleString('vi-VN')} ₫
+                  Tổng cộng: {formatNumber(totalAmount)} ₫
                 </div>
               )}
             </div>

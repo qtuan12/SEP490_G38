@@ -5,6 +5,7 @@ import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, Badge, LoadingSpinner } from '../../../components/ui';
 import { formatDate } from '../../../utils/dateHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface MaterialRequestDetailModalProps {
   isOpen: boolean;
@@ -240,7 +241,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                             </span>
                           </td>
                           <td className={`p-3 text-center font-semibold ${item.isOver ? 'text-red-600' : 'text-emerald-600'}`}>
-                            {item.boqLimit > 0 ? `${item.remaining.toLocaleString('vi-VN')} ${item.boqUnit}` : '0'}
+                            {item.boqLimit > 0 ? `${formatNumber(item.remaining)} ${item.boqUnit}` : '0'}
                           </td>
                           {showStatusColumn && (
                             <td className="p-3 text-center">
@@ -250,7 +251,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                                     Vượt định mức
                                   </span>
                                   <span className="text-[9px] text-red-500 font-bold">
-                                    (Vượt +{item.overAmount.toLocaleString('vi-VN')} {item.boqUnit})
+                                    (Vượt +{formatNumber(item.overAmount)} {item.boqUnit})
                                   </span>
                                 </div>
                               ) : (

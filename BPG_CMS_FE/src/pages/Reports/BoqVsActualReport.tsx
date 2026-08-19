@@ -7,6 +7,7 @@ import { ArrowLeft, AlertTriangle, PackageCheck, TrendingUp } from 'lucide-react
 import { LoadingSpinner } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import { getNearestAvailableYear } from '../../utils/reportYearHelpers';
+import { formatNumber } from '../../utils/formatNumber';
 
 interface Props {
   embeddedProjectId?: string;
@@ -215,7 +216,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                       <RechartsTooltip
                         formatter={(value, name) => [
                           name === 'Chi phí tiêu thụ (VNĐ)'
-                            ? `${Number(value || 0).toLocaleString('vi-VN')} VNĐ`
+                            ? `${formatNumber(Number(value || 0))} VNĐ`
                             : value,
                           String(name || '')
                         ]}
