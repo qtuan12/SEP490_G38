@@ -136,6 +136,15 @@ export const UserManagement: React.FC = () => {
 
   const columns = [
     {
+      key: 'stt',
+      header: 'STT',
+      render: (_user: UserProfile, index: number) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {(pageNumber - 1) * PAGE_SIZE + index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'name',
       header: 'Tên thành viên',
       render: (user: UserProfile) => (

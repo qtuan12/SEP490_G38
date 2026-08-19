@@ -100,6 +100,7 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
+                  <th className="px-4 py-3 text-center w-12">STT</th>
                   <th className="px-4 py-3">Mã phiếu</th>
                   <th className="px-4 py-3">Công việc thi công</th>
                   <th className="px-4 py-3">Mục đích xuất</th>
@@ -113,7 +114,7 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
               <tbody className="divide-y divide-slate-200 bg-white">
                 {issuancesList.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                       Không tìm thấy phiếu xuất kho nào.
                     </td>
                   </tr>
@@ -121,11 +122,14 @@ export const MaterialIssuancesTab: React.FC<MaterialIssuancesTabProps> = ({
                   <>
                     {virtualIssuances.topPadding > 0 && (
                       <tr aria-hidden="true">
-                        <td colSpan={8} style={{ height: virtualIssuances.topPadding, padding: 0 }} />
+                        <td colSpan={9} style={{ height: virtualIssuances.topPadding, padding: 0 }} />
                       </tr>
                     )}
-                    {virtualIssuances.visibleRows.map(({ item: i }) => (
+                    {virtualIssuances.visibleRows.map(({ item: i, index }) => (
                       <tr key={i.materialIssuanceId} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3.5 text-center text-slate-500 text-sm font-medium tabular-nums">
+                          {(page - 1) * 10 + index + 1}
+                        </td>
                         <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
                           {i.issuanceNo || `PXK-${String(i.materialIssuanceId).padStart(5, '0')}`}
                         </td>

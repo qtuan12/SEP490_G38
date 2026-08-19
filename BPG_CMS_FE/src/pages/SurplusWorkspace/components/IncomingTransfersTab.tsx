@@ -105,6 +105,7 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50/50">
+              <th className="py-3 px-4 font-semibold text-slate-600 text-sm whitespace-nowrap text-center w-12">STT</th>
               <th className="py-3 px-4 font-semibold text-slate-600 text-sm whitespace-nowrap">Mã chuyến</th>
               <th className="py-3 px-4 font-semibold text-slate-600 text-sm whitespace-nowrap">Dự án gửi</th>
               <th className="py-3 px-4 font-semibold text-slate-600 text-sm whitespace-nowrap">Tên vật tư</th>
@@ -116,18 +117,21 @@ export const IncomingTransfersTab: React.FC<IncomingTransfersTabProps> = ({ proj
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && list.length === 0 ? (
-              <TableLoader colSpan={7} message="Đang tải dữ liệu vật tư chuyển đến..." />
+              <TableLoader colSpan={8} message="Đang tải dữ liệu vật tư chuyển đến..." />
             ) : list.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-slate-500">
+                <td colSpan={8} className="py-10 text-center text-slate-500">
                   Không có chuyến hàng nào chuyển đến.
                 </td>
               </tr>
             ) : (
-              list.map((item) => {
+              list.map((item, index) => {
                 const badge = getSurplusTransferStatusDetails(item.status);
                 return (
                   <tr key={item.surplusTransferId} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-4 text-center text-slate-500 text-sm font-medium tabular-nums">
+                      {index + 1}
+                    </td>
                     <td className="py-3 px-4">
                       <span className="font-semibold text-slate-700">#{item.surplusTransferId}</span>
                     </td>

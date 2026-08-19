@@ -88,6 +88,15 @@ export const ProjectRelatedSuppliersTab: React.FC<Props> = ({ projectId }) => {
 
   const columns: ColumnDef<Supplier>[] = [
     {
+      key: 'stt',
+      header: 'STT',
+      render: (_supplier, index) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'supplierName',
       header: text.supplierName,
       render: supplier => (

@@ -392,6 +392,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
             <tr>
               <th className="w-10 px-3"></th>
+              <th className="px-4 py-3 text-center w-12">STT</th>
               <th className="px-4 py-3">Mã</th>
               <th className="px-4 py-3">Tên vật tư</th>
               <th className="px-4 py-3">Thông số</th>
@@ -405,12 +406,12 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           <tbody className="divide-y divide-slate-200 bg-white">
             {filteredInventory.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
                   Không tìm thấy vật tư nào phù hợp với bộ lọc trong kho dự án.
                 </td>
               </tr>
             ) : (
-              paginatedInventory.map(item => {
+              paginatedInventory.map((item, index) => {
                 const rowBg = getRowBgClass(item);
                 const isExpanded = !!expandedItemIds[item.inventoryId];
                 return (
@@ -424,6 +425,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         >
                           {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </button>
+                      </td>
+                      <td className="px-4 py-3.5 text-center text-slate-500 text-sm font-medium tabular-nums">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
                         {item.materialCode}

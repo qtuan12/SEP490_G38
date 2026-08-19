@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Eye, ArrowLeft } from 'lucide-react';
@@ -70,6 +70,15 @@ export const PhaseAcceptances: React.FC = () => {
     canManageAcceptance;
 
   const columns = [
+    {
+      key: 'stt',
+      header: 'STT',
+      render: (_item: any, index: number) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {(page - 1) * pageSize + index + 1}
+        </span>
+      ),
+    },
     { key: 'acceptanceId', header: 'ID' },
     {
       key: 'projectName',
