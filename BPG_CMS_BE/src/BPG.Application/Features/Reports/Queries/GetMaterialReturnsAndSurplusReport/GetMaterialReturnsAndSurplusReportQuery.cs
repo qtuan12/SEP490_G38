@@ -167,6 +167,7 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         // 6. Aggregate Return Metrics
         int totalReturnSlips = returnList.Count;
         int totalReturnItemsCount = returnList.Sum(r => r.Items.Count);
+        int totalReturnDistinctMaterialsCount = returnList.SelectMany(r => r.Items).Select(i => i.MaterialId).Distinct().Count();
         decimal totalReturnVolume = returnList.Sum(r => r.Items.Sum(i => i.Quantity));
         decimal totalReturnEstimatedValue = returnList.Sum(r => r.Items.Sum(i => i.Quantity * materialPriceMap.GetValueOrDefault(i.MaterialId, 0m)));
 
@@ -218,8 +219,15 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         decimal totalSurplusQuantity = allSurplusItems.Sum(x => x.Item.Quantity);
         decimal totalSurplusProcessedQuantity = allSurplusItems.Sum(x => x.Item.ProcessedQuantity);
         decimal totalSurplusRemainingQuantity = Math.Max(0, totalSurplusQuantity - totalSurplusProcessedQuantity);
-        decimal surplusResolutionRatePercent = totalSurplusQuantity > 0
-            ? Math.Min(100, Math.Round((totalSurplusProcessedQuantity / totalSurplusQuantity) * 100, 1))
+
+        int totalSurplusResolvedItemsCount = allSurplusItems.Count(x =>
+            x.Item.ProcessedQuantity >= x.Item.Quantity ||
+            x.Item.Status == "Completed" ||
+            x.Item.Status == "Closed");
+        int totalSurplusPendingItemsCount = totalSurplusItems - totalSurplusResolvedItemsCount;
+
+        decimal surplusResolutionRatePercent = totalSurplusItems > 0
+            ? Math.Min(100, Math.Round(((decimal)totalSurplusResolvedItemsCount / totalSurplusItems) * 100, 1))
             : 0;
 
         decimal totalSupplierRefundAmount = 0;
@@ -229,6 +237,8 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
 
         decimal returnSupplierQuantity = 0;
         decimal liquidationQuantity = 0;
+        int returnSupplierActionsCount = 0;
+        int liquidationActionsCount = 0;
 
         var surplusActionList = new List<SurplusActionDetailDto>();
         var surplusRequestReportItems = new List<SurplusRequestReportItemDto>();
@@ -261,6 +271,7 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             // Action: Return to Supplier
             foreach (var rSupplier in item.ReturnToSuppliers)
             {
+                returnSupplierActionsCount++;
                 returnSupplierQuantity += rSupplier.ReturnQuantity;
                 if (rSupplier.RefundAmount.HasValue)
                 {
@@ -314,6 +325,7 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             // Action: Liquidations
             foreach (var liq in item.Liquidations)
             {
+                liquidationActionsCount++;
                 liquidationQuantity += liq.LiquidationQuantity;
                 totalLiquidationAmount += liq.TotalAmount;
 
@@ -338,9 +350,14 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         }
 
         decimal totalFinancialRecoveryAmount = totalSupplierRefundAmount + totalLiquidationAmount;
+        int totalTransferredItemsCount = allSurplusItems.Count(x => x.Item.Transfers.Any());
 
         var surplusMethodBreakdown = new SurplusMethodBreakdownDto
         {
+            ReturnSupplierActionsCount = returnSupplierActionsCount,
+            TransferActionsCount = totalTransferredActionsCount,
+            LiquidationActionsCount = liquidationActionsCount,
+            PendingRemainingItemsCount = totalSurplusPendingItemsCount,
             ReturnSupplierQuantity = returnSupplierQuantity,
             TransferQuantity = totalTransferredQuantity,
             LiquidationQuantity = liquidationQuantity,
@@ -420,9 +437,13 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             int retSlips = pReturns.Count;
             decimal retVal = pReturns.Sum(r => r.Items.Sum(it => it.Quantity * materialPriceMap.GetValueOrDefault(it.MaterialId, 0m)));
             int sCount = pSurplusItems.Count;
+            int sResolvedCount = pSurplusItems.Count(x =>
+                x.Item.ProcessedQuantity >= x.Item.Quantity ||
+                x.Item.Status == "Completed" ||
+                x.Item.Status == "Closed");
             decimal sTotalQty = pSurplusItems.Sum(x => x.Item.Quantity);
             decimal sProcQty = pSurplusItems.Sum(x => x.Item.ProcessedQuantity);
-            decimal sResRate = sTotalQty > 0 ? Math.Min(100, Math.Round((sProcQty / sTotalQty) * 100, 1)) : 0;
+            decimal sResRate = sCount > 0 ? Math.Min(100, Math.Round(((decimal)sResolvedCount / sCount) * 100, 1)) : 0;
             decimal finRec = pActions.Sum(a => a.FinancialValueVnd ?? 0);
 
             return new ProjectSurplusComparisonDto
@@ -432,14 +453,18 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
                 ReturnSlipCount = retSlips,
                 ReturnEstimatedValueVnd = retVal,
                 SurplusItemCount = sCount,
+                SurplusResolvedItemCount = sResolvedCount,
                 SurplusTotalQuantity = sTotalQty,
                 SurplusProcessedQuantity = sProcQty,
                 SurplusResolutionRatePercent = sResRate,
                 FinancialRecoveryAmountVnd = finRec
             };
         })
-        .OrderByDescending(p => p.SurplusTotalQuantity + p.ReturnSlipCount)
+        .OrderByDescending(p => p.SurplusItemCount + p.ReturnSlipCount)
         .ToList();
+
+        int totalTransferredMaterialsCount = surplusActionList.Where(a => a.ActionType == "Transfer").Select(a => a.MaterialCode).Distinct().Count();
+        int totalSurplusDistinctMaterialsCount = allSurplusItems.Select(x => x.Item.MaterialId).Distinct().Count();
 
         var result = new MaterialReturnsAndSurplusReportDto
         {
@@ -451,11 +476,15 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
 
             TotalReturnSlips = totalReturnSlips,
             TotalReturnItemsCount = totalReturnItemsCount,
+            TotalReturnDistinctMaterialsCount = totalReturnDistinctMaterialsCount,
             TotalReturnVolume = totalReturnVolume,
             TotalReturnEstimatedValue = totalReturnEstimatedValue,
 
             TotalSurplusBatches = totalSurplusBatches,
             TotalSurplusItems = totalSurplusItems,
+            TotalSurplusDistinctMaterialsCount = totalSurplusDistinctMaterialsCount,
+            TotalSurplusResolvedItemsCount = totalSurplusResolvedItemsCount,
+            TotalSurplusPendingItemsCount = totalSurplusPendingItemsCount,
             TotalSurplusQuantity = totalSurplusQuantity,
             TotalSurplusProcessedQuantity = totalSurplusProcessedQuantity,
             TotalSurplusRemainingQuantity = totalSurplusRemainingQuantity,
@@ -466,6 +495,8 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             TotalLiquidationAmount = totalLiquidationAmount,
             TotalTransferredQuantity = totalTransferredQuantity,
             TotalTransferredActionsCount = totalTransferredActionsCount,
+            TotalTransferredItemsCount = totalTransferredItemsCount,
+            TotalTransferredMaterialsCount = totalTransferredMaterialsCount,
 
             SurplusMethodBreakdown = surplusMethodBreakdown,
             MonthlyTrends = monthlyTrends,

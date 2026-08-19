@@ -400,6 +400,10 @@ export interface InventoryMovementReportDto {
 // Material Returns & Surplus Handling Report
 // ============================================================
 export interface SurplusMethodBreakdownDto {
+  returnSupplierActionsCount?: number;
+  transferActionsCount?: number;
+  liquidationActionsCount?: number;
+  pendingRemainingItemsCount?: number;
   returnSupplierQuantity: number;
   transferQuantity: number;
   liquidationQuantity: number;
@@ -435,6 +439,7 @@ export interface ProjectSurplusComparisonDto {
   returnSlipCount: number;
   returnEstimatedValueVnd: number;
   surplusItemCount: number;
+  surplusResolvedItemCount?: number;
   surplusTotalQuantity: number;
   surplusProcessedQuantity: number;
   surplusResolutionRatePercent: number;
@@ -514,11 +519,15 @@ export interface MaterialReturnsAndSurplusReportDto {
 
   totalReturnSlips: number;
   totalReturnItemsCount: number;
+  totalReturnDistinctMaterialsCount?: number;
   totalReturnVolume: number;
   totalReturnEstimatedValue: number;
 
   totalSurplusBatches: number;
   totalSurplusItems: number;
+  totalSurplusDistinctMaterialsCount?: number;
+  totalSurplusResolvedItemsCount?: number;
+  totalSurplusPendingItemsCount?: number;
   totalSurplusQuantity: number;
   totalSurplusProcessedQuantity: number;
   totalSurplusRemainingQuantity: number;
@@ -529,6 +538,8 @@ export interface MaterialReturnsAndSurplusReportDto {
   totalLiquidationAmount: number;
   totalTransferredQuantity: number;
   totalTransferredActionsCount: number;
+  totalTransferredItemsCount?: number;
+  totalTransferredMaterialsCount?: number;
 
   surplusMethodBreakdown: SurplusMethodBreakdownDto;
   monthlyTrends: ReturnAndSurplusMonthlyTrendDto[];

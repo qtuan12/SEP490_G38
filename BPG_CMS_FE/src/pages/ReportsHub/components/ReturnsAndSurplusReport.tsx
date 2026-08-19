@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   RotateCcw, DollarSign, ArrowLeftRight, Clock,
-  FileSpreadsheet, Search, CheckCircle2, Eye, X, ExternalLink
+  Search, CheckCircle2, Eye, X, ExternalLink
 } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import {
@@ -15,7 +15,6 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, BarChart
 } from 'recharts';
-import ExcelJS from 'exceljs';
 
 interface Props {
   projectId: string | null;
@@ -89,150 +88,17 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
     );
   }, [data?.surplusActions, searchTerm]);
 
-  // Pie chart data for Surplus handling methods
+  // Pie chart data for Surplus handling methods (by number of action logs / items)
   const surplusPieData = useMemo(() => {
     if (!data?.surplusMethodBreakdown) return [];
     const b = data.surplusMethodBreakdown;
     return [
-      { name: 'Trả lại NCC', value: b.returnSupplierQuantity, amount: b.returnSupplierValueVnd, color: '#10b981' },
-      { name: 'Điều chuyển dự án', value: b.transferQuantity, amount: 0, color: '#6366f1' },
-      { name: 'Bán thanh lý', value: b.liquidationQuantity, amount: b.liquidationValueVnd, color: '#a855f7' },
-      { name: 'Chờ xử lý (Tồn)', value: b.pendingRemainingQuantity, amount: 0, color: '#f59e0b' },
+      { name: 'Trả lại NCC', value: b.returnSupplierActionsCount ?? (b.returnSupplierQuantity > 0 ? 1 : 0), amount: b.returnSupplierValueVnd, color: '#10b981' },
+      { name: 'Điều chuyển dự án', value: b.transferActionsCount ?? (b.transferQuantity > 0 ? 1 : 0), amount: 0, color: '#6366f1' },
+      { name: 'Bán thanh lý', value: b.liquidationActionsCount ?? (b.liquidationQuantity > 0 ? 1 : 0), amount: b.liquidationValueVnd, color: '#a855f7' },
+      { name: 'Chờ xử lý (Tồn)', value: b.pendingRemainingItemsCount ?? 0, amount: 0, color: '#f59e0b' },
     ].filter(x => x.value > 0);
   }, [data?.surplusMethodBreakdown]);
-
-  // Export to Excel
-  const handleExportExcel = async () => {
-    if (!data) return;
-
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'BPG Construction Management System';
-    workbook.created = new Date();
-
-    // 1. Sheet Hoàn trả công trường
-    const returnSheet = workbook.addWorksheet('Hoàn trả Công trường');
-    returnSheet.columns = [
-      { header: 'STT', key: 'stt', width: 8 },
-      { header: 'Mã Phiếu', key: 'returnNo', width: 22 },
-      { header: 'Dự Án', key: 'projectName', width: 25 },
-      { header: 'Phiếu Xuất Gốc', key: 'issuanceNo', width: 22 },
-      { header: 'Công Việc / Task', key: 'taskName', width: 28 },
-      { header: 'Lý Do Hoàn Trả', key: 'reason', width: 30 },
-      { header: 'Số Chủng Loại', key: 'totalItems', width: 14 },
-      { header: 'Giá Trị Ước Tính (VNĐ)', key: 'totalValue', width: 22 },
-      { header: 'Ngày Lập', key: 'date', width: 16 },
-      { header: 'Người Lập', key: 'creator', width: 20 },
-    ];
-
-    data.materialReturns.forEach((r, idx) => {
-      returnSheet.addRow({
-        stt: idx + 1,
-        returnNo: r.returnNo,
-        projectName: r.projectName,
-        issuanceNo: r.originalIssuanceNo,
-        taskName: r.taskName,
-        reason: r.reason,
-        totalItems: r.totalItems,
-        totalValue: r.totalEstimatedValueVnd,
-        date: new Date(r.returnDate).toLocaleDateString('vi-VN'),
-        creator: r.createdByName,
-      });
-    });
-
-    // 2. Sheet Danh mục vật tư thừa
-    const surplusSheet = workbook.addWorksheet('Vật tư Dư thừa');
-    surplusSheet.columns = [
-      { header: 'STT', key: 'stt', width: 8 },
-      { header: 'Mã Đợt', key: 'batchId', width: 12 },
-      { header: 'Dự Án', key: 'projectName', width: 25 },
-      { header: 'Mã Vật Tư', key: 'materialCode', width: 16 },
-      { header: 'Tên Vật Tư', key: 'materialName', width: 30 },
-      { header: 'ĐVT', key: 'unitName', width: 10 },
-      { header: 'SL Thừa', key: 'surplusQty', width: 14 },
-      { header: 'Đã Xử Lý', key: 'processedQty', width: 14 },
-      { header: 'Còn Lại', key: 'remainingQty', width: 14 },
-      { header: 'Tỷ Lệ Xử Lý (%)', key: 'resolutionPercent', width: 16 },
-      { header: 'Trạng Thái', key: 'status', width: 16 },
-      { header: 'Ngày Tạo', key: 'date', width: 16 },
-    ];
-
-    data.surplusRequests.forEach((s, idx) => {
-      surplusSheet.addRow({
-        stt: idx + 1,
-        batchId: `#${s.surplusRequestId}`,
-        projectName: s.projectName,
-        materialCode: s.materialCode,
-        materialName: s.materialName,
-        unitName: s.unitName,
-        surplusQty: s.surplusQuantity,
-        processedQty: s.processedQuantity,
-        remainingQty: s.remainingQuantity,
-        resolutionPercent: `${s.resolutionPercent}%`,
-        status: s.status,
-        date: new Date(s.createdAt).toLocaleDateString('vi-VN'),
-      });
-    });
-
-    // 3. Sheet Nhật ký Action
-    const actionSheet = workbook.addWorksheet('Nhật ký Xử lý Thừa');
-    actionSheet.columns = [
-      { header: 'STT', key: 'stt', width: 8 },
-      { header: 'Phương Thức', key: 'actionType', width: 20 },
-      { header: 'Dự Án', key: 'projectName', width: 25 },
-      { header: 'Mã VT', key: 'materialCode', width: 16 },
-      { header: 'Tên Vật Tư', key: 'materialName', width: 30 },
-      { header: 'ĐVT', key: 'unitName', width: 10 },
-      { header: 'Số Lượng', key: 'quantity', width: 14 },
-      { header: 'Giá Trị Thu Hồi (VNĐ)', key: 'finValue', width: 22 },
-      { header: 'Đối Tác / Dự Án Đến', key: 'partner', width: 28 },
-      { header: 'Trạng Thái', key: 'status', width: 16 },
-      { header: 'Ngày Thực Hiện', key: 'date', width: 16 },
-      { header: 'Ghi Chú', key: 'note', width: 25 },
-    ];
-
-    data.surplusActions.forEach((a, idx) => {
-      const typeLabel = a.actionType === 'ReturnSupplier' ? 'Trả NCC'
-        : a.actionType === 'Transfer' ? 'Điều chuyển'
-        : a.actionType === 'Liquidation' ? 'Bán thanh lý' : a.actionType;
-
-      actionSheet.addRow({
-        stt: idx + 1,
-        actionType: typeLabel,
-        projectName: a.projectName,
-        materialCode: a.materialCode,
-        materialName: a.materialName,
-        unitName: a.unitName,
-        quantity: a.quantity,
-        finValue: a.financialValueVnd ? a.financialValueVnd.toLocaleString('vi-VN') : '—',
-        partner: a.partnerOrDestination,
-        status: a.status,
-        date: new Date(a.actionDate).toLocaleDateString('vi-VN'),
-        note: a.note || '',
-      });
-    });
-
-    // Style headers for all sheets
-    [returnSheet, surplusSheet, actionSheet].forEach(sheet => {
-      const headerRow = sheet.getRow(1);
-      headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF4F46E5' } // Indigo 600
-      };
-      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-      headerRow.height = 26;
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `Bao_Cao_Hoan_Tra_Va_Xu_Ly_Thua_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    anchor.click();
-    window.URL.revokeObjectURL(url);
-  };
 
   if (loading) {
     return <LoadingSpinner size="md" label="Đang tổng hợp số liệu hoàn trả & xử lý thừa..." className="py-20" />;
@@ -248,7 +114,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Top Banner & Action Header */}
+      {/* Top Banner Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-gradient-to-r from-indigo-50/70 via-purple-50/50 to-white dark:from-slate-900 dark:via-slate-850 dark:to-slate-900 border border-indigo-100 dark:border-indigo-950/60 rounded-3xl shadow-sm">
         <div className="flex items-center gap-3.5">
           <div className="p-3 bg-indigo-600 text-white rounded-2xl shadow-sm shadow-indigo-200 dark:shadow-none">
@@ -263,13 +129,6 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
             </p>
           </div>
         </div>
-
-        <button
-          onClick={handleExportExcel}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-200 dark:shadow-none cursor-pointer self-start sm:self-auto shrink-0"
-        >
-          <FileSpreadsheet size={16} /> Xuất Excel Báo Cáo
-        </button>
       </div>
 
       {/* 4 Premium KPI Cards */}
@@ -284,9 +143,9 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
             <div className="text-2xl font-black text-slate-900 dark:text-white">
               {data.totalReturnSlips.toLocaleString('vi-VN')} <span className="text-xs font-medium text-slate-500">phiếu</span>
             </div>
-            <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1 flex items-center justify-between">
-              <span>{data.totalReturnItemsCount} chủng loại hoàn trả</span>
-              <span>~{(data.totalReturnEstimatedValue / 1_000_000).toFixed(1)}M đ</span>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
+              <span>{data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-bold">~{(data.totalReturnEstimatedValue / 1_000_000).toFixed(1)}M đ</span>
             </div>
           </div>
         </div>
@@ -302,8 +161,8 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
               {data.totalFinancialRecoveryAmount.toLocaleString('vi-VN')} <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">VNĐ</span>
             </div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
-              <span>NCC: {data.totalSupplierRefundAmount > 0 ? `${(data.totalSupplierRefundAmount / 1000000).toFixed(1)}M` : '0 đ'}</span>
-              <span>Thanh lý: {data.totalLiquidationAmount > 0 ? `${(data.totalLiquidationAmount / 1000000).toFixed(1)}M` : '0 đ'}</span>
+              <span>NCC: {data.totalSupplierRefundAmount > 0 ? `${(data.totalSupplierRefundAmount / 1_000_000).toFixed(1)}M` : '0 đ'}</span>
+              <span>Thanh lý: {data.totalLiquidationAmount > 0 ? `${(data.totalLiquidationAmount / 1_000_000).toFixed(1)}M` : '0 đ'}</span>
             </div>
           </div>
         </div>
@@ -316,10 +175,10 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-purple-700 dark:text-purple-300">
-              {data.totalTransferredQuantity.toLocaleString('vi-VN')} <span className="text-xs font-medium text-slate-500">đơn vị</span>
+              {data.totalTransferredActionsCount.toLocaleString('vi-VN')} <span className="text-xs font-medium text-slate-500">lượt điều chuyển</span>
             </div>
             <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-1">
-              {data.totalTransferredActionsCount} chuyến điều chuyển liên dự án
+              Điều chuyển liên dự án ({data.totalTransferredMaterialsCount ?? data.totalTransferredItemsCount ?? 1} loại vật tư)
             </div>
           </div>
         </div>
@@ -335,8 +194,8 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
               {data.surplusResolutionRatePercent}% <span className="text-xs font-medium text-slate-500">giải phóng</span>
             </div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
-              <span>Còn lại: {data.totalSurplusRemainingQuantity.toLocaleString('vi-VN')}</span>
-              <span>Đã xử lý: {data.totalSurplusProcessedQuantity.toLocaleString('vi-VN')}</span>
+              <span className="text-emerald-600 dark:text-emerald-400">Đã xong: {data.totalSurplusResolvedItemsCount ?? (data.totalSurplusItems - (data.totalSurplusPendingItemsCount ?? 0))} mục</span>
+              <span className="text-amber-600 dark:text-amber-400">Còn tồn: {data.totalSurplusPendingItemsCount ?? 0} mục</span>
             </div>
           </div>
         </div>
@@ -348,7 +207,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col justify-between">
           <div>
             <h4 className="text-sm font-bold text-slate-900 dark:text-white m-0">Cơ Cấu Phương Thức Xử Lý Thừa</h4>
-            <p className="text-xs text-slate-500 m-0 mt-0.5">Phân bổ theo khối lượng giải phóng vật tư</p>
+            <p className="text-xs text-slate-500 m-0 mt-0.5">Phân bổ theo số lượt và mặt hàng xử lý</p>
           </div>
 
           <div className="h-60 w-full flex items-center justify-center my-2">
@@ -369,7 +228,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                     ))}
                   </Pie>
                   <RechartsTooltip
-                    formatter={(value, name) => [`${Number(value || 0).toLocaleString('vi-VN')} Đơn vị`, name]}
+                    formatter={(value, name) => [`${Number(value || 0).toLocaleString('vi-VN')} lượt / mặt hàng`, name]}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 </PieChart>
@@ -390,7 +249,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-white m-0">Xu Hướng Hoàn Trả & Thu Hồi Tài Chính 12 Tháng</h4>
-              <p className="text-xs text-slate-500 m-0 mt-0.5">Biến động khối lượng hoàn trả công trường và giá trị thu hồi qua từng tháng</p>
+              <p className="text-xs text-slate-500 m-0 mt-0.5">Biến động số lượng phiếu hoàn trả công trường và giá trị thu hồi qua từng tháng</p>
             </div>
           </div>
 
@@ -400,25 +259,25 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                 <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
                 <YAxis yAxisId="left" tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} label={{ value: 'SL Hoàn Trả', angle: -90, position: 'insideRight', style: { fontSize: 10 } }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} label={{ value: 'Số phiếu hoàn trả', angle: -90, position: 'insideRight', style: { fontSize: 10 } }} />
                 <RechartsTooltip
                   formatter={(value, name) => [
                     name === 'Giá trị thu hồi (VNĐ)' || name === 'Giá trị hoàn trả (VNĐ)'
                       ? `${Number(value || 0).toLocaleString('vi-VN')} VNĐ`
-                      : Number(value || 0).toLocaleString('vi-VN'),
+                      : `${Number(value || 0).toLocaleString('vi-VN')} phiếu`,
                     String(name || '')
                   ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
                 <Bar yAxisId="left" dataKey="financialRecoveryAmountVnd" name="Giá trị thu hồi (VNĐ)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Line yAxisId="right" type="monotone" dataKey="returnQuantity" name="SL Vật tư hoàn trả" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line yAxisId="right" type="monotone" dataKey="returnSlipCount" name="Số phiếu hoàn trả (Phiếu)" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <span>Tổng khối lượng hoàn trả 12 tháng: <strong>{data.totalReturnVolume.toLocaleString('vi-VN')}</strong></span>
-            <span>Tổng tài chính thu hồi 12 tháng: <strong className="text-emerald-600">{data.totalFinancialRecoveryAmount.toLocaleString('vi-VN')} đ</strong></span>
+            <span>Tổng số phiếu hoàn trả: <strong>{data.totalReturnSlips.toLocaleString('vi-VN')} phiếu</strong> ({data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư)</span>
+            <span>Tổng tài chính thu hồi: <strong className="text-emerald-600">{data.totalFinancialRecoveryAmount.toLocaleString('vi-VN')} đ</strong></span>
           </div>
         </div>
       </div>
@@ -427,7 +286,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
       {projectId === 'all' && data.crossProjectMatrix.length > 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">So Sánh Hoàn Trả & Xử Lý Thừa Theo Từng Dự Án</h4>
-          <p className="text-xs text-slate-500 mb-4">Tổng quan khối lượng phát sinh và tỷ lệ xử lý giữa các công trình</p>
+          <p className="text-xs text-slate-500 mb-4">So sánh số lượng mặt hàng thừa phát sinh và mặt hàng đã giải phóng giữa các công trình</p>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -435,10 +294,12 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                 <XAxis dataKey="projectName" tick={{ fontSize: 10, fontWeight: 600 }} angle={-15} textAnchor="end" />
                 <YAxis tick={{ fontSize: 11 }} />
-                <RechartsTooltip />
+                <RechartsTooltip
+                  formatter={(value, name) => [`${Number(value || 0).toLocaleString('vi-VN')} mặt hàng`, name]}
+                />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="surplusTotalQuantity" name="Tổng VT Thừa" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                <Bar dataKey="surplusProcessedQuantity" name="Đã Xử Lý" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="surplusItemCount" name="Tổng mặt hàng thừa" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="surplusResolvedItemCount" name="Mặt hàng đã giải phóng" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -451,31 +312,28 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800 rounded-2xl self-start">
             <button
               onClick={() => setActiveSubTab('returns')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === 'returns'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === 'returns'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
+                }`}
             >
               Phiếu Hoàn Trả Công Trường ({data.materialReturns.length})
             </button>
             <button
               onClick={() => setActiveSubTab('surplus-items')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === 'surplus-items'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === 'surplus-items'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
+                }`}
             >
               Danh Mục Vật Tư Thừa ({data.surplusRequests.length})
             </button>
             <button
               onClick={() => setActiveSubTab('actions')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeSubTab === 'actions'
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeSubTab === 'actions'
                   ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-              }`}
+                }`}
             >
               Nhật Ký Xử Lý Thừa ({data.surplusActions.length})
             </button>

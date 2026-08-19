@@ -467,11 +467,15 @@ public record MaterialReturnsAndSurplusReportDto
     // KPI Summary Metrics
     public int TotalReturnSlips { get; init; }
     public int TotalReturnItemsCount { get; init; }
+    public int TotalReturnDistinctMaterialsCount { get; init; }
     public decimal TotalReturnVolume { get; init; }
     public decimal TotalReturnEstimatedValue { get; init; }
 
     public int TotalSurplusBatches { get; init; }
     public int TotalSurplusItems { get; init; }
+    public int TotalSurplusDistinctMaterialsCount { get; init; }
+    public int TotalSurplusResolvedItemsCount { get; init; }
+    public int TotalSurplusPendingItemsCount { get; init; }
     public decimal TotalSurplusQuantity { get; init; }
     public decimal TotalSurplusProcessedQuantity { get; init; }
     public decimal TotalSurplusRemainingQuantity { get; init; }
@@ -482,6 +486,8 @@ public record MaterialReturnsAndSurplusReportDto
     public decimal TotalLiquidationAmount { get; init; }
     public decimal TotalTransferredQuantity { get; init; }
     public int TotalTransferredActionsCount { get; init; }
+    public int TotalTransferredItemsCount { get; init; }
+    public int TotalTransferredMaterialsCount { get; init; }
 
     // Visual Charts / Breakdown
     public SurplusMethodBreakdownDto SurplusMethodBreakdown { get; init; } = new();
@@ -497,6 +503,10 @@ public record MaterialReturnsAndSurplusReportDto
 
 public record SurplusMethodBreakdownDto
 {
+    public int ReturnSupplierActionsCount { get; init; }
+    public int TransferActionsCount { get; init; }
+    public int LiquidationActionsCount { get; init; }
+    public int PendingRemainingItemsCount { get; init; }
     public decimal ReturnSupplierQuantity { get; init; }
     public decimal TransferQuantity { get; init; }
     public decimal LiquidationQuantity { get; init; }
@@ -535,6 +545,7 @@ public record ProjectSurplusComparisonDto
     public int ReturnSlipCount { get; init; }
     public decimal ReturnEstimatedValueVnd { get; init; }
     public int SurplusItemCount { get; init; }
+    public int SurplusResolvedItemCount { get; init; }
     public decimal SurplusTotalQuantity { get; init; }
     public decimal SurplusProcessedQuantity { get; init; }
     public decimal SurplusResolutionRatePercent { get; init; }
