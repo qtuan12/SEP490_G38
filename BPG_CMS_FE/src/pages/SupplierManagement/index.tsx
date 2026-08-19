@@ -109,6 +109,15 @@ export const SupplierManagement: React.FC = () => {
   // DataTable columns
   const columns = [
     {
+      key: 'stt',
+      header: 'STT',
+      render: (_supplier: Supplier, index: number) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {(page - 1) * pageSize + index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'supplierName',
       header: 'Tên nhà cung cấp',
       render: (supplier: Supplier) => (
