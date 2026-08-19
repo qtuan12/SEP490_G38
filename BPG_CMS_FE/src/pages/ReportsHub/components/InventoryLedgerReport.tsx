@@ -3,6 +3,7 @@ import { Warehouse, TrendingDown, TrendingUp, Filter } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type InventoryLedgerReportDto, type InventoryTransactionSummaryDto } from '../../../services/reportService';
 import { parseDateSafe } from '../../../utils/dateHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface Props {
   projectId: string | null;
@@ -196,7 +197,7 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
                     <td className="px-4 py-3 font-mono text-xs text-[hsl(var(--text-muted))]">{item.materialCode}</td>
                     <td className="px-4 py-3 font-medium">{item.materialName}</td>
                     <td className="px-4 py-3">{item.unitName}</td>
-                    <td className="px-4 py-3 text-right font-bold text-lg">{item.currentQuantity.toLocaleString('vi-VN')}</td>
+                    <td className="px-4 py-3 text-right font-bold text-lg">{formatNumber(item.currentQuantity)}</td>
                     <td className="px-4 py-3 text-center">
                       {item.currentQuantity > 0
                         ? <span className="text-[hsl(var(--success))] text-xs font-bold">CÒN HÀNG</span>
@@ -239,9 +240,9 @@ export const InventoryLedgerReport: React.FC<Props> = ({ projectId }) => {
                         <div className="text-xs text-[hsl(var(--text-muted))]">{tx.materialCode}</div>
                       </td>
                       <td className={`px-4 py-3 text-right font-bold ${isPositive ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]'}`}>
-                        {isPositive ? '+' : ''}{tx.quantityChange.toLocaleString('vi-VN')} {tx.unitName}
+                        {isPositive ? '+' : ''}{formatNumber(tx.quantityChange)} {tx.unitName}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold">{tx.balanceAfter.toLocaleString('vi-VN')}</td>
+                      <td className="px-4 py-3 text-right font-semibold">{formatNumber(tx.balanceAfter)}</td>
                       <td className="px-4 py-3 text-xs">{tx.createdByName || '—'}</td>
                     </tr>
                   );

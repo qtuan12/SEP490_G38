@@ -5,6 +5,7 @@ import { inventoryService } from '../../../services/inventoryService';
 import type { InventoryTransaction } from '../../../types/inventory';
 import { getTransactionTypeDetails, formatDateTimeVN } from '../../../utils/inventoryHelpers';
 import { useVirtualRows } from '../../../hooks/useVirtualRows';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface LedgerHistoryTabProps {
   projectId: number;
@@ -141,6 +142,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
+                  <th className="px-4 py-3 text-center w-12">STT</th>
                   <th className="px-4 py-3">Ngày giờ</th>
                   <th className="px-4 py-3">Mã vật tư</th>
                   <th className="px-4 py-3">Vật tư</th>
@@ -153,7 +155,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
               <tbody className="divide-y divide-slate-200 bg-white">
                 {transactionsList.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                       Không tìm thấy biến động kho nào.
                     </td>
                   </tr>
@@ -161,13 +163,16 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                   <>
                     {virtualTransactions.topPadding > 0 && (
                       <tr aria-hidden="true">
-                        <td colSpan={7} style={{ height: virtualTransactions.topPadding, padding: 0 }} />
+                        <td colSpan={8} style={{ height: virtualTransactions.topPadding, padding: 0 }} />
                       </tr>
                     )}
-                    {virtualTransactions.visibleRows.map(({ item: t }) => {
+                    {virtualTransactions.visibleRows.map(({ item: t, index }) => {
                       const typeInfo = getTransactionTypeDetails(t.transactionType);
                       return (
                         <tr key={t.transactionId} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3.5 text-center text-slate-500 text-sm font-medium tabular-nums">
+                            {(page - 1) * 10 + index + 1}
+                          </td>
                           <td className="px-4 py-3.5 text-slate-600">
                             {formatDateTimeVN(t.createdAt)}
                           </td>
@@ -184,11 +189,11 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                           </td>
                           <td className={`px-4 py-3.5 text-right font-bold ${t.quantityChange > 0 ? 'text-emerald-600' : 'text-rose-600'
                             }`}>
-                            {t.quantityChange > 0 ? `+${t.quantityChange}` : t.quantityChange}{' '}
+                            {t.quantityChange > 0 ? `+${formatNumber(t.quantityChange)}` : formatNumber(t.quantityChange)}{' '}
                             <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                           </td>
                           <td className="px-4 py-3.5 text-right font-semibold text-slate-900">
-                            {t.balanceAfter}{' '}
+                            {formatNumber(t.balanceAfter)}{' '}
                             <span className="text-xs text-slate-400 font-normal">{t.unitName}</span>
                           </td>
                           <td className="px-4 py-3.5 text-slate-700">

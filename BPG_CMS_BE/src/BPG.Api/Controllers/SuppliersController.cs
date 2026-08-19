@@ -65,5 +65,22 @@ namespace BPG.Api.Controllers
             await Mediator.Send(new DeleteSupplierCommand(id));
             return ApiOk("Xóa nhà cung cấp thành công");
         }
+
+        [HttpPost("import")]
+        [EnableRateLimiting(RateLimitPolicies.Mutation)]
+        [Authorize(Roles = RolePolicies.SupplierManagers)]
+        public async Task<IActionResult> ImportSuppliers(IFormFile file)
+        {
+            var result = await Mediator.Send(new ImportSuppliersCommand(file));
+            return ApiOk(result, "Import nhà cung cấp hoàn thành.");
+        }
+
+        [HttpGet("template")]
+        [Authorize(Roles = RolePolicies.SupplierViewers)]
+        public async Task<IActionResult> DownloadTemplate()
+        {
+            var fileBytes = await Mediator.Send(new GetSupplierImportTemplateQuery());
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "mau_nha_cung_cap.xlsx");
+        }
     }
 }

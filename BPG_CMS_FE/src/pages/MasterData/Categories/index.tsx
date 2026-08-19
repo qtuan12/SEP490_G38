@@ -85,6 +85,15 @@ export const CategoryManagement: React.FC = () => {
 
   const columns = [
     {
+      key: 'stt',
+      header: 'STT',
+      render: (_cat: MaterialCategory, index: number) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {(page - 1) * pageSize + index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'categoryId',
       header: 'ID',
       render: (cat: MaterialCategory) => (

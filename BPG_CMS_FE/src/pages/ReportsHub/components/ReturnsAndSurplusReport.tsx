@@ -1,3 +1,4 @@
+import { formatNumber } from '../../../utils/formatNumber';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -141,7 +142,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-slate-900 dark:text-white">
-              {data.totalReturnSlips.toLocaleString('vi-VN')} <span className="text-xs font-medium text-slate-500">phiếu</span>
+              {formatNumber(data.totalReturnSlips)} <span className="text-xs font-medium text-slate-500">phiếu</span>
             </div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
               <span>{data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư</span>
@@ -158,7 +159,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-              {data.totalFinancialRecoveryAmount.toLocaleString('vi-VN')} <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">VNĐ</span>
+              {formatNumber(data.totalFinancialRecoveryAmount)} <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">VNĐ</span>
             </div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
               <span>NCC: {data.totalSupplierRefundAmount > 0 ? `${(data.totalSupplierRefundAmount / 1_000_000).toFixed(1)}M` : '0 đ'}</span>
@@ -175,7 +176,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-purple-700 dark:text-purple-300">
-              {data.totalTransferredActionsCount.toLocaleString('vi-VN')} <span className="text-xs font-medium text-slate-500">lượt điều chuyển</span>
+              {formatNumber(data.totalTransferredActionsCount)} <span className="text-xs font-medium text-slate-500">lượt điều chuyển</span>
             </div>
             <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-1">
               Điều chuyển liên dự án ({data.totalTransferredMaterialsCount ?? data.totalTransferredItemsCount ?? 1} loại vật tư)
@@ -228,7 +229,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                     ))}
                   </Pie>
                   <RechartsTooltip
-                    formatter={(value, name) => [`${Number(value || 0).toLocaleString('vi-VN')} lượt / mặt hàng`, name]}
+                    formatter={(value, name) => [`${formatNumber(Number(value || 0))} lượt / mặt hàng`, name]}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 </PieChart>
@@ -239,8 +240,8 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-[11px] pt-3 border-t border-slate-100 dark:border-slate-800">
-            <div className="text-slate-500">Hoàn tiền NCC: <strong className="text-emerald-600 font-bold">{data.totalSupplierRefundAmount.toLocaleString('vi-VN')} đ</strong></div>
-            <div className="text-slate-500">Thu thanh lý: <strong className="text-purple-600 font-bold">{data.totalLiquidationAmount.toLocaleString('vi-VN')} đ</strong></div>
+            <div className="text-slate-500">Hoàn tiền NCC: <strong className="text-emerald-600 font-bold">{formatNumber(data.totalSupplierRefundAmount)} đ</strong></div>
+            <div className="text-slate-500">Thu thanh lý: <strong className="text-purple-600 font-bold">{formatNumber(data.totalLiquidationAmount)} đ</strong></div>
           </div>
         </div>
 
@@ -263,8 +264,8 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                 <RechartsTooltip
                   formatter={(value, name) => [
                     name === 'Giá trị thu hồi (VNĐ)' || name === 'Giá trị hoàn trả (VNĐ)'
-                      ? `${Number(value || 0).toLocaleString('vi-VN')} VNĐ`
-                      : `${Number(value || 0).toLocaleString('vi-VN')} phiếu`,
+                      ? `${formatNumber(Number(value || 0))} VNĐ`
+                      : `${formatNumber(Number(value || 0))} phiếu`,
                     String(name || '')
                   ]}
                 />
@@ -276,8 +277,8 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <span>Tổng số phiếu hoàn trả: <strong>{data.totalReturnSlips.toLocaleString('vi-VN')} phiếu</strong> ({data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư)</span>
-            <span>Tổng tài chính thu hồi: <strong className="text-emerald-600">{data.totalFinancialRecoveryAmount.toLocaleString('vi-VN')} đ</strong></span>
+            <span>Tổng số phiếu hoàn trả: <strong>{formatNumber(data.totalReturnSlips)} phiếu</strong> ({data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư)</span>
+            <span>Tổng tài chính thu hồi: <strong className="text-emerald-600">{formatNumber(data.totalFinancialRecoveryAmount)} đ</strong></span>
           </div>
         </div>
       </div>
@@ -295,7 +296,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                 <XAxis dataKey="projectName" tick={{ fontSize: 10, fontWeight: 600 }} angle={-15} textAnchor="end" />
                 <YAxis tick={{ fontSize: 11 }} />
                 <RechartsTooltip
-                  formatter={(value, name) => [`${Number(value || 0).toLocaleString('vi-VN')} mặt hàng`, name]}
+                  formatter={(value, name) => [`${formatNumber(Number(value || 0))} mặt hàng`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
                 <Bar dataKey="surplusItemCount" name="Tổng mặt hàng thừa" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={32} />
@@ -441,7 +442,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                     </td>
                     <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                        {r.totalEstimatedValueVnd > 0 ? `${r.totalEstimatedValueVnd.toLocaleString('vi-VN')} đ` : '—'}
+                        {r.totalEstimatedValueVnd > 0 ? `${formatNumber(r.totalEstimatedValueVnd)} đ` : '—'}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         {r.totalItems} chủng loại vật tư
@@ -521,12 +522,12 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                     </td>
                     <td className="px-4 py-3.5 text-right whitespace-nowrap">
                       <div className="font-bold text-slate-900 dark:text-white">
-                        Tổng thừa: {s.surplusQuantity.toLocaleString('vi-VN')} {s.unitName}
+                        Tổng thừa: {formatNumber(s.surplusQuantity)} {s.unitName}
                       </div>
                       <div className="text-[11px] mt-0.5 flex items-center justify-end gap-1.5 font-semibold">
-                        <span className="text-emerald-600">Đã xong: +{s.processedQuantity.toLocaleString('vi-VN')}</span>
+                        <span className="text-emerald-600">Đã xong: +{formatNumber(s.processedQuantity)}</span>
                         <span>•</span>
-                        <span className="text-amber-600">Còn: {s.remainingQuantity.toLocaleString('vi-VN')}</span>
+                        <span className="text-amber-600">Còn: {formatNumber(s.remainingQuantity)}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
@@ -620,11 +621,11 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <div className="font-bold text-slate-900 dark:text-white">
-                          {a.quantity.toLocaleString('vi-VN')} {a.unitName}
+                          {formatNumber(a.quantity)} {a.unitName}
                         </div>
                         <div className="text-[11px] mt-0.5 font-bold">
                           {a.financialValueVnd ? (
-                            <span className="text-emerald-600">+{a.financialValueVnd.toLocaleString('vi-VN')} đ</span>
+                            <span className="text-emerald-600">+{formatNumber(a.financialValueVnd)} đ</span>
                           ) : (
                             <span className="text-slate-400">Điều chuyển nội bộ</span>
                           )}
@@ -702,12 +703,12 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                       <td className="px-3 py-2 font-mono font-bold text-slate-700 dark:text-slate-300">{item.materialCode}</td>
                       <td className="px-3 py-2 font-bold text-slate-900 dark:text-white">{item.materialName}</td>
                       <td className="px-3 py-2 text-center text-slate-500">{item.unitName}</td>
-                      <td className="px-3 py-2 text-right font-black text-indigo-600 dark:text-indigo-400">{item.quantity.toLocaleString('vi-VN')}</td>
+                      <td className="px-3 py-2 text-right font-black text-indigo-600 dark:text-indigo-400">{formatNumber(item.quantity)}</td>
                       <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">
-                        {item.unitPrice > 0 ? `${item.unitPrice.toLocaleString('vi-VN')} đ` : '—'}
+                        {item.unitPrice > 0 ? `${formatNumber(item.unitPrice)} đ` : '—'}
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-emerald-600">
-                        {item.estimatedValueVnd > 0 ? `${item.estimatedValueVnd.toLocaleString('vi-VN')} đ` : '—'}
+                        {item.estimatedValueVnd > 0 ? `${formatNumber(item.estimatedValueVnd)} đ` : '—'}
                       </td>
                     </tr>
                   ))}

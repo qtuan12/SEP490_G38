@@ -1,5 +1,6 @@
 import React from 'react';
 import { Package, AlertTriangle, ArrowDownToLine, ShieldAlert } from 'lucide-react';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface InventoryOverviewCardsProps {
   totalMaterials: number;
@@ -21,7 +22,7 @@ export const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Tổng loại vật tư</span>
           <strong className="text-2xl font-extrabold text-slate-900 mt-1">
-            {totalMaterials.toLocaleString('vi-VN')}
+            {formatNumber(totalMaterials)}
           </strong>
         </div>
         <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -34,7 +35,7 @@ export const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Vật tư sắp hết kho</span>
           <strong className={`text-2xl font-extrabold mt-1 ${lowStockCount > 0 ? 'text-amber-600 animate-pulse' : 'text-slate-900'}`}>
-            {lowStockCount.toLocaleString('vi-VN')}
+            {formatNumber(lowStockCount)}
           </strong>
         </div>
         <div className={`p-3 rounded-xl ${lowStockCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
@@ -47,7 +48,7 @@ export const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Mặt hàng tồn kho</span>
           <strong className="text-2xl font-extrabold text-slate-900 mt-1">
-            {inStockCount.toLocaleString('vi-VN')}
+            {formatNumber(inStockCount)}
           </strong>
         </div>
         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -60,7 +61,7 @@ export const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({
         <div className="flex flex-col">
           <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Vật tư vượt định mức</span>
           <strong className={`text-2xl font-extrabold mt-1 ${overBOQCount > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-900'}`}>
-            {overBOQCount.toLocaleString('vi-VN')}
+            {formatNumber(overBOQCount)}
           </strong>
         </div>
         <div className={`p-3 rounded-xl ${overBOQCount > 0 ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>

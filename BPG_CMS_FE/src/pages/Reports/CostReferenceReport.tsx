@@ -6,6 +6,7 @@ import type {Project} from '../../types/common';
 import { ArrowLeft, DollarSign, ShoppingCart, AlertCircle } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { formatNumber } from '../../utils/formatNumber';
 
 interface Props {
   embeddedProjectId?: string;
@@ -111,7 +112,7 @@ export const CostReferenceReport: React.FC<Props> = ({ embeddedProjectId }) => {
                   <YAxis tickFormatter={(val) => `${(val / 1000000).toFixed(0)}Tr`} />
                   <RechartsTooltip formatter={(value: any) => {
                     const numValue = Number(value) || 0;
-                    return [`${numValue.toLocaleString('vi-VN')} VNĐ`, 'Giá trị'];
+                    return [`${formatNumber(numValue)} VNĐ`, 'Giá trị'];
                   }} cursor={{fill: 'hsl(var(--bg-main))'}} />
                   <Legend verticalAlign="top" height={36}/>
                   <Bar dataKey="valid" name="PO Đã duyệt (Hợp lệ)" stackId="a" fill="hsl(var(--primary))" maxBarSize={60} />
@@ -133,7 +134,7 @@ export const CostReferenceReport: React.FC<Props> = ({ embeddedProjectId }) => {
               <div>
                 <div className="text-sm font-semibold text-[hsl(var(--text-muted))] uppercase tracking-wider">Tổng giá trị PO</div>
                 <div className="text-2xl font-bold text-[hsl(var(--text-primary))]">
-                  {reportData?.totalPoCost.toLocaleString('vi-VN')} <span className="text-sm text-[hsl(var(--text-muted))] font-normal">VNĐ</span>
+                  {formatNumber(reportData?.totalPoCost)} <span className="text-sm text-[hsl(var(--text-muted))] font-normal">VNĐ</span>
                 </div>
               </div>
             </div>
@@ -145,7 +146,7 @@ export const CostReferenceReport: React.FC<Props> = ({ embeddedProjectId }) => {
               <div>
                 <div className="text-sm font-semibold text-[hsl(var(--text-muted))] uppercase tracking-wider">Mua ngoài (Sự cố)</div>
                 <div className="text-2xl font-bold text-[hsl(var(--text-primary))]">
-                  {reportData?.totalDirectPurchaseCost.toLocaleString('vi-VN')} <span className="text-sm text-[hsl(var(--text-muted))] font-normal">VNĐ</span>
+                  {formatNumber(reportData?.totalDirectPurchaseCost)} <span className="text-sm text-[hsl(var(--text-muted))] font-normal">VNĐ</span>
                 </div>
               </div>
             </div>
@@ -157,7 +158,7 @@ export const CostReferenceReport: React.FC<Props> = ({ embeddedProjectId }) => {
               <div>
                 <div className="text-sm font-semibold text-[hsl(var(--text-muted))] uppercase tracking-wider">TỔNG CHI PHÍ VẬT TƯ</div>
                 <div className="text-3xl font-black text-[hsl(var(--success))]">
-                  {reportData?.totalCost.toLocaleString('vi-VN')} <span className="text-sm text-[hsl(var(--text-muted))] font-normal">VNĐ</span>
+                  {formatNumber(reportData?.totalCost)} <span className="text-sm text-[hsl(var(--text-muted))] font-normal">VNĐ</span>
                 </div>
               </div>
             </div>
@@ -179,7 +180,7 @@ export const CostReferenceReport: React.FC<Props> = ({ embeddedProjectId }) => {
                   <YAxis tickFormatter={(val) => `${(val / 1000000).toFixed(0)}Tr`} />
                   <RechartsTooltip formatter={(value: any) => {
                     const numValue = Number(value) || 0;
-                    return [`${numValue.toLocaleString('vi-VN')} VNĐ`, 'Giá trị'];
+                    return [`${formatNumber(numValue)} VNĐ`, 'Giá trị'];
                   }} cursor={{fill: 'hsl(var(--bg-main))'}} />
                   <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={100}>
                     {
