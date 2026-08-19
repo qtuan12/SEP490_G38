@@ -170,17 +170,19 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
       <div className="overflow-x-auto" {...virtualDirectPurchases.scrollContainerProps}>
         <table className={`w-full min-w-[920px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
           <colgroup>
-            <col className="w-[14%]" />
-            <col className="w-[13%]" />
+            <col className="w-[8%]" />
+            <col className="w-[12%]" />
+            <col className="w-[11%]" />
             <col className="w-[10%]" />
-            <col className="w-[14%]" />
-            <col className="w-[13%]" />
+            <col className="w-[12%]" />
+            <col className="w-[11%]" />
             <col className="w-[8%]" />
             <col className="w-[16%]" />
             <col className="w-[12%]" />
           </colgroup>
           <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
             <tr>
+              <th className="px-4 py-3 font-medium text-center">STT</th>
               <th className="px-4 py-3 font-medium">Số phiếu</th>
               <th className="px-4 py-3 font-medium">Giai đoạn</th>
               <th className="px-4 py-3 font-medium">Ngày mua</th>
@@ -193,10 +195,10 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <TableLoader colSpan={8} message="Đang tải danh sách mua trực tiếp..." />
+              <TableLoader colSpan={9} message="Đang tải danh sách mua trực tiếp..." />
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
+                <td colSpan={9} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
                   Dự án này chưa có phiếu mua khẩn cấp nào.
                 </td>
               </tr>
@@ -204,15 +206,18 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
               <>
                 {virtualDirectPurchases.topPadding > 0 && (
                   <tr aria-hidden="true">
-                    <td colSpan={8} style={{ height: virtualDirectPurchases.topPadding, padding: 0 }} />
+                    <td colSpan={9} style={{ height: virtualDirectPurchases.topPadding, padding: 0 }} />
                   </tr>
                 )}
-                {virtualDirectPurchases.visibleRows.map(({ item: dp }) => (
+                {virtualDirectPurchases.visibleRows.map(({ item: dp, index }) => (
                   <tr
                     key={dp.directPurchaseId}
                     className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
                     onClick={() => setDetailId(dp.directPurchaseId)}
                   >
+                    <td className="px-4 py-3 text-center text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+                      {(page - 1) * pageSize + index + 1}
+                    </td>
                     <td className="px-4 py-3 font-medium truncate" title={dp.requestNumber}>
                       <span className="flex items-center gap-1.5">
                         {dp.requestNumber}
