@@ -339,6 +339,14 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
 
+                        await AddProgressDecreaseDailyLogAsync(
+                            incident,
+                            incident.Task.ProgressPercent,
+                            (byte)request.DecreaseProgressTo.Value,
+                            request.DecreaseProgressReason,
+                            currentUserId,
+                            cancellationToken);
+
                         incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
                         taskIdWithProgressDecrease = incident.Task.TaskId;
                         parentTaskIdToRecalculate = incident.Task.ParentTaskId;
@@ -450,6 +458,14 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         UpdatedAt = DateTime.UtcNow
                     };
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
+
+                    await AddProgressDecreaseDailyLogAsync(
+                        incident,
+                        incident.Task.ProgressPercent,
+                        (byte)request.DecreaseProgressTo.Value,
+                        request.DecreaseProgressReason,
+                        currentUserId,
+                        cancellationToken);
 
                     incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
                     taskIdWithProgressDecrease = incident.Task.TaskId;
@@ -583,6 +599,30 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             cancellationToken);
 
         return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
+    }
+
+    private async Task AddProgressDecreaseDailyLogAsync(
+        Incident incident,
+        byte oldProgress,
+        byte newProgress,
+        string? reason,
+        long currentUserId,
+        CancellationToken cancellationToken)
+    {
+        if (newProgress >= oldProgress || incident.Task == null)
+        {
+            return;
+        }
+
+        await _unitOfWork.Repository<DailyLog>().AddAsync(new DailyLog
+        {
+            TaskId = incident.Task.TaskId,
+            LogDate = VietnamTime.Today,
+            NewProgressPercent = newProgress,
+            Description = $"Hệ thống ghi nhận giảm tiến độ từ {oldProgress}% xuống {newProgress}% do sự cố #{incident.IncidentId}. Lý do: {(string.IsNullOrWhiteSpace(reason) ? incident.Description : reason.Trim())}",
+            CreatedBy = currentUserId,
+            CreatedAt = DateTime.UtcNow
+        }, cancellationToken);
     }
 
     private async Task SaveIncidentDecisionAsync(CancellationToken cancellationToken)

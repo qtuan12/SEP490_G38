@@ -167,7 +167,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     dto.EditWindowHours = editWindowHours;
 
                     // CanEdit = still within the editable window (kept in sync with Update handler)
-                    dto.CanEdit = DateTime.UtcNow <= dto.CreatedAt.AddHours(editWindowHours);
+                    dto.CanEdit = !dto.Description.StartsWith("Hệ thống ghi nhận", StringComparison.Ordinal)
+                        && DateTime.UtcNow <= dto.CreatedAt.AddHours(editWindowHours);
                 }
             }
 
