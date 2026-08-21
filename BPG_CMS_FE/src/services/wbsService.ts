@@ -82,6 +82,7 @@ export const wbsService = {
             assignedName: (taskDto as any).assignedName || undefined,
             weight: taskDto.weight !== undefined ? taskDto.weight : undefined,
             predecessorTaskIds: taskDto.predecessorTaskIds || undefined,
+            hasSubTasks: (taskDto.subTasks?.length ?? 0) > 0,
             isOutsourced: taskDto.isOutsourced || false,
             outsourcedTeamName: taskDto.outsourcedTeamName || undefined,
             outsourcedTeamContact: taskDto.outsourcedTeamContact || undefined,

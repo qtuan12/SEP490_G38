@@ -199,6 +199,7 @@ export interface WBSTask {
   isRework?: boolean;
   weight?: number;
   predecessorTaskIds?: number[];
+  hasSubTasks?: boolean;
   isOutsourced?: boolean;
   outsourcedTeamName?: string;
   outsourcedTeamContact?: string;
