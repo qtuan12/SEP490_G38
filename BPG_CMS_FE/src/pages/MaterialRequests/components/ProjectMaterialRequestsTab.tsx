@@ -607,7 +607,6 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           request={selectedRequest}
           isAccountant={isAccountant}
           isDirector={isDirector}
-          user={user}
           canManageTechnical={canManageTechnical}
           handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}

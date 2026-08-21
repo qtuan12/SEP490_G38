@@ -131,6 +131,9 @@ export interface IncidentReport {
 }
 
 export interface MaterialRequestItem {
+  requestItemId?: number;
+  materialId?: number;
+  unitId?: number;
   name: string;
   quantity: number;
   unit: string;

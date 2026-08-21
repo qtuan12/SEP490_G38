@@ -1711,6 +1711,9 @@ export const projectService = {
       rejectionReason: item.accountantNote || item.approvalNote || '',
       status: this.mapBackendStatusToFrontend(item.status),
       items: (item.items || []).map((it: any) => ({
+        requestItemId: it.requestItemId,
+        materialId: it.materialId,
+        unitId: it.unitId,
         name: it.materialName,
         quantity: it.quantity,
         unit: it.unitName,
