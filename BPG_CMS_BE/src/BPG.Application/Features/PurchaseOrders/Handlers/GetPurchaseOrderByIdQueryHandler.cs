@@ -67,6 +67,23 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     .FirstOrDefaultAsync(supplier => supplier.SupplierId == po.SupplierId.Value, cancellationToken)
                 : null;
 
+
+            var quotationFiles = await _uow.Repository<Attachment>().Query()
+                .AsNoTracking()
+                .Where(a => a.EntityType == EntityType.PurchaseOrder
+                         && a.EntityId == po.POId
+                         && a.AttachmentType == AttachmentType.Quotation
+                         && !a.IsDeleted)
+                .OrderBy(a => a.AttachmentId)
+                .Select(a => new POQuotationDto
+                {
+                    AttachmentId = a.AttachmentId,
+                    FileName = a.FileName,
+                    FileUrl = a.FileUrl,
+                    ContentType = a.ContentType,
+                    FileSizeBytes = a.FileSizeBytes
+                })
+                .ToListAsync(cancellationToken);
             var dto = new PurchaseOrderDetailDto
             {
                 POId = po.POId,
@@ -118,9 +135,10 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                             Reason = po.Request.Reason,
                             ProjectId = po.Request.Phase?.ProjectId ?? 0,
                             PhaseId = po.Request.PhaseId,
-                            PhaseName = po.Request.Phase?.Name ?? string.Empty
+                            PhaseName = po.Request.Phase?.Name ?? string.Empty,
                         }
-                    }
+                    },
+                QuotationFiles = quotationFiles
             };
 
             return dto;

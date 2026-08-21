@@ -28,6 +28,9 @@ namespace BPG.Application.DTOs.PurchaseOrders
 
         public List<PODetailItemDto> Items { get; set; } = new();
         public List<LinkedRequestDto> LinkedRequests { get; set; } = new();
+
+        /// <summary>Ảnh/PDF báo giá nhà cung cấp đính kèm khi tạo đơn.</summary>
+        public List<POQuotationDto> QuotationFiles { get; set; } = new();
     }
 
     public class PODetailItemDto
@@ -45,6 +48,15 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public decimal ConversionRate { get; set; }
         public decimal TotalReceived { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class POQuotationDto
+    {
+        public long AttachmentId { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public string FileUrl { get; set; } = string.Empty;
+        public string? ContentType { get; set; }
+        public long? FileSizeBytes { get; set; }
     }
 
     public class LinkedRequestDto

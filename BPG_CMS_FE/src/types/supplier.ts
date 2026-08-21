@@ -17,3 +17,10 @@ export interface GetSuppliersQuery {
   sortDescending?: boolean;
   collaborationStatus?: string;
 }
+
+export interface ImportSuppliersResult {
+  successCount: number;
+  skippedCount: number;
+  errors: string[];
+  importedSuppliers: Supplier[];
+}

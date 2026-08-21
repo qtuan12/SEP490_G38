@@ -458,16 +458,18 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
       <div className="overflow-x-auto" {...virtualPurchaseOrders.scrollContainerProps}>
         <table className={`w-full min-w-[860px] table-fixed text-sm text-left ${isLoading ? 'opacity-50' : ''}`}>
           <colgroup>
-            <col className="w-[14%]" />
-            <col className="w-[20%]" />
+            <col className="w-[8%]" />
+            <col className="w-[12%]" />
+            <col className="w-[18%]" />
             <col className="w-[12%]" />
             <col className="w-[14%]" />
-            <col className="w-[11%]" />
-            <col className="w-[15%]" />
-            <col className="w-[14%]" />
+            <col className="w-[10%]" />
+            <col className="w-[13%]" />
+            <col className="w-[13%]" />
           </colgroup>
           <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
             <tr>
+              <th className="px-4 py-3 font-medium text-center">STT</th>
               <th className="px-4 py-3 font-medium">Số đơn hàng</th>
               <th className="px-4 py-3 font-medium">Nhà cung cấp</th>
               <th className="px-4 py-3 font-medium">Ngày đặt</th>
@@ -479,10 +481,10 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
           </thead>
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {isLoading ? (
-              <TableLoader colSpan={7} message="Đang tải danh sách đơn mua hàng..." />
+              <TableLoader colSpan={8} message="Đang tải danh sách đơn mua hàng..." />
             ) : poItems.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
+                <td colSpan={8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
                   Dự án này chưa có đơn mua hàng nào.
                 </td>
               </tr>
@@ -490,15 +492,18 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
               <>
                 {virtualPurchaseOrders.topPadding > 0 && (
                   <tr aria-hidden="true">
-                    <td colSpan={7} style={{ height: virtualPurchaseOrders.topPadding, padding: 0 }} />
+                    <td colSpan={8} style={{ height: virtualPurchaseOrders.topPadding, padding: 0 }} />
                   </tr>
                 )}
-                {virtualPurchaseOrders.visibleRows.map(({ item: po }) => (
+                {virtualPurchaseOrders.visibleRows.map(({ item: po, index }) => (
                   <tr
                     key={po.poId}
                     className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors cursor-pointer"
                     onClick={() => navigate(`/purchase-orders/${po.poId}`)}
                   >
+                    <td className="px-4 py-3 text-center text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+                      {(page - 1) * pageSize + index + 1}
+                    </td>
                     <td className="px-4 py-3 font-semibold text-[hsl(var(--primary))] truncate" title={po.poNumber}>{po.poNumber}</td>
                     <td className="px-4 py-3 text-[hsl(var(--text-secondary))] truncate" title={getPOSupplierDisplayName(po.supplierName, po.poNumber) || 'N/A'}>{getPOSupplierDisplayName(po.supplierName, po.poNumber) || 'N/A'}</td>
                     <td className="px-4 py-3 text-[hsl(var(--text-secondary))] whitespace-nowrap">{formatPlainDate(po.orderDate)}</td>

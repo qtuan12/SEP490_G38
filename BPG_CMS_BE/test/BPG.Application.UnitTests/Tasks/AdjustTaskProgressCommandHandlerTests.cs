@@ -19,6 +19,7 @@ public class AdjustTaskProgressCommandHandlerTests
     private readonly Mock<IUnitOfWork> _uow = new();
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepo = new();
     private readonly Mock<IGenericRepository<TaskDependency>> _dependencyRepo = new();
+    private readonly Mock<IGenericRepository<DailyLog>> _dailyLogRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
     private readonly AdjustTaskProgressCommandHandler _handler;
 
@@ -26,6 +27,8 @@ public class AdjustTaskProgressCommandHandlerTests
     {
         _uow.Setup(x => x.Repository<ProjectTask>()).Returns(_taskRepo.Object);
         _uow.Setup(x => x.Repository<TaskDependency>()).Returns(_dependencyRepo.Object);
+        _uow.Setup(x => x.Repository<DailyLog>()).Returns(_dailyLogRepo.Object);
+        _dailyLogRepo.Setup(x => x.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.RollbackTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);

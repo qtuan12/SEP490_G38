@@ -73,6 +73,34 @@ function Wait-ForLine {
     return $null
 }
 
+function Get-PortListener {
+    param([int]$Port)
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1 LocalAddress, OwningProcess
+}
+
+function Clear-Port {
+    # Backend/frontend do script này start phải là tiến trình riêng (bind 0.0.0.0, đọc .env mới),
+    # nên không thể tái dùng server dev đang chạy sẵn — phải giải phóng cổng trước.
+    param([int]$Port, [string]$Label)
+    $listener = Get-PortListener -Port $Port
+    if (-not $listener) { return }
+
+    $proc = Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue
+    $name = if ($proc) { $proc.ProcessName } else { 'unknown' }
+    Write-Info "Cổng $Port ($Label) đang bị chiếm bởi $name (PID $($listener.OwningProcess))."
+    $answer = Read-Host "    Dừng tiến trình này để tiếp tục? [Y/n]"
+    if ($answer -and $answer -notmatch '^(y|yes)$') {
+        throw "Cổng $Port đang bị chiếm. Hãy tắt '$name' (vd: đóng cửa sổ run_servers.bat) rồi chạy lại."
+    }
+
+    try { taskkill /F /T /PID $listener.OwningProcess 2>&1 | Out-Null } catch {}
+    $deadline = (Get-Date).AddSeconds(15)
+    while ((Get-Date) -lt $deadline -and (Get-PortListener -Port $Port)) { Start-Sleep -Milliseconds 500 }
+    if (Get-PortListener -Port $Port) { throw "Không giải phóng được cổng $Port (PID $($listener.OwningProcess))." }
+    Write-Info "Đã giải phóng cổng $Port."
+}
+
 function Restore-Env {
     if ($null -ne $envBackup) {
         Write-Step "Khôi phục BPG_CMS_FE/.env về giá trị ban đầu"
@@ -103,6 +131,10 @@ try {
     if (-not $lanIp) { throw "Không tìm được địa chỉ IP LAN (Wi-Fi). Kiểm tra kết nối mạng." }
     Write-Info "IP LAN máy này: $lanIp"
 
+    Write-Step "Kiểm tra cổng 5160 / 5173 còn trống"
+    Clear-Port -Port 5160 -Label 'backend'
+    Clear-Port -Port 5173 -Label 'frontend'
+
     Write-Step "Backup BPG_CMS_FE/.env"
     if (-not (Test-Path $envPath)) { throw "Không thấy $envPath. Hãy tạo .env trước (xem .env.example)." }
     $envBackup = Get-Content $envPath -Raw
@@ -121,7 +153,12 @@ try {
     $processes += $beProc
     Write-Info "Đang chờ backend khởi động (log: $beLog)..."
     $started = Wait-ForLine -Path $beLog -Pattern "Now listening on" -TimeoutSec 40
-    if (-not $started) { throw "Backend không khởi động được trong 40s. Xem log: $beLog" }
+    if (-not $started) {
+        Write-Host "----- Nội dung log backend -----" -ForegroundColor Red
+        Get-Content $beLog -ErrorAction SilentlyContinue | Select-Object -Last 30 | Write-Host
+        Get-Content "$beLog.err" -ErrorAction SilentlyContinue | Select-Object -Last 30 | Write-Host
+        throw "Backend không khởi động được trong 40s. Xem log: $beLog"
+    }
     Write-Info "Backend đã sẵn sàng."
 
     $apiUrl = "http://$($lanIp):5160/api"

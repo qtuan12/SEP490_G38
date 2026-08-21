@@ -204,8 +204,10 @@ public class ConfirmIncidentCommandHandlerTests
                 && log.UpdateReason!.Contains("Phạt giảm tiến độ")),
             It.IsAny<CancellationToken>()), Times.Once);
         _dailyLogRepository.Verify(repository => repository.AddAsync(
-            It.IsAny<DailyLog>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.Is<DailyLog>(log => log.TaskId == TaskId
+                && log.NewProgressPercent == 80
+                && log.Description.Contains($"sự cố #{IncidentId}")),
+            It.IsAny<CancellationToken>()), Times.Once);
         _rollupService.Verify(service => service.RecalculateParentTaskProgressAsync(
             It.IsAny<long>(),
             It.IsAny<long?>(),
@@ -216,7 +218,7 @@ public class ConfirmIncidentCommandHandlerTests
     public async Task UTCID08A_Handle_ProgressDecreaseWithParent_ShouldRecalculateAncestors()
     {
         var incident = ConstructionIncident();
-        incident.Task.ParentTaskId = 301;
+        incident.Task!.ParentTaskId = 301;
         SetupIncident(incident);
         SetRoles(UserRoleConstants.TechnicalManager);
         SetupTaskProject();

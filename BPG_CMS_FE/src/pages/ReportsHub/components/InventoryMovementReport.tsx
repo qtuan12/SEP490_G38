@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { reportService, type InventoryMovementReportDto } from '../../../services/reportService';
 import { Layers } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface Props {
   projectId: string;
@@ -85,7 +86,7 @@ export const InventoryMovementReport: React.FC<Props> = ({ projectId, fromDate, 
           <span className="text-xs uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5">
             <Layers size={14} /> Tổng chủng loại trong báo cáo
           </span>
-          <span className="text-xl font-bold text-slate-800">{data.totalMaterials.toLocaleString('vi-VN')}</span>
+          <span className="text-xl font-bold text-slate-800">{formatNumber(data.totalMaterials)}</span>
         </div>
       </div>
 

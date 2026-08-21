@@ -43,37 +43,20 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             if (linkedRequest.Status != MaterialRequestStatus.Approved)
                 throw new BusinessException(ErrorCodes.PoRequestNotApproved, "Yêu cầu vật tư chưa được duyệt.");
 
-            // 1b. Validate ngày PO và hạn giao hàng.
-            // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
-            // và không vượt quá ngày kết thúc giai đoạn (mua trước cho giai đoạn sau là hợp lệ).
+            // 1b. Dự án phải đang thi công thì mới đặt hàng được.
+            // Ngày đơn hàng / hạn giao hàng KHÔNG bị ràng buộc theo ngày bắt đầu dự án hay ngày kết thúc
+            // giai đoạn: đặt trước cho giai đoạn sau, hoặc hẹn giao sau mốc kế hoạch, đều là bình thường.
+            // Trạng thái dự án mới là thứ quyết định còn được phát sinh đơn hàng hay không.
             var phase = linkedRequest.Phase;
-            var orderDateOnly = request.OrderDate;
 
             var project = await _uow.Repository<Project>().Query()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, cancellationToken)
                 ?? throw new NotFoundException("Không tìm thấy dự án của đơn hàng.");
 
-            if (orderDateOnly < project.PlannedStart)
-                throw new BusinessException(ErrorCodes.PoOrderDateBeforeProject,
-                    $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
-
-            if (phase.EndDate.HasValue && orderDateOnly > phase.EndDate.Value)
-                throw new BusinessException(ErrorCodes.PoOrderDateAfterPhase,
-                    $"Ngày đơn hàng ({orderDateOnly:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
-
-            if (request.ExpectedDeliveryDate.HasValue)
-            {
-                var deliveryDate = request.ExpectedDeliveryDate.Value;
-
-                if (deliveryDate < project.PlannedStart)
-                    throw new BusinessException(ErrorCodes.PoDeliveryDateBeforeProject,
-                        $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
-
-                if (phase.EndDate.HasValue && deliveryDate > phase.EndDate.Value)
-                    throw new BusinessException(ErrorCodes.PoDeliveryDateAfterPhase,
-                        $"Hạn giao hàng ({deliveryDate:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{phase.Name}' ({phase.EndDate.Value:dd/MM/yyyy}).");
-            }
+            if (project.Status != ProjectStatus.InProgress)
+                throw new BusinessException(ErrorCodes.PoProjectNotActive,
+                    $"Dự án '{project.Name}' hiện không ở trạng thái Đang thi công nên không thể tạo đơn mua hàng.");
 
             // 2. Validate quantities: PO qty + đã đặt qua các PO còn hiệu lực ≤ số lượng yêu cầu
             var maxQtyByMaterial = linkedRequest.Items
@@ -219,6 +202,23 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 }).ToList();
 
                 await _uow.Repository<PurchaseOrderItem>().AddRangeAsync(poItems, cancellationToken);
+
+                // 5. Lưu tệp báo giá đính kèm — bắt buộc, là căn cứ để Giám đốc duyệt giá đơn hàng.
+                var quotationAttachments = request.QuotationFiles.Select(f => new Attachment
+                {
+                    EntityType = EntityType.PurchaseOrder,
+                    EntityId = po.POId,
+                    AttachmentType = AttachmentType.Quotation,
+                    FileName = f.FileName,
+                    FileUrl = f.FileUrl,
+                    ContentType = f.ContentType,
+                    FileSizeBytes = f.FileSizeBytes,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = _currentUserService.UserId,
+                    IsDeleted = false
+                }).ToList();
+
+                await _uow.Repository<Attachment>().AddRangeAsync(quotationAttachments, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
 
                 await _uow.CommitTransactionAsync(cancellationToken);

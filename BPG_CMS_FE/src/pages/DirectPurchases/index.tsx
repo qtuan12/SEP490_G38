@@ -63,6 +63,15 @@ export const DirectPurchaseList: React.FC = () => {
 
   const columns = [
     {
+      key: 'stt',
+      header: 'STT',
+      render: (_item: any, index: number) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {(page - 1) * pageSize + index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'requestNumber',
       header: 'Mã yêu cầu',
       width: '120px',

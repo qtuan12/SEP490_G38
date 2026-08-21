@@ -81,12 +81,7 @@ public static class RateLimitingServiceExtensions
         return $"{scope}:ip:{ipAddress}";
     }
 
-    /// <summary>
-    /// Nhóm auth tách hạn mức theo từng route: nếu dùng chung, một lần gọi refresh-token lúc mở
-    /// trang đã ăn mất suất của login, khiến người dùng chạm trần sớm hơn số lần thực tế họ thử.
-    /// Lấy mẫu route (api/auth/login) chứ không lấy path thô để không sinh phân vùng theo tham số.
-    /// </summary>
-    private static string GetRouteScope(HttpContext context) =>
+        private static string GetRouteScope(HttpContext context) =>
         (context.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText?.ToLowerInvariant()
         ?? context.Request.Path.Value?.ToLowerInvariant()
         ?? "unknown";

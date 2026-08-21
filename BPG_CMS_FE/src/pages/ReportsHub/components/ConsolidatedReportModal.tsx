@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { reportService, type ConsolidatedExecutiveReportDto } from '../../../services/reportService';
 import { X, Printer, FileText, TrendingUp, Layers } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface Props {
   projectId: number;
@@ -167,7 +168,7 @@ export const ConsolidatedReportModal: React.FC<Props> = ({ projectId, fromDate, 
                           <td className="p-2.5 text-center text-red-600 font-bold">{p.delayedTasks}</td>
                           <td className="p-2.5 text-center text-amber-600 font-bold">{p.overBoqCount}</td>
                           <td className="p-2.5 text-center text-rose-600 font-bold">{p.totalIncidents}</td>
-                          <td className="p-2.5 text-right font-semibold">{p.estimatedLossVnd > 0 ? `${p.estimatedLossVnd.toLocaleString('vi-VN')} đ` : '0 đ'}</td>
+                          <td className="p-2.5 text-right font-semibold">{p.estimatedLossVnd > 0 ? `${formatNumber(p.estimatedLossVnd)} đ` : '0 đ'}</td>
                         </tr>
                       ))}
                     </tbody>

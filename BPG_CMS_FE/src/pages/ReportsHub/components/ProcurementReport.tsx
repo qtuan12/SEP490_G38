@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
 import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
 import { getNearestAvailableYear } from '../../../utils/reportYearHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface Props {
   projectId: string | null;
@@ -132,7 +133,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
     return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
-  const formatCurrency = (v: number) => `${v.toLocaleString('vi-VN')} VNĐ`;
+  const formatCurrency = (v: number) => `${formatNumber(v)} VNĐ`;
   /** Ngày thuần (ngày đặt hàng, ngày giao dự kiến) — không quy đổi múi giờ. */
   const formatOrderDate = (d?: string) => formatPlainDate(d) || '—';
   /** Mốc thời gian UTC từ backend (thời điểm tạo phiếu). */
@@ -321,7 +322,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                         </Link>
                       </td>
                       <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.poNumber) || '—'}</td>
-                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{po.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
+                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(po.totalAmount)} VNĐ</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>
                       <td className="px-4 py-3 text-center">
@@ -373,7 +374,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                       </Link>
                     </td>
                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{dp.requestedByName}</td>
-                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{dp.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
+                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(dp.totalAmount)} VNĐ</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatTimestamp(dp.createdAt)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
