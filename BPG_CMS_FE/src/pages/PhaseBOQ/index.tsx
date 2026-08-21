@@ -5,12 +5,15 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { Loader2, Plus, Trash2, ArrowLeft, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Loader2, Plus, Trash2, ArrowLeft, ClipboardList, AlertTriangle, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
+import { unitService } from '../../services/unitService';
 import type { WBSPhase, Project } from '../../types/common';
-import { Button, SearchSelect, TableLoader } from '../../components/ui';
+import type { PhaseBOQImportPreview } from '../../types/boqImport';
+import { Button, Modal, SearchSelect, TableLoader } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
+import { downloadBOQImportTemplate, parseBOQExcelFile } from '../../utils/boqExcel';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
@@ -81,6 +84,12 @@ export const PhaseBOQ: React.FC = () => {
   const [hasActiveDPs, setHasActiveDPs] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(true);
   const [rowConversions, setRowConversions] = useState<Record<number, { unitId: number; unitName: string }[]>>({});
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importPreview, setImportPreview] = useState<PhaseBOQImportPreview | null>(null);
+  const [isPreviewingImport, setIsPreviewingImport] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const isProjectEditable = project?.status && (
     project.status.toLowerCase() === 'draft' ||
@@ -97,6 +106,12 @@ export const PhaseBOQ: React.FC = () => {
   });
   const materialList = React.useMemo(() => materialsData?.items ?? [], [materialsData?.items]);
 
+  const { data: unitsData, isLoading: loadingUnits } = useQuery({
+    queryKey: ['unitListForBOQImport'],
+    queryFn: () => unitService.getUnits({ pageNumber: 1, pageSize: 1000 })
+  });
+  const unitList = React.useMemo(() => unitsData?.items ?? [], [unitsData?.items]);
+
   const { register, control, handleSubmit, reset, setValue, watch, trigger, formState: { errors, isDirty } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
     mode: 'onTouched',
@@ -107,7 +122,7 @@ export const PhaseBOQ: React.FC = () => {
   const isDirtyRef = React.useRef(isDirty);
   isDirtyRef.current = isDirty;
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: 'materials'
   });
@@ -272,7 +287,83 @@ export const PhaseBOQ: React.FC = () => {
     mutation.mutate(data);
   };
 
-  if (loadingPhase || loadingMaterials) {
+  const handleDownloadImportTemplate = async () => {
+    if (!phase) return;
+    const templateRows = watchedMaterials
+      .filter(item => item.materialId > 0)
+      .map(item => {
+        const material = materialList.find(x => x.materialId === item.materialId);
+        const unit = unitList.find(x => x.unitId === Number(item.unitId));
+        return {
+          materialCode: material?.code ?? '',
+          materialName: material?.name ?? '',
+          specification: material?.specification,
+          quantity: item.quantity,
+          unitCode: unit?.unitCode ?? '',
+          unitName: unit?.unitName ?? String(item.unit ?? ''),
+        };
+      });
+    const safePhaseName = phase.name.replace(/[\\/:*?"<>|]/g, '_');
+    await downloadBOQImportTemplate(templateRows, `BOQ_${safePhaseName}.xlsx`);
+  };
+
+  const handleImportFile = async (file: File) => {
+    setImportFileName(file.name);
+    setImportErrors([]);
+    setImportPreview(null);
+    setIsImportOpen(true);
+    setIsPreviewingImport(true);
+    try {
+      const parsed = await parseBOQExcelFile(file);
+      if (parsed.errors.length > 0) {
+        setImportErrors(parsed.errors);
+        return;
+      }
+      if (!projectId || !phaseId) return;
+      const preview = await projectService.previewPhaseBOQImport(projectId, phaseId, parsed.rows);
+      setImportPreview(preview);
+    } catch (error) {
+      setImportErrors([error instanceof Error ? error.message : 'Không thể kiểm tra file Excel.']);
+    } finally {
+      setIsPreviewingImport(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleApplyImport = async () => {
+    if (!importPreview?.canApply) return;
+    const importedMaterials = importPreview.mergedItems.map(item => ({
+      materialId: item.materialId,
+      quantity: item.quantity,
+      unitId: item.unitId,
+      unit: item.unitName,
+    }));
+
+    replace(importedMaterials);
+    setValue('materials', importedMaterials, { shouldDirty: true, shouldValidate: true });
+
+    const conversionResults = await Promise.all(importPreview.mergedItems.map(async item => {
+      try {
+        const material = materialList.find(x => x.materialId === item.materialId);
+        const conversions = await materialService.getConversions(item.materialId);
+        const options = [
+          ...(material ? [{ unitId: material.baseUnitId, unitName: material.baseUnitName || item.unitName }] : []),
+          ...conversions.map(x => ({ unitId: x.alternativeUnitId, unitName: x.alternativeUnitName || '' })),
+        ];
+        if (!options.some(x => x.unitId === item.unitId)) {
+          options.push({ unitId: item.unitId, unitName: item.unitName });
+        }
+        return [item.materialId, options] as const;
+      } catch {
+        return [item.materialId, [{ unitId: item.unitId, unitName: item.unitName }]] as const;
+      }
+    }));
+    setRowConversions(Object.fromEntries(conversionResults));
+    setIsImportOpen(false);
+    toast.success(`Đã áp dụng Excel vào biểu mẫu: thêm ${importPreview.newCount}, cập nhật ${importPreview.updatedCount}, xóa ${importPreview.deletedCount}. Vui lòng kiểm tra và bấm Lưu.`);
+  };
+
+  if (loadingPhase || loadingMaterials || loadingUnits) {
     return (
       <TableLoader isTable={false} message="Đang tải thông tin định mức vật tư giai đoạn..." minHeight="350px" />
     );
@@ -336,21 +427,53 @@ export const PhaseBOQ: React.FC = () => {
 
       {/* Card chính: Bảng BOQ Full-Width */}
       <div className="card bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-lg p-6 shadow-sm flex flex-col gap-5 w-full">
-        <div className="flex justify-between items-center pb-3 border-b border-[hsl(var(--border-light))]">
+        <div className="flex justify-between items-center pb-3 border-b border-[hsl(var(--border-light))] gap-3 flex-wrap">
           <h3 className="text-lg font-bold flex items-center gap-2 m-0 text-[hsl(var(--text-primary))]">
             <ClipboardList size={20} className="text-[hsl(var(--primary))]" />
             <span>Định mức Vật tư Giai đoạn</span>
           </h3>
-          {!isReadOnly && (
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               type="button"
-              onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })}
+              variant="secondary"
+              onClick={handleDownloadImportTemplate}
               className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3"
             >
-              <Plus size={15} />
-              <span>Thêm vật tư</span>
+              <Download size={15} />
+              <span>Tải mẫu Excel</span>
             </Button>
-          )}
+            {!isReadOnly && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  className="hidden"
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    if (file) void handleImportFile(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3"
+                >
+                  <Upload size={15} />
+                  <span>Import Excel</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })}
+                  className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3"
+                >
+                  <Plus size={15} />
+                  <span>Thêm vật tư</span>
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6 w-full">
@@ -513,6 +636,90 @@ export const PhaseBOQ: React.FC = () => {
           )}
         </form>
       </div>
+
+      <Modal
+        isOpen={isImportOpen}
+        onClose={() => !isPreviewingImport && setIsImportOpen(false)}
+        title={
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet size={19} className="text-emerald-600" />
+            <span>Kiểm tra import BOQ</span>
+          </div>
+        }
+        width="xl"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setIsImportOpen(false)} disabled={isPreviewingImport}>
+              Đóng
+            </Button>
+            <Button type="button" variant="primary" onClick={() => void handleApplyImport()} disabled={!importPreview?.canApply || isPreviewingImport}>
+              Áp dụng vào biểu mẫu
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="text-sm text-[hsl(var(--text-secondary))]">
+            File: <strong>{importFileName}</strong>. Vật tư hiện có nhưng không còn trong Excel sẽ được xóa khỏi biểu mẫu.
+          </div>
+
+          {isPreviewingImport && (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-[hsl(var(--text-secondary))]">
+              <Loader2 size={18} className="animate-spin" /> Đang đọc và kiểm tra dữ liệu...
+            </div>
+          )}
+
+          {importErrors.length > 0 && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <div className="font-semibold mb-1">File chưa hợp lệ</div>
+              <ul className="list-disc pl-5 m-0">
+                {importErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {importPreview && (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                <div className="rounded-lg bg-emerald-50 p-3 text-emerald-700">Thêm mới: <strong>{importPreview.newCount}</strong></div>
+                <div className="rounded-lg bg-blue-50 p-3 text-blue-700">Cập nhật: <strong>{importPreview.updatedCount}</strong></div>
+                <div className="rounded-lg bg-slate-50 p-3 text-slate-700">Không đổi: <strong>{importPreview.unchangedCount}</strong></div>
+                <div className="rounded-lg bg-amber-50 p-3 text-amber-700">Xóa: <strong>{importPreview.deletedCount}</strong></div>
+                <div className="rounded-lg bg-red-50 p-3 text-red-700">Lỗi: <strong>{importPreview.errorCount}</strong></div>
+              </div>
+              <div className="overflow-x-auto border border-[hsl(var(--border))] rounded-lg">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="p-2 text-left">Dòng</th>
+                      <th className="p-2 text-left">Vật tư</th>
+                      <th className="p-2 text-right">Số lượng</th>
+                      <th className="p-2 text-left">ĐVT</th>
+                      <th className="p-2 text-left">Kết quả</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreview.rows.map(row => (
+                      <tr key={`${row.status}-${row.materialCode}-${row.rowNumber}`} className="border-t border-[hsl(var(--border-light))] align-top">
+                        <td className="p-2">{row.rowNumber > 0 ? row.rowNumber : '—'}</td>
+                        <td className="p-2"><strong>{row.materialCode}</strong>{row.materialName ? ` - ${row.materialName}` : ''}</td>
+                        <td className="p-2 text-right">{row.quantity}</td>
+                        <td className="p-2">{row.unitCode}{row.unitName ? ` - ${row.unitName}` : ''}</td>
+                        <td className="p-2">
+                          <span className={row.status === 'Error' ? 'text-red-600 font-semibold' : row.status === 'New' ? 'text-emerald-600 font-semibold' : row.status === 'Deleted' ? 'text-amber-600 font-semibold' : 'text-blue-600 font-semibold'}>
+                            {row.status === 'New' ? 'Thêm mới' : row.status === 'Updated' ? 'Cập nhật' : row.status === 'Unchanged' ? 'Không đổi' : row.status === 'Deleted' ? 'Xóa' : 'Lỗi'}
+                          </span>
+                          {row.errors.map(error => <div key={error} className="text-xs text-red-600 mt-1">{error}</div>)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

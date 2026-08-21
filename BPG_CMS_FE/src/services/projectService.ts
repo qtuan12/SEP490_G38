@@ -2,6 +2,7 @@ import type { Project, ProjectAccess, ProjectMember, PhaseMaterialItem, Acceptan
 import { apiClient, USE_MOCK_API } from './api';
 import { userService } from './userService';
 import type { UserProfile } from './authService';
+import type { PhaseBOQImportPreview, PhaseBOQImportRowInput } from '../types/boqImport';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -681,7 +682,7 @@ export const projectService = {
   async updatePhaseMaterials(projectId: string, phaseId: string, materials: { materialId: number; quantity: number; unitId: number }[]): Promise<any> {
     if (!USE_MOCK_API) {
       const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
-      const parsedPhaseId = phaseId.startsWith('ph-') ? phaseId.substring(2) : phaseId;
+      const parsedPhaseId = phaseId.startsWith('ph-') ? phaseId.substring(3) : phaseId;
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedProjectId}/phases/${parsedPhaseId}/boq`, {
         items: materials
       });
@@ -704,6 +705,21 @@ export const projectService = {
     allPhases[idx] = { ...allPhases[idx], materials: mockMaterials };
     setStorage('bpg_wbs_phases', allPhases);
     return allPhases[idx];
+  },
+
+  async previewPhaseBOQImport(
+    projectId: string,
+    phaseId: string,
+    rows: PhaseBOQImportRowInput[],
+  ): Promise<PhaseBOQImportPreview> {
+    const parsedProjectId = projectId.startsWith('p-') ? projectId.substring(2) : projectId;
+    const parsedPhaseId = phaseId.startsWith('ph-') ? phaseId.substring(3) : phaseId;
+    const res = await apiClient.post<ApiResponse<PhaseBOQImportPreview>>(
+      `/projects/${parsedProjectId}/phases/${parsedPhaseId}/boq/import-preview`,
+      { rows },
+    );
+    if (!res.success) throw new Error(res.message || 'Không thể kiểm tra dữ liệu import BOQ.');
+    return res.data;
   },
 
   async deletePhase(phaseId: string): Promise<void> {
@@ -1721,6 +1737,9 @@ export const projectService = {
       rejectionReason: item.accountantNote || item.approvalNote || '',
       status: this.mapBackendStatusToFrontend(item.status),
       items: (item.items || []).map((it: any) => ({
+        requestItemId: it.requestItemId,
+        materialId: it.materialId,
+        unitId: it.unitId,
         name: it.materialName,
         quantity: it.quantity,
         unit: it.unitName,
