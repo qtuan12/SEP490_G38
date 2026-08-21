@@ -1,3 +1,4 @@
+import { formatNumber } from '../../../utils/formatNumber';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
@@ -282,7 +283,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     try {
       const updated = await projectService.approveMaterialRequestByDirector(reqId, user?.name || 'director', note);
       const totalCost = updated.items.reduce((sum, item) => sum + (item.quantity * ((item as any).price || 0)), 0);
-      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${totalCost.toLocaleString('vi-VN')} VND.`);
+      console.log((updated as any).__message || `Đã phê duyệt khoản chi phí khắc phục sự cố trị giá ${formatNumber(totalCost)} VND.`);
       scheduleRealtimeRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Không thể phê duyệt yêu cầu vật tư.');
@@ -479,6 +480,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           <table className="w-full text-sm text-left border-collapse">
             <thead>
               <tr className="bg-[hsl(var(--bg-main)/0.5)] border-b border-[hsl(var(--border))] text-xs font-semibold text-[hsl(var(--text-secondary))] uppercase">
+                <th className="px-4 py-3 text-center w-12">STT</th>
                 <th className="px-4 py-3">Số yêu cầu</th>
                 <th className="px-4 py-3">Ngày yêu cầu</th>
                 <th className="px-4 py-3">Giai đoạn / Công việc</th>
@@ -489,8 +491,11 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--border-light))]">
-              {paginatedRequests.map(req => (
+              {paginatedRequests.map((req, index) => (
                 <tr key={req.id} className="hover:bg-[hsl(var(--bg-main)/0.3)] transition-colors">
+                  <td className="px-4 py-3.5 whitespace-nowrap text-center text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+                    {(currentPage - 1) * 10 + index + 1}
+                  </td>
                   <td className="px-4 py-3.5 whitespace-nowrap font-semibold text-[hsl(var(--primary))]">
                     YCVT-{req.id.replace('mat-req-', '')}
                   </td>

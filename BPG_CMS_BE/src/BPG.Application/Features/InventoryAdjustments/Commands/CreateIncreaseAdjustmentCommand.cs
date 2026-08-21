@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using BPG.Domain.Constants;
 using FluentValidation;
 using MediatR;
@@ -12,6 +12,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
         public long PhaseId { get; set; }
         public string Reason { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public string? EvidenceUrl { get; set; }
         public List<AdjustmentItemRequest> Items { get; set; } = new List<AdjustmentItemRequest>();
     }
 
@@ -30,6 +31,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             RuleFor(x => x.ProjectId).GreaterThan(0).WithMessage("ERR_VALIDATION");
             RuleFor(x => x.PhaseId).GreaterThan(0).WithMessage("ERR_VALIDATION");
             RuleFor(x => x.Reason).NotEmpty().WithMessage("ERR_VALIDATION");
+            RuleFor(x => x.EvidenceUrl).NotEmpty().WithMessage("Vui lòng đính kèm ảnh bằng chứng.");
             RuleFor(x => x.Items).NotEmpty().WithMessage("ERR_VALIDATION");
             RuleForEach(x => x.Items).ChildRules(items =>
             {

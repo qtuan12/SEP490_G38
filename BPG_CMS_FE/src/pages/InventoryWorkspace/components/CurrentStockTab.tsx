@@ -88,16 +88,16 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
 
     // ─── Header cột ───
     const headers = [
-      { header: 'Mã vật tư',              key: 'code',      width: 16 },
-      { header: 'Tên vật tư',             key: 'name',      width: 36 },
-      { header: 'Thông số kỹ thuật',      key: 'spec',      width: 32 },
-      { header: 'Nhà cung cấp gần nhất',  key: 'supplier',  width: 28 },
-      { header: 'Tồn kho thực tế',        key: 'qty',       width: 16 },
-      { header: 'Tạm khóa (Reserved)',    key: 'reserved',  width: 18 },
-      { header: 'Tồn khả dụng',           key: 'available', width: 16 },
-      { header: 'Đơn vị tính',            key: 'unit',      width: 14 },
-      { header: 'Cập nhật cuối',          key: 'updated',   width: 22 },
-      { header: 'Cảnh báo',               key: 'status',    width: 22 },
+      { header: 'Mã vật tư', key: 'code', width: 16 },
+      { header: 'Tên vật tư', key: 'name', width: 36 },
+      { header: 'Thông số kỹ thuật', key: 'spec', width: 32 },
+      { header: 'Nhà cung cấp gần nhất', key: 'supplier', width: 28 },
+      { header: 'Tồn kho thực tế', key: 'qty', width: 16 },
+      { header: 'Tạm khóa (Reserved)', key: 'reserved', width: 18 },
+      { header: 'Tồn khả dụng', key: 'available', width: 16 },
+      { header: 'Đơn vị tính', key: 'unit', width: 14 },
+      { header: 'Cập nhật cuối', key: 'updated', width: 22 },
+      { header: 'Cảnh báo', key: 'status', width: 22 },
     ];
 
     sheet.columns = headers.map(h => ({ key: h.key, width: h.width }));
@@ -111,10 +111,10 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = {
-        top:    { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        top: { style: 'thin', color: { argb: 'FFbfdbfe' } },
         bottom: { style: 'thin', color: { argb: 'FFbfdbfe' } },
-        left:   { style: 'thin', color: { argb: 'FFbfdbfe' } },
-        right:  { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        left: { style: 'thin', color: { argb: 'FFbfdbfe' } },
+        right: { style: 'thin', color: { argb: 'FFbfdbfe' } },
       };
     });
     headerRow.height = 32;
@@ -137,12 +137,12 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     filteredInventory.forEach((item, idx) => {
       const status = getItemStatus(item);
       let statusLabel = 'Bình thường';
-      if (status === 'over_boq')         statusLabel = 'Đã vượt định mức';
+      if (status === 'over_boq') statusLabel = 'Đã vượt định mức';
       else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
-      else if (status === 'low_stock')   statusLabel = 'Tồn kho thấp';
+      else if (status === 'low_stock') statusLabel = 'Tồn kho thấp';
 
       const isEven = idx % 2 === 0;
-      const rowBg  = isEven ? 'FFF8FAFF' : 'FFFFFFFF';
+      const rowBg = isEven ? 'FFF8FAFF' : 'FFFFFFFF';
 
       // Lưu giá trị thô theo thứ tự cột để đo chiều rộng
       const rowData: (string | number)[] = [
@@ -159,16 +159,16 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       ];
 
       const row = sheet.addRow({
-        code:      rowData[0],
-        name:      rowData[1],
-        spec:      rowData[2],
-        supplier:  rowData[3],
-        qty:       rowData[4],
-        reserved:  rowData[5],
+        code: rowData[0],
+        name: rowData[1],
+        spec: rowData[2],
+        supplier: rowData[3],
+        qty: rowData[4],
+        reserved: rowData[5],
         available: rowData[6],
-        unit:      rowData[7],
-        updated:   rowData[8],
-        status:    rowData[9],
+        unit: rowData[7],
+        updated: rowData[8],
+        status: rowData[9],
       });
 
       // Cập nhật max width cho từng cột ngay khi thêm dòng
@@ -192,10 +192,10 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           horizontal: colNumber >= 5 && colNumber <= 7 ? 'center' : 'left',
         };
         cell.border = {
-          top:    { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          top: { style: 'hair', color: { argb: 'FFe2e8f0' } },
           bottom: { style: 'hair', color: { argb: 'FFe2e8f0' } },
-          left:   { style: 'hair', color: { argb: 'FFe2e8f0' } },
-          right:  { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          left: { style: 'hair', color: { argb: 'FFe2e8f0' } },
+          right: { style: 'hair', color: { argb: 'FFe2e8f0' } },
         };
 
         // Tô màu cột Cảnh báo theo trạng thái
@@ -213,10 +213,10 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
       });
 
       // Chiều cao dòng: ước tính số dòng wrap dựa trên cột "Tên vật tư" (cột dài nhất)
-      const nameWidth  = measureTextWidth(rowData[1]?.toString() ?? '');
-      const specWidth  = measureTextWidth(rowData[2]?.toString() ?? '');
-      const wrapLimit  = Math.min(colWidths[1], 52); // giới hạn wrap tại 52 ký tự
-      const linesTxt   = Math.ceil(Math.max(nameWidth, specWidth) / wrapLimit);
+      const nameWidth = measureTextWidth(rowData[1]?.toString() ?? '');
+      const specWidth = measureTextWidth(rowData[2]?.toString() ?? '');
+      const wrapLimit = Math.min(colWidths[1], 52); // giới hạn wrap tại 52 ký tự
+      const linesTxt = Math.ceil(Math.max(nameWidth, specWidth) / wrapLimit);
       row.height = Math.max(22, linesTxt * 16);
     });
 
@@ -392,6 +392,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
             <tr>
               <th className="w-10 px-3"></th>
+              <th className="px-4 py-3 text-center w-12">STT</th>
               <th className="px-4 py-3">Mã</th>
               <th className="px-4 py-3">Tên vật tư</th>
               <th className="px-4 py-3">Thông số</th>
@@ -405,12 +406,12 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           <tbody className="divide-y divide-slate-200 bg-white">
             {filteredInventory.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
                   Không tìm thấy vật tư nào phù hợp với bộ lọc trong kho dự án.
                 </td>
               </tr>
             ) : (
-              paginatedInventory.map(item => {
+              paginatedInventory.map((item, index) => {
                 const rowBg = getRowBgClass(item);
                 const isExpanded = !!expandedItemIds[item.inventoryId];
                 return (
@@ -424,6 +425,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         >
                           {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </button>
+                      </td>
+                      <td className="px-4 py-3.5 text-center text-slate-500 text-sm font-medium tabular-nums">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + index + 1}
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
                         {item.materialCode}

@@ -108,6 +108,15 @@ public class ProjectsController : BaseApiController
         return ApiOk("Tiep tuc du an thanh cong.");
     }
 
+    [HttpPut("{id}/complete")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]
+    public async Task<IActionResult> CompleteProject(long id)
+    {
+        await Mediator.Send(new CompleteProjectCommand(id));
+        return ApiOk("Hoan thanh du an thanh cong.");
+    }
+
     [HttpDelete("{id}")]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
     [Authorize(Roles = RolePolicies.DirectorOrTechnicalManager)]

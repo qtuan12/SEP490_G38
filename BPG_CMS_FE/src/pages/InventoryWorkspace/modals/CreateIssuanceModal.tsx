@@ -8,7 +8,8 @@ import type { WBSTask } from '../../../types/common';
 import type { MaterialConversion } from '../../../types/material';
 import { Trash2, Plus, AlertCircle } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
-import { formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
+import { isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface CreateIssuanceModalProps {
   isOpen: boolean;
@@ -259,7 +260,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
       } else if (num < 0.001) {
         err = 'Số lượng xuất tối thiểu là 0.001.';
       } else if (isGreaterThanQuantity(num, item.maxQty)) {
-        err = `Không vượt quá tồn khả dụng (${formatQuantity(item.maxQty)} ${item.unitName}).`;
+        err = `Không vượt quá tồn khả dụng (${formatNumber(item.maxQty)} ${item.unitName}).`;
       } else if (isDiscreteUnit(item.unitName) && num % 1 !== 0) {
         err = `Đơn vị "${item.unitName}" yêu cầu số lượng phải là số nguyên.`;
       }
@@ -488,7 +489,7 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                         <div className="flex-grow">
                           <Select
                             options={availableOptions.map(o => ({
-                              label: `${o.materialName} (Tồn: ${o.availableQuantity} ${o.unitName})`,
+                              label: `${o.materialName} (Tồn: ${formatNumber(o.availableQuantity)} ${o.unitName})`,
                               value: o.materialId.toString()
                             }))}
                             value={item.materialId.toString()}
@@ -540,9 +541,9 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
                       {/* Dòng hiển thị thông tin tồn kho còn lại & lỗi validate */}
                       <div className="flex justify-between items-center px-1 text-xs min-h-[16px]">
                         {item.quantity && !isNaN(parseQuantityInput(item.quantity)) && parseQuantityInput(item.quantity) > 0 && !isGreaterThanQuantity(parseQuantityInput(item.quantity), item.maxQty) ? (
-                          <span className="text-emerald-600 font-medium">
-                            Còn lại sau xuất: {formatQuantity(item.maxQty - parseQuantityInput(item.quantity))} {item.unitName}
-                          </span>
+                          <div className="text-[10px] text-emerald-600 mt-1 font-medium bg-emerald-50 p-1.5 rounded-md inline-block">
+                            Còn lại sau xuất: {formatNumber(item.maxQty - parseQuantityInput(item.quantity))} {item.unitName}
+                          </div>
                         ) : (
                           <span></span>
                         )}

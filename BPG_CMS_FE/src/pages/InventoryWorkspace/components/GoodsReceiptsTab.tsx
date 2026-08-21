@@ -101,6 +101,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
             <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-xs">
                 <tr>
+                  <th className="px-4 py-3 text-center w-12">STT</th>
                   <th className="px-4 py-3">Mã phiếu</th>
                   <th className="px-4 py-3">Mã đơn hàng</th>
                   <th className="px-4 py-3">Người giao</th>
@@ -114,7 +115,7 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
               <tbody className="divide-y divide-slate-200 bg-white">
                 {receiptsList.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                       Không tìm thấy phiếu nhập kho nào.
                     </td>
                   </tr>
@@ -122,11 +123,14 @@ export const GoodsReceiptsTab: React.FC<GoodsReceiptsTabProps> = ({
                   <>
                     {virtualReceipts.topPadding > 0 && (
                       <tr aria-hidden="true">
-                        <td colSpan={8} style={{ height: virtualReceipts.topPadding, padding: 0 }} />
+                        <td colSpan={9} style={{ height: virtualReceipts.topPadding, padding: 0 }} />
                       </tr>
                     )}
-                    {virtualReceipts.visibleRows.map(({ item: r }) => (
+                    {virtualReceipts.visibleRows.map(({ item: r, index }) => (
                       <tr key={r.receiptId} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3.5 text-center text-slate-500 text-sm font-medium tabular-nums">
+                          {(page - 1) * 10 + index + 1}
+                        </td>
                         <td className="px-4 py-3.5 font-semibold text-blue-600 font-mono text-xs">
                           {r.receiptNo}
                         </td>

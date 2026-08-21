@@ -66,7 +66,6 @@ const BoqVsActualReport   = lazy(() => import('./pages/Reports/BoqVsActualReport
 const CostReferenceReport = lazy(() => import('./pages/Reports/CostReferenceReport').then(m => ({ default: m.CostReferenceReport })));
 
 // Misc
-const GlobalIncidents         = lazy(() => import('./pages/GlobalIncidents').then(m => ({ default: m.GlobalIncidents })));
 const InventoryAdjustmentsPage = lazy(() => import('./pages/InventoryAdjustments').then(m => ({ default: m.InventoryAdjustmentsPage })));
 
 // ─── Route-level fallback spinner ─────────────────────────────────────────────
@@ -469,11 +468,7 @@ function App() {
 
               <Route
                 path="/incidents"
-                element={
-                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
-                    <GlobalIncidents />
-                  </ProtectedRoute>
-                }
+                element={<Navigate to="/projects" replace />}
               />
 
               <Route

@@ -13,6 +13,14 @@ namespace BPG.Application.DTOs.Users
         public string? AvatarUrl { get; set; }
         public string? PhoneNumber { get; set; }
 
+        /// <summary>
+        /// Chỉ có ý nghĩa ngay sau khi tạo tài khoản: false nếu tài khoản đã tạo thành công
+        /// nhưng gửi email chào mừng (chứa mật khẩu khởi tạo) thất bại — Admin cần biết để báo
+        /// mật khẩu cho người dùng bằng cách khác. Mặc định true cho các luồng không gửi email
+        /// (sửa/khóa/xóa tài khoản).
+        /// </summary>
+        public bool WelcomeEmailSent { get; set; } = true;
+
         public static UserDto FromEntity(User user)
         {
             return new UserDto

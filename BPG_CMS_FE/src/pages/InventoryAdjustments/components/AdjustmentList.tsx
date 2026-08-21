@@ -1,5 +1,5 @@
-// Force IDE TS Server to re-parse this file
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { Button, Badge, Pagination } from '../../../components/ui';
@@ -42,10 +42,22 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [searchParams] = useSearchParams();
+  const targetAdjustmentId = searchParams.get('adjustmentId');
+
   // Modals state
   const [isIncreaseOpen, setIsIncreaseOpen] = useState(false);
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [reviewId, setReviewId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (targetAdjustmentId) {
+      const parsed = Number(targetAdjustmentId);
+      if (parsed > 0) {
+        setReviewId(parsed);
+      }
+    }
+  }, [targetAdjustmentId]);
 
   const loadData = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -226,6 +238,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
         <table className={`w-full text-sm text-left ${loading ? 'opacity-50' : ''}`}>
           <thead className="bg-[hsl(var(--bg-main))] text-[hsl(var(--text-secondary))] border-b border-[hsl(var(--border))]">
             <tr>
+              <th className="px-4 py-3 font-medium text-center w-12">STT</th>
               <th className="px-4 py-3 font-medium">Mã Phiếu</th>
               {projectId === 0 && <th className="px-4 py-3 font-medium">Dự án</th>}
               <th className="px-4 py-3 font-medium">Loại</th>
@@ -239,16 +252,19 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
           <tbody className="divide-y divide-[hsl(var(--border))]">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={projectId === 0 ? 8 : 7} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
+                <td colSpan={projectId === 0 ? 9 : 8} className="px-4 py-8 text-center text-[hsl(var(--text-muted))]">
                   Không có dữ liệu phiếu kiểm kê
                 </td>
               </tr>
             ) : (
-              data.map(item => {
+              data.map((item, index) => {
                 const isIncreaseItem = item.adjustmentType?.toLowerCase() === 'increase';
                 const canUserReview = (isIncreaseItem ? isTechnicalManager : canApprove) && !isPaused;
                 return (
                   <tr key={item.adjustmentId} className="hover:bg-[hsl(var(--bg-main))]/50 transition-colors">
+                    <td className="px-4 py-3 text-center text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+                      {(page - 1) * pageSize + index + 1}
+                    </td>
                     <td className="px-4 py-3 font-medium">ADJ-{item.adjustmentId.toString().padStart(5, '0')}</td>
                     {projectId === 0 && <td className="px-4 py-3 text-[hsl(var(--primary))] font-semibold truncate max-w-[150px]" title={item.projectName}>{item.projectName || `Dự án #${item.projectId}`}</td>}
                     <td className="px-4 py-3">{getTypeBadge(item.adjustmentType)}</td>

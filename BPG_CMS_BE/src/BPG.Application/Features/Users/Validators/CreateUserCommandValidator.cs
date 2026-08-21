@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 using BPG.Application.Features.Users.Commands;
 using FluentValidation;
@@ -6,8 +7,8 @@ namespace BPG.Application.Features.Users.Validators
 {
     public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
     {
-        private static readonly Regex NamePattern = new(@"^\p{L}\s+$", RegexOptions.Compiled);
-        private static readonly Regex PhonePattern = new(@"^(00-9{9}|\+840-9{9})$", RegexOptions.Compiled);
+        private static readonly Regex NamePattern = new(@"^[\p{L}\s]+$", RegexOptions.Compiled);
+        private static readonly Regex PhonePattern = new(@"^(0[0-9]{9}|\+84[0-9]{9})$", RegexOptions.Compiled);
 
         public CreateUserCommandValidator()
         {
@@ -15,7 +16,9 @@ namespace BPG.Application.Features.Users.Validators
                 .NotEmpty().WithMessage("Họ tên không được để trống.")
                 .MinimumLength(2).WithMessage("Họ tên phải có ít nhất 2 ký tự.")
                 .MaximumLength(100).WithMessage("Họ tên không được vượt quá 100 ký tự.")
-                .Must(name => NamePattern.IsMatch(name.Trim()))
+                // Chuẩn hóa NFC trước khi so regex: một số IME/hệ điều hành gõ chữ Việt có dấu
+                // ở dạng NFD (chữ cái + dấu ghép rời), khiến \p{L} không khớp dấu.
+                .Must(name => NamePattern.IsMatch(name.Trim().Normalize(NormalizationForm.FormC)))
                 .WithMessage("Họ tên chỉ được chứa chữ cái và khoảng trắng.")
                 .When(x => !string.IsNullOrWhiteSpace(x.Name));
 
@@ -28,7 +31,7 @@ namespace BPG.Application.Features.Users.Validators
                 .NotEmpty().WithMessage("Vui lòng chọn vai trò.");
 
             RuleFor(x => x.PhoneNumber)
-                .Must(phone => PhonePattern.IsMatch(phone!.Replace(" ", "").Replace("-", "")))
+                .Must(phone => PhonePattern.IsMatch(Regex.Replace(phone!, @"[\s.()-]", "")))
                 .WithMessage("Số điện thoại không hợp lệ. Ví dụ: 0912345678 hoặc +84912345678.")
                 .When(x => !string.IsNullOrWhiteSpace(x.PhoneNumber));
         }

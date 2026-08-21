@@ -83,6 +83,15 @@ export const MaterialManagement: React.FC = () => {
 
   const columns = [
     {
+      key: 'stt',
+      header: 'STT',
+      render: (_m: MaterialCatalog, index: number) => (
+        <span className="text-[hsl(var(--text-muted))] text-sm font-medium tabular-nums">
+          {(page - 1) * pageSize + index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'code',
       header: 'Mã Vật tư',
       render: (m: MaterialCatalog) => (

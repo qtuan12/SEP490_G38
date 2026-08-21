@@ -14,6 +14,7 @@ namespace BPG.Application.DTOs.Inventory
         public string AdjustmentType { get; set; } = string.Empty;
         public string Reason { get; set; } = string.Empty;
         public string? Description { get; set; }
+        public string? EvidenceUrl { get; set; }
         public string Status { get; set; } = string.Empty;
         
         public long? CreatedBy { get; set; }

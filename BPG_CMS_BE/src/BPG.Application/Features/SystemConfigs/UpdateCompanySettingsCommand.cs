@@ -20,8 +20,8 @@ namespace BPG.Application.Features.SystemConfigs
     {
         public UpdateCompanySettingsCommandValidator()
         {
-            RuleFor(x => x.CompanyName).NotEmpty().MaximumLength(200)
-                .WithMessage("Tên công ty không được để trống và tối đa 200 ký tự.");
+            RuleFor(x => x.CompanyName).NotEmpty().MaximumLength(60)
+                .WithMessage("Tên công ty không được để trống và tối đa 60 ký tự.");
             RuleFor(x => x.CompanyLogoUrl).NotEmpty()
                 .Must(url => Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out _))
                 .WithMessage("URL logo không hợp lệ.");

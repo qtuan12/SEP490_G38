@@ -187,13 +187,21 @@ export const projectService = {
       const res = await apiClient.get<ApiResponse<{ items: import('../types/common').ProjectDto[], totalCount: number }>>('/projects?pageSize=100');
       if (!res.success) throw new Error(res.message || 'Lỗi lấy danh sách dự án');
       
+      const normalizeProjectStatus = (rawStatus: string): 'draft' | 'inprogress' | 'paused' | 'done' => {
+        const lower = rawStatus?.toLowerCase();
+        if (lower === 'completed' || lower === 'done' || lower === 'closed') return 'done';
+        if (lower === 'paused') return 'paused';
+        if (lower === 'inprogress' || lower === 'in_progress') return 'inprogress';
+        return 'draft';
+      };
+
       const mapped = res.data.items.map(p => ({
         id: p.projectId.toString(),
         name: p.name,
         address: p.address || '',
         startDate: p.plannedStart,
         endDate: p.plannedEnd,
-        status: p.status.toLowerCase() as any,
+        status: normalizeProjectStatus(p.status),
         progress: p.progress || 0,
         pauseReason: p.pauseReason,
         pausedAt: p.pausedAt
@@ -244,13 +252,21 @@ export const projectService = {
         const designAttachments = p.attachments?.filter((a: any) => a.attachmentType === 'Design') || [];
         const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
         
+        const normalizeProjectStatus = (rawStatus: string): 'draft' | 'inprogress' | 'paused' | 'done' => {
+          const lower = rawStatus?.toLowerCase();
+          if (lower === 'completed' || lower === 'done' || lower === 'closed') return 'done';
+          if (lower === 'paused') return 'paused';
+          if (lower === 'inprogress' || lower === 'in_progress') return 'inprogress';
+          return 'draft';
+        };
+
         const project: Project = {
           id: p.projectId.toString(),
           name: p.name,
           address: p.address || '',
           startDate: p.plannedStart,
           endDate: p.plannedEnd,
-          status: p.status.toLowerCase() as any,
+          status: normalizeProjectStatus(p.status),
           drawingUrl: drawingAttachment?.fileUrl || '',
           drawingUrls: designAttachments.map((a: any) => a.fileUrl).filter(Boolean),
           attachments: p.attachments,
@@ -423,6 +439,16 @@ export const projectService = {
       return this.getProjectById(projectId) as unknown as Project;
     }
     return this.updateProject(projectId, { status: 'inprogress' });
+  },
+
+  async completeProject(projectId: string): Promise<Project> {
+    if (!USE_MOCK_API) {
+      const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
+      const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/complete`);
+      if (!res.success) throw new Error(res.message || 'Không thể hoàn thành dự án.');
+      return this.getProjectById(projectId) as unknown as Project;
+    }
+    return this.updateProject(projectId, { status: 'done' });
   },
 
   // MEMBERS MANAGEMENT

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp, ExternalLink } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
 import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
 import { getNearestAvailableYear } from '../../../utils/reportYearHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface Props {
   projectId: string | null;
@@ -131,7 +133,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
     return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
-  const formatCurrency = (v: number) => `${v.toLocaleString('vi-VN')} VNĐ`;
+  const formatCurrency = (v: number) => `${formatNumber(v)} VNĐ`;
   /** Ngày thuần (ngày đặt hàng, ngày giao dự kiến) — không quy đổi múi giờ. */
   const formatOrderDate = (d?: string) => formatPlainDate(d) || '—';
   /** Mốc thời gian UTC từ backend (thời điểm tạo phiếu). */
@@ -224,8 +226,6 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
         </div>
       </div>
 
-
-
       {/* Monthly Procurement & Expense Trend Chart */}
       {(data.monthlyTrends || []).length > 0 && (() => {
         const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
@@ -242,18 +242,15 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {/* Year Selector */}
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
                   className="px-3 py-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
                 >
                   {availableYears.map(y => (
-                    <option key={y} value={y}>Năm {y} {y === currentYear ? '' : ''}</option>
+                    <option key={y} value={y}>Năm {y}</option>
                   ))}
                 </select>
-
-
               </div>
             </div>
 
@@ -297,6 +294,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
             <table className="w-full text-xs text-left relative">
               <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <tr>
+                  <th className="px-4 py-3 text-center w-12">STT</th>
                   <th className="px-4 py-3">Số PO</th>
                   <th className="px-4 py-3">Nhà cung cấp</th>
                   <th className="px-4 py-3 text-right">Tổng giá trị</th>
@@ -306,13 +304,25 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.purchaseOrders.map(po => {
+                {data.purchaseOrders.map((po, index) => {
                   const statusInfo = PO_STATUS_LABELS[po.status] || { label: po.status, colorClass: 'bg-slate-100 text-slate-600' };
                   return (
                     <tr key={po.poId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">{po.poNumber}</td>
+                      <td className="px-4 py-3 text-center font-medium text-slate-500">{index + 1}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Link
+                          to={`/purchase-orders/${po.poId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                          title="Xem chi tiết đơn hàng PO"
+                        >
+                          {po.poNumber}
+                          <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.poNumber) || '—'}</td>
-                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{po.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
+                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(po.totalAmount)} VNĐ</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>
                       <td className="px-4 py-3 text-center">
@@ -324,7 +334,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   );
                 })}
                 {data.purchaseOrders.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Chưa có PO nào.</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Chưa có PO nào.</td></tr>
                 )}
               </tbody>
             </table>
@@ -339,6 +349,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
             <table className="w-full text-xs text-left relative">
               <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <tr>
+                  <th className="px-4 py-3 text-center w-12">STT</th>
                   <th className="px-4 py-3">Mã phiếu</th>
                   <th className="px-4 py-3">Người yêu cầu</th>
                   <th className="px-4 py-3 text-right">Tổng giá trị</th>
@@ -347,11 +358,23 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.directPurchases.map(dp => (
+                {data.directPurchases.map((dp, index) => (
                   <tr key={dp.directPurchaseId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-500">#{dp.directPurchaseId}</td>
+                    <td className="px-4 py-3 text-center font-medium text-slate-500">{index + 1}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Link
+                        to={`/direct-purchases?directPurchaseId=${dp.directPurchaseId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                        title="Xem mua ngoài khẩn cấp"
+                      >
+                        #{dp.directPurchaseId}
+                        <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{dp.requestedByName}</td>
-                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{dp.totalAmount.toLocaleString('vi-VN')} VNĐ</td>
+                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(dp.totalAmount)} VNĐ</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatTimestamp(dp.createdAt)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
@@ -361,7 +384,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   </tr>
                 ))}
                 {data.directPurchases.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Chưa có mua ngoài khẩn cấp nào.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Chưa có mua ngoài khẩn cấp nào.</td></tr>
                 )}
               </tbody>
             </table>

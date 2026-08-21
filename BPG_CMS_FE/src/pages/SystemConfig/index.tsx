@@ -12,6 +12,9 @@ import {
 import toast from 'react-hot-toast';
 
 const COMPANY_KEYS = ['CompanyName', 'CompanyLogoUrl'];
+// Phải khớp với UpdateCompanySettingsCommandValidator.CompanyName ở BE — tên dài hơn mức này
+// sẽ tự xuống dòng ở sidebar (xem MainLayout.tsx) nhưng vẫn nên chặn từ đầu để tránh tên quá dài.
+const COMPANY_NAME_MAX_LENGTH = 60;
 
 // Backend trả mốc thời gian UTC nhưng không kèm hậu tố 'Z' — new Date() sẽ hiểu nhầm là giờ máy
 // và hiển thị chậm 7 tiếng. parseDateSafe gắn 'Z' trước khi parse.
@@ -135,11 +138,15 @@ const CompanySettingsCard: React.FC = () => {
               <Input
                 icon={Building2}
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setName(e.target.value.slice(0, COMPANY_NAME_MAX_LENGTH))}
                 placeholder="Tên công ty"
+                maxLength={COMPANY_NAME_MAX_LENGTH}
                 className="max-w-md"
               />
-              <p className="mt-1.5 text-xs text-gray-400">Tên và logo hiển thị trên sidebar và trang đăng nhập.</p>
+              <p className="mt-1.5 text-xs text-gray-400">
+                Tên và logo hiển thị trên sidebar và trang đăng nhập. Tối đa {COMPANY_NAME_MAX_LENGTH} ký tự
+                ({name.length}/{COMPANY_NAME_MAX_LENGTH}).
+              </p>
             </FormItem>
 
             <div className="flex items-center gap-2 pt-1">

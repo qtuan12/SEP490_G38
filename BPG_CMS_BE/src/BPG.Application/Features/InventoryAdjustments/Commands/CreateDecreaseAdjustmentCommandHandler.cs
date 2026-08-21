@@ -171,15 +171,14 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     "Sự cố đã được xử lý bởi một phiên làm việc khác. Vui lòng tải lại dữ liệu.");
             }
 
-            // The physical quantity is unchanged until approval, but the pending decrease is
-            // reserved immediately so other outbound flows cannot consume damaged/lost stock.
-
-            // Gửi thông báo DB đến Giám đốc để phê duyệt
+            // Gửi thông báo DB đến Giám đốc để phê duyệt (trừ người tạo)
+            var userId = _currentUserService.GetRequiredUserId();
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Director,
                 "Phiếu điều chỉnh giảm tồn kho cần phê duyệt",
                 $"Kế toán vừa tạo phiếu giảm tồn kho #{adjustment.AdjustmentId} tại dự án {project.Name} đang chờ Giám đốc phê duyệt.",
                 BPG.Domain.Constants.NotificationType.Procurement,
+                userId,
                 $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
                 cancellationToken

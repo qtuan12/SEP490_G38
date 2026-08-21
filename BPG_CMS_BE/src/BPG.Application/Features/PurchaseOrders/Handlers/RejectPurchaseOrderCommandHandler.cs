@@ -66,7 +66,7 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
             await _notificationService.SendNotificationToRoleAsync(
                 UserRole.Accountant, notiTitle, notiContent,
-                NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+                NotificationType.Procurement, currentUserId, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
                 .Where(m => m.ProjectId == po.ProjectId && m.IsLeader && m.UserId != currentUserId)

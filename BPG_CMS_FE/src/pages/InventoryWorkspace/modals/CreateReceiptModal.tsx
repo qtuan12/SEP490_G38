@@ -9,6 +9,7 @@ import type { UploadedFileState } from '../../../utils/uploadHelper';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { getPOStatusLabel } from '../../../utils/inventoryHelpers';
 import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 
 interface CreateReceiptModalProps {
   isOpen: boolean;
@@ -467,9 +468,11 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
                           {item.specification || 'Chưa cập nhật'}
                         </td>
                         <td className="px-4 py-3 text-center text-slate-600">
-                          <span className="font-semibold text-blue-600">{item.totalReceived}</span>
-                          <span className="text-slate-400"> / {item.quantity}</span>{' '}
-                          <span className="text-xs text-slate-500">({item.unitName})</span>
+                          <div className="text-xs flex gap-1 justify-center">
+                            <span className="font-semibold text-blue-600">{formatNumber(item.totalReceived)}</span>
+                            <span className="text-slate-400"> / {formatNumber(item.quantity)}</span>{' '}
+                            <span className="text-slate-500">{item.unitName}</span>
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex flex-col items-end gap-1">

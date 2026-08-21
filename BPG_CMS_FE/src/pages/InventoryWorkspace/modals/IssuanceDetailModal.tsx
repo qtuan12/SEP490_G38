@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Button, Input, FormItem, LoadingSpinner } from '../../../components/ui';
 import { inventoryService } from '../../../services/inventoryService';
 import { formatDateVN, formatQuantity, isGreaterThanQuantity, parseQuantityInput } from '../../../utils/inventoryHelpers';
+import { formatNumber } from '../../../utils/formatNumber';
 import type { MaterialIssuanceDetail, MaterialIssuanceItemDetail, MaterialReturn } from '../../../types/inventory';
 import {
   Calendar,
@@ -410,12 +411,16 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                             <span className="text-slate-400 text-[10px] font-mono">{item.materialCode}</span>
                           </td>
                           <td className="px-3 py-2 text-right font-medium text-slate-900">
-                            {item.quantity.toLocaleString('vi-VN')} <span className="text-slate-500 font-normal">{item.unitName}</span>
-                            {returnable < item.quantity && (
-                              <span className="block text-[10px] text-amber-600 font-semibold">
-                                (Còn có thể trả: {formatQuantity(returnable)} {item.unitName})
+                            <div className="flex flex-col items-end">
+                              <span className="font-semibold text-slate-900">
+                                {formatNumber(item.quantity)} <span className="text-slate-500 font-normal">{item.unitName}</span>
                               </span>
-                            )}
+                              {returnable < item.quantity && (
+                                <span className="block text-[10px] text-amber-600 font-semibold">
+                                  (Còn có thể trả: {formatQuantity(returnable)} {item.unitName})
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -473,9 +478,9 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
                           <td className="px-2.5 py-1.5 max-w-[150px] truncate text-slate-600" title={r.reason}>{r.reason}</td>
                           <td className="px-2.5 py-1.5 text-right font-medium text-slate-500">
                             {r.items?.map(ri => (
-                              <span key={ri.returnItemId} className="block text-[10px]">
-                                {ri.quantity.toLocaleString('vi-VN')} {ri.unitName} - <span className="text-slate-400 font-normal">{ri.materialName}</span>
-                              </span>
+                              <div key={ri.returnItemId} className="text-xs font-medium text-slate-900">
+                                {formatNumber(ri.quantity)} {ri.unitName} - <span className="text-slate-400 font-normal">{ri.materialName}</span>
+                              </div>
                             )) || `${r.totalItems} vật tư`}
                           </td>
                         </tr>

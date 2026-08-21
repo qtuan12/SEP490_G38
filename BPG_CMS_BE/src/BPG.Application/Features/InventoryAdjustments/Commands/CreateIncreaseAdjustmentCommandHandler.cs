@@ -69,6 +69,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 AdjustmentType = InventoryAdjustmentType.Increase,
                 Reason = request.Reason,
                 Description = request.Description,
+                EvidenceUrl = request.EvidenceUrl,
                 Status = InventoryAdjustmentStatus.Pending, // Require approval by TPKT
                 CreatedBy = userId
             };
@@ -97,6 +98,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 "Phiếu điều chỉnh tăng tồn kho cần phê duyệt",
                 $"Có phiếu tăng tồn kho mới (#{adjustment.AdjustmentId}) tại dự án {project.Name} đang chờ Trưởng phòng kỹ thuật phê duyệt.",
                 BPG.Domain.Constants.NotificationType.Procurement,
+                userId,
                 $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
                 adjustment.AdjustmentId,
                 cancellationToken
