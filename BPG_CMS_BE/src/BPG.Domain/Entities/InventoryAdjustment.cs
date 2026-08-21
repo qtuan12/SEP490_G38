@@ -9,6 +9,7 @@ public class InventoryAdjustment : BaseEntity
     public string AdjustmentType { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? EvidenceUrl { get; set; }
     public string Status { get; set; } = "Draft";
     public long? ApprovedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }

@@ -557,6 +557,7 @@ Business rules:
 
 - Increase and decrease adjustments have different business risk.
 - Decrease adjustments require stricter review.
+- Increase adjustments require an Evidence Photo (ảnh bằng chứng) and a clear Reason. Approval for increase adjustments is handled by the Technical Manager, while the Accountant is only notified.
 - Approved adjustments change inventory.
 - Rejected adjustments must not change inventory.
 - Adjustments must be traceable through inventory transaction history.
