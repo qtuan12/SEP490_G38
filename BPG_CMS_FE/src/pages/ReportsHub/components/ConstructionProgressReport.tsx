@@ -14,6 +14,7 @@ interface Props {
 export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDate, toDate }) => {
   const [data, setData] = useState<ConstructionProgressReportDto | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activePhaseId, setActivePhaseId] = useState<number | null>(null);
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | 'delayed' | 'inprogress' | 'completed'>('all');
@@ -21,14 +22,17 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
 
   useEffect(() => {
+    let active = true;
     if (!projectId || projectId === 'all') {
       setData(null);
       setActivePhaseId(null);
       return;
     }
     setLoading(true);
+    setError(null);
     reportService.getConstructionProgress(Number(projectId), { fromDate, toDate })
       .then(res => {
+        if (!active) return;
         setData(res);
         if (res && res.phases && res.phases.length > 0) {
           const currentPhase = res.phases.find(p => p.status === 'InProgress') || res.phases[0];
@@ -37,8 +41,14 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
           setActivePhaseId(null);
         }
       })
-      .catch(err => console.error('Error fetching construction progress', err))
-      .finally(() => setLoading(false));
+      .catch(err => {
+        if (!active) return;
+        console.error('Error fetching construction progress', err);
+        setData(null);
+        setError(err instanceof Error ? err.message : 'Không thể tải báo cáo tiến độ thi công.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [projectId, fromDate, toDate]);
 
   useEffect(() => {
@@ -56,6 +66,10 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         <LoadingSpinner size="md" label="Đang tải Báo cáo Tiến độ Thi công..." />
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
   if (!data) return null;

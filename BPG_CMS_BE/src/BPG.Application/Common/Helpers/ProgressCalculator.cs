@@ -47,8 +47,6 @@ public static class ProgressCalculator
 
     public static decimal CalculateExpectedTaskProgress(ProjectTask task, DateTime now)
     {
-        if (IsCompleted(task.Status)) return 100m;
-
         var sDate = task.StartDate.ToDateTime(TimeOnly.MinValue);
         var eDate = task.EndDate.ToDateTime(TimeOnly.MaxValue);
         var totalDays = (eDate - sDate).TotalDays;

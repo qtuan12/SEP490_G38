@@ -70,8 +70,14 @@ public class GetConstructionProgressReportQueryHandler
             .ToListAsync(cancellationToken);
 
         var now = DateTime.UtcNow;
-        var fromDt = request.FromDate?.Date;
-        var toDt = request.ToDate?.Date.AddDays(1).AddTicks(-1);
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        var fromDt = dateRange.From;
+        var toDt = dateRange.ToInclusive;
+        var reportAsOf = toDt.HasValue && toDt.Value < now ? toDt.Value : now;
+        var isHistoricalSnapshot = toDt.HasValue && toDt.Value < now;
+        decimal ReportProgress(ProjectTask task) => isHistoricalSnapshot
+            ? GetProgressAt(task, reportAsOf)
+            : BPG.Application.Common.Helpers.ProgressCalculator.GetEffectiveProgress(task);
 
         var allTasks = phases.SelectMany(p => p.Tasks).ToList();
         var validTasks = allTasks.Where(t => t.Status != TaskStatus.Obsolete)
@@ -79,28 +85,34 @@ public class GetConstructionProgressReportQueryHandler
                      && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
             .ToList();
         int total = validTasks.Count;
-        int done = validTasks.Count(t => BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status));
-        int inProg = validTasks.Count(t => t.Status == TaskStatus.InProgress);
+        int done = validTasks.Count(t => ReportProgress(t) >= 100m);
+        int inProg = validTasks.Count(t => ReportProgress(t) > 0m && ReportProgress(t) < 100m);
         int assigned = validTasks.Count(t => t.Status == TaskStatus.Assigned);
         int newTasks = validTasks.Count(t => t.Status == TaskStatus.New);
-        int obsolete = allTasks.Count(t => t.Status == TaskStatus.Obsolete);
+        int obsolete = allTasks.Count(t => t.Status == TaskStatus.Obsolete
+            && (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
+            && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value));
 
-        decimal overallProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedProgress(validTasks);
+        decimal overallProgress = CalculateWeightedProgressAt(validTasks, ReportProgress);
 
         var phaseProgressList = phases.Select(phase =>
         {
-            var phaseTasks = phase.Tasks.Where(t => t.Status != TaskStatus.Obsolete).ToList();
+            var phaseTasks = phase.Tasks
+                .Where(t => t.Status != TaskStatus.Obsolete)
+                .Where(t => (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
+                         && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
+                .ToList();
             int ptTotal = phaseTasks.Count;
-            int ptDone = phaseTasks.Count(t => BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status));
-            decimal pProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedProgress(phaseTasks);
+            int ptDone = phaseTasks.Count(t => ReportProgress(t) >= 100m);
+            decimal pProgress = CalculateWeightedProgressAt(phaseTasks, ReportProgress);
 
             // Phase expected progress calculation using task dates
-            decimal expProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedExpectedProgress(phaseTasks, now);
+            decimal expProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedExpectedProgress(phaseTasks, reportAsOf);
             int phaseVarianceDays = 0;
-            var overdueTasks = phaseTasks.Where(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < now && !BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status)).ToList();
+            var overdueTasks = phaseTasks.Where(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf && ReportProgress(t) < 100m).ToList();
             if (overdueTasks.Any())
             {
-                phaseVarianceDays = overdueTasks.Max(t => (now - t.EndDate.ToDateTime(TimeOnly.MinValue)).Days);
+                phaseVarianceDays = overdueTasks.Max(t => (reportAsOf - t.EndDate.ToDateTime(TimeOnly.MinValue)).Days);
             }
 
             var allTasksSummary = phaseTasks
@@ -109,11 +121,11 @@ public class GetConstructionProgressReportQueryHandler
                     TaskId = t.TaskId,
                     TaskName = t.Name,
                     Status = t.Status,
-                    ProgressPercent = t.ProgressPercent,
+                    ProgressPercent = decimal.ToInt32(Math.Round(ReportProgress(t))),
                     EndDate = t.EndDate,
                     AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName,
-                    IsDelayed = t.EndDate.ToDateTime(TimeOnly.MinValue) < now
-                        && !BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status)
+                    IsDelayed = t.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf
+                        && ReportProgress(t) < 100m
                 }).ToList();
 
             var delayedTasks = allTasksSummary.Where(t => t.IsDelayed).ToList();
@@ -133,16 +145,18 @@ public class GetConstructionProgressReportQueryHandler
                 DelayedTasks = delayedTasks,
                 AllTasks = allTasksSummary
             };
-        }).ToList();
+        })
+        .Where(p => p.TotalTasks > 0 || (!fromDt.HasValue && !toDt.HasValue))
+        .ToList();
 
         // Calculate overall expected progress
-        decimal overallExpectedProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedExpectedProgress(validTasks, now);
+        decimal overallExpectedProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedExpectedProgress(validTasks, reportAsOf);
 
         int totalDelayedDays = 0;
-        var allOverdueTasks = validTasks.Where(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < now && !BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(t.Status)).ToList();
+        var allOverdueTasks = validTasks.Where(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf && ReportProgress(t) < 100m).ToList();
         if (allOverdueTasks.Any())
         {
-            totalDelayedDays = allOverdueTasks.Max(t => (now - t.EndDate.ToDateTime(TimeOnly.MinValue)).Days);
+            totalDelayedDays = allOverdueTasks.Max(t => (reportAsOf - t.EndDate.ToDateTime(TimeOnly.MinValue)).Days);
         }
 
         // Forecasted completion date
@@ -151,7 +165,7 @@ public class GetConstructionProgressReportQueryHandler
         {
             var minTaskStart = validTasks.Min(t => t.StartDate.ToDateTime(TimeOnly.MinValue));
             var maxTaskEnd = validTasks.Max(t => t.EndDate.ToDateTime(TimeOnly.MaxValue));
-            var elapsedDays = (now - minTaskStart).TotalDays;
+            var elapsedDays = (reportAsOf - minTaskStart).TotalDays;
             if (elapsedDays > 0)
             {
                 var currentRate = (double)overallProgress / 100.0;
@@ -173,8 +187,8 @@ public class GetConstructionProgressReportQueryHandler
             .Select(g =>
             {
                 int totalT = g.Count();
-                int doneT = g.Count(x => BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(x.Task.Status));
-                int delayedT = g.Count(x => x.Task.EndDate.ToDateTime(TimeOnly.MinValue) < now && !BPG.Application.Common.Helpers.ProgressCalculator.IsCompleted(x.Task.Status));
+                int doneT = g.Count(x => ReportProgress(x.Task) >= 100m);
+                int delayedT = g.Count(x => x.Task.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf && ReportProgress(x.Task) < 100m);
                 decimal onTimeRate = totalT > 0 ? Math.Round(((decimal)(totalT - delayedT) / totalT) * 100, 1) : 100m;
 
                 return new AssigneePerformanceDto
@@ -283,7 +297,7 @@ public class GetConstructionProgressReportQueryHandler
         while (currentM <= targetM)
         {
             var mEnd = currentM.AddMonths(1).AddTicks(-1);
-            bool isFutureMonth = currentM > new DateTime(now.Year, now.Month, 1);
+            bool isFutureMonth = currentM > new DateTime(reportAsOf.Year, reportAsOf.Month, 1);
 
             // 1. Calculate Planned Progress % at mEnd (S-Curve Planned)
             double plannedWeightSum = 0;
@@ -410,6 +424,21 @@ public class GetConstructionProgressReportQueryHandler
         }
 
         return 0m;
+    }
+
+    private static decimal CalculateWeightedProgressAt(
+        IEnumerable<ProjectTask> tasks,
+        Func<ProjectTask, decimal> progressSelector)
+    {
+        var list = tasks.ToList();
+        if (list.Count == 0) return 0m;
+
+        var totalWeight = list.Sum(BPG.Application.Common.Helpers.ProgressCalculator.GetEffectiveWeight);
+        if (totalWeight <= 0m) return 0m;
+
+        return Math.Round(
+            list.Sum(t => BPG.Application.Common.Helpers.ProgressCalculator.GetEffectiveWeight(t) * progressSelector(t)) / totalWeight,
+            1);
     }
 }
 

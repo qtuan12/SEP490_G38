@@ -153,7 +153,15 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={allProjectsData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-35} textAnchor="end" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }} 
+                    interval={0} 
+                    angle={-30} 
+                    textAnchor="end" 
+                    height={70}
+                    tickFormatter={(v: string) => (v && v.length > 22 ? `${v.slice(0, 20)}...` : v)}
+                  />
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
                   <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend verticalAlign="top" height={36} />

@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -63,8 +64,9 @@ public class GetProcurementReportQueryHandler
                      && !autoPoIds.Contains(p.POId))
             .AsNoTracking();
 
-        var fromDt = request.FromDate?.Date;
-        var toDt = request.ToDate?.Date.AddDays(1).AddTicks(-1);
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        var fromDt = dateRange.From;
+        var toDt = dateRange.ToInclusive;
 
         if (request.ProjectId > 0)
         {

@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -53,15 +54,14 @@ public class GetIncidentReportQueryHandler
             query = query.Where(i => accessibleIds.Contains(i.ProjectId));
         }
 
-        if (request.FromDate.HasValue)
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        if (dateRange.From.HasValue)
         {
-            var fromDt = request.FromDate.Value.Date;
-            query = query.Where(i => i.CreatedAt >= fromDt);
+            query = query.Where(i => i.CreatedAt >= dateRange.From.Value);
         }
-        if (request.ToDate.HasValue)
+        if (dateRange.ToInclusive.HasValue)
         {
-            var toDt = request.ToDate.Value.Date.AddDays(1).AddTicks(-1);
-            query = query.Where(i => i.CreatedAt <= toDt);
+            query = query.Where(i => i.CreatedAt <= dateRange.ToInclusive.Value);
         }
 
         var incidents = await query

@@ -83,8 +83,9 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .Include(i => i.Issuance).ThenInclude(i => i.Task).ThenInclude(t => t.Phase)
             .AsNoTracking();
 
-        var fromDt = request.FromDate?.Date;
-        var toDt = request.ToDate?.Date.AddDays(1).AddTicks(-1);
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        var fromDt = dateRange.From;
+        var toDt = dateRange.ToInclusive;
 
         var stockRemainingMap = inventories
             .GroupBy(inventory => inventory.MaterialId)
