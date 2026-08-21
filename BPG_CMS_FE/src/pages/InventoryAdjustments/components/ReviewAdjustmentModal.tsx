@@ -221,6 +221,28 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
                 </div>
               </div>
             )}
+
+            {adjustmentData.evidenceUrl && (
+              <div className="col-span-2 flex flex-col gap-1 mt-2">
+                <span className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Ảnh bằng chứng</span>
+                <div className="mt-1 flex items-start gap-4 p-3 bg-slate-50 border border-gray-200 rounded-xl">
+                  <a href={adjustmentData.evidenceUrl} target="_blank" rel="noreferrer" className="shrink-0 block group relative rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+                    <img 
+                      src={adjustmentData.evidenceUrl} 
+                      alt="Ảnh bằng chứng" 
+                      className="w-24 h-24 object-cover group-hover:scale-105 transition-transform duration-200" 
+                    />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-white text-[10px] font-medium px-1.5 py-0.5 bg-black/60 rounded">Xem</span>
+                    </div>
+                  </a>
+                  <div className="flex flex-col gap-1 text-sm text-gray-600 justify-center h-24">
+                    <span className="font-medium text-gray-800">Tài liệu đính kèm</span>
+                    <span className="leading-relaxed">Hình ảnh chụp minh chứng cho phiếu tăng tồn kho này.<br/>Nhấn vào ảnh thu nhỏ để xem kích thước đầy đủ trong thẻ mới.</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
