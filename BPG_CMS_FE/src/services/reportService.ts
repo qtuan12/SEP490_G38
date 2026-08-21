@@ -242,6 +242,11 @@ export interface MonthlyProgressTrendDto {
   monthLabel: string;
   completedTasksCount: number;
   accumulatedProgressPercent: number;
+  plannedProgressPercent?: number;
+  actualProgressPercent?: number;
+  plannedMonthlyVolume?: number;
+  actualMonthlyVolume?: number;
+  isFuture?: boolean;
 }
 
 export interface MonthlyProcurementTrendDto {

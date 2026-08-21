@@ -168,10 +168,27 @@ public class GetProcurementReportQueryHandler
         DateTime startMonth;
         DateTime endMonth;
 
+        var project = request.ProjectId > 0
+            ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
+            : null;
+        bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
+
         if (fromDt.HasValue)
         {
             startMonth = fromDt.Value;
             endMonth = toDt ?? now;
+        }
+        else if (isProjectFinished)
+        {
+            var poMin = pos.Any() ? pos.Min(p => p.OrderDate).Year : project!.PlannedStart.Year;
+            var dpMin = dps.Any() ? dps.Min(d => d.PurchaseDate).Year : poMin;
+            var poMax = pos.Any() ? pos.Max(p => p.OrderDate).Year : project!.PlannedEnd.Year;
+            var dpMax = dps.Any() ? dps.Max(d => d.PurchaseDate).Year : poMax;
+
+            int startYear = Math.Min(poMin, dpMin);
+            int endYear = Math.Max(poMax, dpMax);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = toDt ?? new DateTime(endYear, 12, 31);
         }
         else
         {
@@ -282,4 +299,3 @@ public class GetProcurementReportQueryHandler
         return ApiResponse<ProcurementReportDto>.SuccessResult(dto);
     }
 }
-

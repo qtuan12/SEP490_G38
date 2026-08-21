@@ -3,6 +3,7 @@ using BPG.Application.IServices;
 using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -263,10 +264,24 @@ public class GetConstructionProgressReportQueryHandler
         DateTime startMonth;
         DateTime endMonth;
 
+        var project = request.ProjectId > 0
+            ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
+            : null;
+        bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
+
         if (fromDt.HasValue)
         {
             startMonth = fromDt.Value;
             endMonth = toDt ?? now;
+        }
+        else if (isProjectFinished)
+        {
+            var earliestTaskDate = validTasks.Any() ? validTasks.Min(t => t.StartDate.Year) : project!.PlannedStart.Year;
+            var latestTaskDate = validTasks.Any() ? validTasks.Max(t => t.EndDate.Year) : project!.PlannedEnd.Year;
+            int startYear = Math.Min(earliestTaskDate, latestTaskDate);
+            int endYear = Math.Max(earliestTaskDate, latestTaskDate);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = toDt ?? new DateTime(endYear, 12, 31);
         }
         else
         {
@@ -279,7 +294,6 @@ public class GetConstructionProgressReportQueryHandler
         var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
         var targetM = new DateTime(endMonth.Year, endMonth.Month, 1);
 
-        // Pre-calculate task weights and duration info for S-Curve calculation
         var taskWeights = validTasks.Select(t =>
         {
             var s = t.StartDate.ToDateTime(TimeOnly.MinValue);
@@ -441,4 +455,3 @@ public class GetConstructionProgressReportQueryHandler
             1);
     }
 }
-

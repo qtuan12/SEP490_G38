@@ -4,6 +4,7 @@ import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ConstructionProgressReportDto } from '../../../services/reportService';
 import { BarChart, Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
+import { getPreferredReportYear } from '../../../utils/reportYearHelpers';
 
 interface Props {
   projectId: string | null;
@@ -34,6 +35,12 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
       .then(res => {
         if (!active) return;
         setData(res);
+        if (res && res.monthlyTrends) {
+          setSelectedYear(getPreferredReportYear(
+            res.monthlyTrends,
+            trend => (trend.plannedMonthlyVolume || 0) > 0 || (trend.actualMonthlyVolume || 0) > 0,
+          ));
+        }
         if (res && res.phases && res.phases.length > 0) {
           const currentPhase = res.phases.find(p => p.status === 'InProgress') || res.phases[0];
           setActivePhaseId(currentPhase.phaseId);
@@ -88,8 +95,6 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
     if (taskStatusFilter === 'inprogress') return task.status !== 'Approved' && task.status !== 'Completed' && !task.isDelayed;
     return true;
   }) || [];
-
-
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -237,8 +242,6 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         </div>
       </div>
 
-
-
       {/* Grouped Bar Chart: Baseline Expected vs Actual Progress per Phase */}
       {phaseComparisonChartData.length > 0 && (
         <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
@@ -269,8 +272,12 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
 
       {/* Monthly Progress Trend & Comparison Analytics Chart */}
       {(data.monthlyTrends || []).length > 0 && (() => {
-        const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
-        const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === selectedYear);
+        const hasAnyDataYear = (data.monthlyTrends || []).some(t => (t.plannedMonthlyVolume || 0) > 0 || (t.actualMonthlyVolume || 0) > 0);
+        const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year)))
+          .filter(y => !hasAnyDataYear || (data.monthlyTrends || []).some(t => t.year === y && ((t.plannedMonthlyVolume || 0) > 0 || (t.actualMonthlyVolume || 0) > 0)))
+          .sort((a, b) => b - a);
+        const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
+        const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === activeYear);
 
         return (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
@@ -293,8 +300,6 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                     <option key={y} value={y}>Năm {y} {y === currentYear ? '' : ''}</option>
                   ))}
                 </select>
-
-
               </div>
             </div>
 

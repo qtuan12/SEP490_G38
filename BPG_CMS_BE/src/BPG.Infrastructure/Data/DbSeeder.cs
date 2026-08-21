@@ -84,7 +84,8 @@ public static class DbSeeder
                 && await context.MaterialCatalogs.AnyAsync(m => m.Code == "BT-TUOI-M300")
                 && await context.MaterialCatalogs.AnyAsync(m => m.Code == "XM-ROI-PCB40")
                 && await context.MaterialCatalogs.AnyAsync(m => m.Code == "PVC-D114")
-                && await context.Units.AnyAsync(u => u.UnitCode == "VIEN" && u.UnitName == "Viên");
+                && await context.Units.AnyAsync(u => u.UnitCode == "VIEN" && u.UnitName == "Viên")
+                && await context.PurchaseOrders.AnyAsync(p => p.PONumber == "PO-MO-LAO-202508-01");
 
             if (hasCurrentSeed)
                 return;
@@ -102,6 +103,7 @@ public static class DbSeeder
 
         await SeedMainDemoLifecycleAsync(context, projects, users, master, materials);
         await SeedSecondaryInventorySnapshotsAsync(context, projects, users, master, materials);
+        await SeedCompletedMoLaoHistoryAsync(context, projects, users, master, materials);
         await SeedCompletedProjectSurplusAsync(context, projects, users, master, materials);
         await SeedNotificationsAsync(context, projects, users);
     }
@@ -2236,9 +2238,12 @@ public static class DbSeeder
             NewProgress = newProgress,
             UpdateReason = $"Cập nhật từ nhật ký thi công ngày {DateOnly.FromDateTime(at):dd/MM/yyyy}",
             CreatedAt = at,
+            UpdatedAt = at,
             CreatedBy = creator.UserId
         });
         task.ProgressPercent = newProgress;
+        task.UpdatedAt = at;
+        task.UpdatedBy = creator.UserId;
         if (newProgress == 100 && task.Status == TaskStatusConstants.InProgress) task.Status = TaskStatusConstants.Completed;
         await context.SaveChangesAsync();
         return log;
@@ -2569,6 +2574,309 @@ public static class DbSeeder
                 new[] { (materials[s.Item2], master.Units[s.Item3], s.Item4) }, SeedUtc.AddDays(-15 - seq));
             seq++;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // COMPLETED MỖ LAO PROJECT: diverse 2025 history for reporting.
+    // -------------------------------------------------------------------------
+    private static async Task SeedCompletedMoLaoHistoryAsync(
+        AppDbContext context,
+        Dictionary<string, ProjectBundle> projects,
+        Dictionary<string, User> users,
+        MasterData master,
+        Dictionary<string, MaterialCatalog> materials)
+    {
+        var bundle = projects["Nhà ở liền kề LK4B Mỗ Lao – Hà Đông"];
+        var project = bundle.Project;
+        var accountant = users["ketoan@bpg.com"];
+        var director = users["giamdoc@bpg.com"];
+        var technicalManager = users["tpkt@bpg.com"];
+
+        static DateTime At(DateOnly date, int hour = 2)
+            => DateTime.SpecifyKind(date.ToDateTime(new TimeOnly(hour, 0)), DateTimeKind.Utc);
+
+        // Give every task a real progress history. Without these logs a completed task appears
+        // as 100% immediately from its creation date and makes the historical S-curve unrealistic.
+        var progressLogs = new List<TaskProgressLog>();
+        var dailyLogs = new List<DailyLog>();
+        foreach (var phase in bundle.Phases)
+        {
+            var phaseTasks = bundle.TasksByPhase[phase.PhaseId];
+            foreach (var task in phaseTasks)
+            {
+                var totalDays = Math.Max(0, task.EndDate.DayNumber - task.StartDate.DayNumber);
+                var firstAt = At(task.StartDate.AddDays(totalDays * 30 / 100), 1);
+                var secondAt = At(task.StartDate.AddDays(totalDays * 70 / 100), 2);
+                var completedAt = At(task.EndDate, 3);
+
+                progressLogs.AddRange(new[]
+                {
+                    new TaskProgressLog
+                    {
+                        TaskId = task.TaskId,
+                        OldProgress = 0,
+                        NewProgress = 35,
+                        UpdateReason = "Hoàn thành công tác chuẩn bị và khối lượng đầu kỳ.",
+                        CreatedAt = firstAt,
+                        UpdatedAt = firstAt,
+                        CreatedBy = bundle.Leader.UserId
+                    },
+                    new TaskProgressLog
+                    {
+                        TaskId = task.TaskId,
+                        OldProgress = 35,
+                        NewProgress = 75,
+                        UpdateReason = "Khối lượng chính đã thi công và được kiểm tra nội bộ.",
+                        CreatedAt = secondAt,
+                        UpdatedAt = secondAt,
+                        CreatedBy = bundle.EngineerA.UserId
+                    },
+                    new TaskProgressLog
+                    {
+                        TaskId = task.TaskId,
+                        OldProgress = 75,
+                        NewProgress = 100,
+                        UpdateReason = "Hoàn thành, nghiệm thu và khóa khối lượng công việc.",
+                        CreatedAt = completedAt,
+                        UpdatedAt = completedAt,
+                        CreatedBy = bundle.Leader.UserId
+                    }
+                });
+
+                task.UpdatedAt = completedAt;
+                task.UpdatedBy = bundle.Leader.UserId;
+            }
+
+            var representativeTask = phaseTasks.First(t => t.ParentTaskId.HasValue);
+            dailyLogs.Add(new DailyLog
+            {
+                TaskId = representativeTask.TaskId,
+                LogDate = representativeTask.EndDate,
+                NewProgressPercent = 100,
+                Description = $"Hoàn tất khối lượng đại diện của {phase.Name}; chất lượng đạt yêu cầu và đủ điều kiện chuyển bước.",
+                CreatedAt = At(representativeTask.EndDate),
+                CreatedBy = bundle.Leader.UserId
+            });
+        }
+        context.TaskProgressLogs.AddRange(progressLogs);
+        context.DailyLogs.AddRange(dailyLogs);
+        await context.SaveChangesAsync();
+
+        async Task<(PurchaseOrder Po, MaterialIssuance Issuance)> SeedProcurementBatchAsync(
+            Phase phase,
+            ProjectTask task,
+            DateTime requestAt,
+            string numberSuffix,
+            Supplier supplier,
+            string reason,
+            string boqStatus,
+            (MaterialCatalog Material, Unit Unit, decimal Quantity, decimal UnitPrice, decimal IssuedQuantity, bool IsOver)[] lines)
+        {
+            var request = await CreateMaterialRequestAsync(
+                context, phase, bundle.Leader, accountant, director,
+                MaterialRequestStatus.Approved, boqStatus, reason,
+                "Đã đối chiếu BOQ, tồn kho và tiến độ thực tế trước khi lập đơn mua.",
+                "Giám đốc đã duyệt căn cứ kỹ thuật và giá trị mua sắm.",
+                lines.Select(x => (x.Material, x.Unit, x.Quantity, x.IsOver,
+                    x.IsOver ? (string?)"Khối lượng phát sinh đã được xác nhận theo hiện trường và biên bản thay đổi." : null)),
+                requestAt);
+
+            var po = await CreatePurchaseOrderAsync(
+                context, request, project, supplier, accountant, director,
+                PurchaseOrderStatus.FullyReceived, $"PO-MO-LAO-{numberSuffix}", requestAt.AddDays(3),
+                lines.Select(x => (x.Material, x.Unit, x.Quantity, x.UnitPrice)),
+                "Đơn mua đã được duyệt, giao đủ và đối chiếu chứng từ.");
+
+            await CreateGoodsReceiptAsync(
+                context, po, bundle.Leader, GoodsReceiptStatus.Approved,
+                $"GR-MO-LAO-{numberSuffix}", supplier.SupplierName, $"BBGH-ML-{numberSuffix}",
+                lines.Select(x => (x.Material, x.Unit, x.Quantity)), requestAt.AddDays(7));
+
+            var issuance = new MaterialIssuance
+            {
+                IssuanceNo = $"PXK-MO-LAO-{numberSuffix}",
+                TaskId = task.TaskId,
+                Purpose = $"Xuất vật tư theo kế hoạch: {reason}",
+                CreatedAt = requestAt.AddDays(14),
+                CreatedBy = bundle.Leader.UserId
+            };
+            context.MaterialIssuances.Add(issuance);
+            await context.SaveChangesAsync();
+            foreach (var line in lines.Where(x => x.IssuedQuantity > 0))
+            {
+                await AddIssuanceLineAsync(
+                    context, issuance, project, line.Material, line.Unit, line.IssuedQuantity,
+                    bundle.Leader.UserId, issuance.CreatedAt);
+            }
+
+            return (po, issuance);
+        }
+
+        var phase1 = bundle.Phases[0];
+        var phase2 = bundle.Phases[1];
+        var phase3 = bundle.Phases[2];
+        var phase4 = bundle.Phases[3];
+        var task1 = bundle.TasksByPhase[phase1.PhaseId].First(t => t.ParentTaskId.HasValue);
+        var task2 = bundle.TasksByPhase[phase2.PhaseId].First(t => t.ParentTaskId.HasValue);
+        var task3 = bundle.TasksByPhase[phase3.PhaseId].First(t => t.ParentTaskId.HasValue);
+
+        await SeedProcurementBatchAsync(
+            phase1, task1, new DateTime(2025, 3, 12, 2, 0, 0, DateTimeKind.Utc), "202503-01",
+            master.Suppliers["Xi măng VICEM Bỉm Sơn"],
+            "Cấp xi măng cho công tác xây, cán nền và các hạng mục vữa tại chỗ.",
+            BOQCheckStatus.WithinBOQ,
+            new[]
+            {
+                (materials["XM-VICEM-PCB40"], master.Units["BAO"], 300m, 92_000m, 260m, false)
+            });
+
+        await SeedProcurementBatchAsync(
+            phase1, task1, new DateTime(2025, 4, 1, 2, 0, 0, DateTimeKind.Utc), "202504-01",
+            master.Suppliers["Đơn vị bê tông thương phẩm Hưng Yên"],
+            "Cấp bê tông thương phẩm cho phần móng, nền và giằng móng.",
+            BOQCheckStatus.WithinBOQ,
+            new[]
+            {
+                (materials["BT-TUOI-M250"], master.Units["M3"], 40m, 1_280_000m, 38m, false)
+            });
+
+        await SeedProcurementBatchAsync(
+            phase2, task2, new DateTime(2025, 5, 20, 2, 0, 0, DateTimeKind.Utc), "202505-01",
+            master.Suppliers["Thép Hòa Phát - khu vực miền Bắc"],
+            "Cấp thép kết cấu thân nhà; bổ sung một phần do điều chỉnh cấu tạo ô cầu thang.",
+            BOQCheckStatus.OverBOQ,
+            new[]
+            {
+                (materials["THEP-HP-D16"], master.Units["CAY"], 360m, 242_000m, 340m, true),
+                (materials["THEP-HP-D10"], master.Units["CAY"], 280m, 98_000m, 265m, false)
+            });
+
+        var finishingBatch = await SeedProcurementBatchAsync(
+            phase3, task3, new DateTime(2025, 8, 18, 2, 0, 0, DateTimeKind.Utc), "202508-01",
+            master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"],
+            "Cấp vật tư ốp lát, keo và sơn cho giai đoạn hoàn thiện.",
+            BOQCheckStatus.WithinBOQ,
+            new[]
+            {
+                (materials["GACH-POR-600"], master.Units["M2"], 320m, 275_000m, 290m, false),
+                (materials["WEBER-ST250"], master.Units["BAO"], 90m, 215_000m, 82m, false),
+                (materials["SON-NOI-18"], master.Units["THUNG"], 22m, 2_480_000m, 18m, false)
+            });
+
+        var materialReturn = new MaterialReturn
+        {
+            ReturnNo = "PTRA-MO-LAO-20250915-01",
+            OriginalIssuanceId = finishingBatch.Issuance.MaterialIssuanceId,
+            Reason = "Hoàn vật tư nguyên đai còn dư sau khi chốt khối lượng căn hộ mẫu và khu vực tầng tum.",
+            CreatedAt = new DateTime(2025, 9, 15, 2, 0, 0, DateTimeKind.Utc),
+            CreatedBy = bundle.Leader.UserId
+        };
+        context.MaterialReturns.Add(materialReturn);
+        await context.SaveChangesAsync();
+        await AddReturnLineAsync(context, materialReturn, project, materials["GACH-POR-600"], master.Units["M2"], 12m, bundle.Leader.UserId, materialReturn.CreatedAt);
+        await AddReturnLineAsync(context, materialReturn, project, materials["WEBER-ST250"], master.Units["BAO"], 2m, bundle.Leader.UserId, materialReturn.CreatedAt);
+
+        await SeedDirectPurchaseAsync(
+            context, project, phase3, task3, bundle.EngineerA, accountant, director,
+            materials["WEBER-ST250"], master.Units["BAO"], 4m, 228_000m,
+            new DateTime(2025, 9, 2, 2, 0, 0, DateTimeKind.Utc));
+
+        var reworkTask = new ProjectTask
+        {
+            PhaseId = phase3.PhaseId,
+            Name = "Khắc phục thấm cục bộ chân tường khu vệ sinh tầng 3",
+            Description = "Tháo cục bộ lớp hoàn thiện, xử lý chống thấm tăng cường và test ngâm nước trước khi hoàn thiện lại.",
+            OrderIndex = 98,
+            StartDate = new DateOnly(2025, 9, 22),
+            EndDate = new DateOnly(2025, 9, 26),
+            Status = TaskStatusConstants.Approved,
+            ProgressPercent = 100,
+            Weight = 1,
+            IsLocked = true,
+            CreatedAt = new DateTime(2025, 9, 21, 2, 0, 0, DateTimeKind.Utc),
+            UpdatedAt = new DateTime(2025, 9, 26, 2, 0, 0, DateTimeKind.Utc),
+            CreatedBy = technicalManager.UserId,
+            UpdatedBy = bundle.Leader.UserId
+        };
+        context.Tasks.Add(reworkTask);
+        await context.SaveChangesAsync();
+
+        var incidents = new[]
+        {
+            new Incident
+            {
+                ProjectId = project.ProjectId,
+                PhaseId = phase1.PhaseId,
+                TaskId = task1.TaskId,
+                ReportedBy = bundle.EngineerA.UserId,
+                ReviewedBy = bundle.Leader.UserId,
+                IncidentType = "Safety",
+                Description = "Lối vận chuyển vật tư xuống hố móng bị trơn sau mưa, cần bổ sung lối đi và biển cảnh báo.",
+                Status = IncidentStatus.Resolved,
+                DamageDescription = "Không có thiệt hại vật tư hoặc con người.",
+                EstimatedMaterialLoss = 0,
+                EstimatedLaborDays = 0.5m,
+                EstimatedDelayDays = 0,
+                ProposedAction = "Rải đá dăm, tạo rãnh thoát nước và bổ sung biển cảnh báo.",
+                HandlingInstruction = "Đã xử lý trong ca và nghiệm thu điều kiện an toàn trước khi làm việc lại.",
+                CreatedAt = new DateTime(2025, 4, 3, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = bundle.EngineerA.UserId
+            },
+            new Incident
+            {
+                ProjectId = project.ProjectId,
+                PhaseId = phase3.PhaseId,
+                TaskId = task3.TaskId,
+                ReworkTaskId = reworkTask.TaskId,
+                ReportedBy = bundle.Leader.UserId,
+                ReviewedBy = technicalManager.UserId,
+                IncidentType = "Construction",
+                Description = "Test ngâm nước phát hiện thấm cục bộ tại chân tường khu vệ sinh tầng 3.",
+                Status = IncidentStatus.Closed,
+                DamageDescription = "Tháo và thi công lại khoảng 7 m² lớp hoàn thiện, không ảnh hưởng kết cấu.",
+                EstimatedMaterialLoss = 3_850_000m,
+                EstimatedLaborDays = 3,
+                EstimatedDelayDays = 2,
+                ProposedAction = "Tạo công việc khắc phục, test lại 24 giờ và chỉ ốp lát sau khi nghiệm thu.",
+                HandlingInstruction = "Đã hoàn thành khắc phục và đóng sự cố sau kết quả test đạt.",
+                CreatedAt = new DateTime(2025, 9, 20, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = bundle.Leader.UserId
+            },
+            new Incident
+            {
+                ProjectId = project.ProjectId,
+                PhaseId = phase4.PhaseId,
+                ReportedBy = bundle.EngineerB.UserId,
+                ReviewedBy = technicalManager.UserId,
+                IncidentType = "Material",
+                Description = "Phản ánh sai khác màu sơn giữa mẫu thử và khu vực giao cuối đợt.",
+                Status = "Rejected",
+                DamageDescription = "Kiểm tra mã lô cho thấy màu nằm trong dung sai được chủ đầu tư chấp thuận.",
+                EstimatedMaterialLoss = 0,
+                EstimatedLaborDays = 0,
+                EstimatedDelayDays = 0,
+                ProposedAction = "Đối chiếu mẫu duyệt và biên bản xác nhận màu.",
+                HandlingInstruction = "Không ghi nhận sự cố chất lượng; phản ánh được đóng sau xác minh.",
+                CreatedAt = new DateTime(2025, 11, 5, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = bundle.EngineerB.UserId
+            }
+        };
+        context.Incidents.AddRange(incidents);
+        await context.SaveChangesAsync();
+
+        context.Attachments.Add(new Attachment
+        {
+            EntityType = EntityType.Incident,
+            EntityId = incidents[1].IncidentId,
+            AttachmentType = AttachmentType.IncidentPhoto,
+            FileName = "bien-ban-khac-phuc-tham-mo-lao.jpg",
+            FileUrl = SeedImageConcrete,
+            ContentType = "image/jpeg",
+            FileSizeBytes = 380_000,
+            CreatedAt = incidents[1].CreatedAt,
+            CreatedBy = bundle.Leader.UserId
+        });
+        await context.SaveChangesAsync();
     }
 
     // -------------------------------------------------------------------------

@@ -42,11 +42,9 @@ public static class RolePolicies
         UserRole.TechnicalManager + "," +
         UserRole.Director;
     public const string Reports =
-        UserRole.Admin + "," +
         UserRole.Director + "," +
         UserRole.TechnicalManager + "," +
-        UserRole.Accountant + "," +
-        UserRole.SiteEngineer;
+        UserRole.Accountant;
     public const string MasterData = UserRole.TechnicalManager + "," + UserRole.Accountant;
 }
 

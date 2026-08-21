@@ -320,10 +320,24 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
         DateTime startMonth;
         DateTime endMonth;
 
+        var project = request.ProjectId > 0
+            ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
+            : null;
+        bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
+
         if (fromDt.HasValue)
         {
             startMonth = fromDt.Value;
             endMonth = toDt ?? now;
+        }
+        else if (isProjectFinished)
+        {
+            var issMin = issuanceItems.Any() ? issuanceItems.Min(i => i.Issuance!.CreatedAt).Year : project!.PlannedStart.Year;
+            var issMax = issuanceItems.Any() ? issuanceItems.Max(i => i.Issuance!.CreatedAt).Year : project!.PlannedEnd.Year;
+            int startYear = Math.Min(issMin, issMax);
+            int endYear = Math.Max(issMin, issMax);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = toDt ?? new DateTime(endYear, 12, 31);
         }
         else
         {

@@ -8,6 +8,7 @@ using BPG.Application.Common.Helpers;
 using BPG.Application.DTOs.Reports;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -389,7 +390,14 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         };
 
         // 8. Monthly Trends (Past 12 months)
-        var referenceEnd = toDt ?? DateTime.UtcNow;
+        var project = request.ProjectId > 0
+            ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
+            : null;
+        bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
+
+        var referenceEnd = toDt ?? (isProjectFinished
+            ? (returnList.Any() ? returnList.Max(r => r.CreatedAt) : project!.PlannedEnd.ToDateTime(TimeOnly.MaxValue))
+            : DateTime.UtcNow);
         var monthlyTrends = new List<ReturnAndSurplusMonthlyTrendDto>();
 
         for (int i = 11; i >= 0; i--)
