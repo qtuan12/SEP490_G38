@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, Select, FormItem } from '../../../components/ui';
 import { userService } from '../../../services/userService';
-import { validateFullName, validatePhoneNumber } from '../../../utils/profileValidation';
+import { validateFullName, validatePhoneNumber, sanitizePhoneInput } from '../../../utils/profileValidation';
 import { useLoading } from '../../../context/LoadingContext';
 
 const schema = z.object({
@@ -77,7 +77,14 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
         </FormItem>
 
         <FormItem label="Số điện thoại" error={errors.phoneNumber?.message}>
-          <Input type="tel" placeholder="Ví dụ: 0912345678" {...register('phoneNumber')} error={!!errors.phoneNumber} />
+          <Input
+            type="tel"
+            placeholder="Ví dụ: 0912345678"
+            {...register('phoneNumber', {
+              onChange: e => { e.target.value = sanitizePhoneInput(e.target.value); },
+            })}
+            error={!!errors.phoneNumber}
+          />
         </FormItem>
 
         <FormItem label="Vai trò hệ thống" error={errors.role?.message}>

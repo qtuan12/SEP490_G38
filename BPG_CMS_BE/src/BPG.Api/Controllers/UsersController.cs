@@ -27,7 +27,13 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> CreateUser(CreateUserCommand command)
     {
         var result = await Mediator.Send(command);
-        return ApiOk(result, $"Đã tạo tài khoản cho '{result.Name}' thành công.");
+        // Tài khoản luôn đã được tạo tới đây (lỗi transaction đã throw trước đó) — chỉ khác nhau
+        // ở việc email chào mừng có gửi được hay không.
+        var message = result.WelcomeEmailSent
+            ? $"Đã tạo tài khoản cho '{result.Name}' thành công."
+            : $"Đã tạo tài khoản cho '{result.Name}' thành công, nhưng gửi email thông báo thất bại. " +
+              "Vui lòng cung cấp mật khẩu cho người dùng bằng cách khác.";
+        return ApiOk(result, message);
     }
 
     [HttpPut("{id}")]
