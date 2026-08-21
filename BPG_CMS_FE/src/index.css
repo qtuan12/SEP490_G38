@@ -422,6 +422,11 @@ tr:hover td {
   box-shadow: 0 0 8px hsl(var(--danger) / 0.4);
 }
 
+.timeline-node-warning {
+  background-color: hsl(var(--warning));
+  box-shadow: 0 0 8px hsl(var(--warning) / 0.4);
+}
+
 .timeline-node-info {
   background-color: hsl(var(--primary));
   box-shadow: 0 0 8px hsl(var(--primary) / 0.4);

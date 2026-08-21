@@ -56,45 +56,17 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                     .ToDictionaryAsync(u => u.UserId, u => u.FullName ?? u.Email, cancellationToken);
             }
 
-            var dailyLogs = await _uow.Repository<DailyLog>().Query()
-                .AsNoTracking()
-                .Where(dl => dl.TaskId == request.TaskId)
-                .Select(dl => new
-                {
-                    dl.CreatedBy,
-                    dl.CreatedAt,
-                    dl.NewProgressPercent
-                })
-                .ToListAsync(cancellationToken);
-
             return logs.Select(log =>
             {
                 var reason = log.UpdateReason ?? string.Empty;
-                var source = "Direct";
-                if (reason.Contains("Cập nhật tự động"))
+                var source = reason switch
                 {
-                    source = "Auto";
-                }
-                else if (reason.Contains("Cập nhật qua nhật ký thi công"))
-                {
-                    source = "DailyLog";
-                }
-                else if (reason.Contains("Điều chỉnh trực tiếp"))
-                {
-                    source = "Direct";
-                }
-                else if (reason.Contains("Giảm tiến độ do sự cố")
-                    || reason.Contains("Phạt giảm tiến độ"))
-                {
-                    source = "Incident";
-                }
-                else if (dailyLogs.Any(dl =>
-                    dl.CreatedBy == log.CreatedBy
-                    && dl.NewProgressPercent == log.NewProgress
-                    && Math.Abs((dl.CreatedAt - log.CreatedAt).TotalSeconds) <= 120))
-                {
-                    source = "DailyLog";
-                }
+                    _ when reason.Contains("Cập nhật tự động") => "Auto",
+                    _ when reason.Contains("Cập nhật qua nhật ký thi công") => "DailyLog",
+                    _ when reason.Contains("Giảm tiến độ do sự cố") || reason.Contains("Phạt giảm tiến độ") => "Incident",
+                    _ when reason.Contains("Điều chỉnh trực tiếp") => "Direct",
+                    _ => "Direct"
+                };
 
                 string? displayName = null;
                 if (log.Creator != null)

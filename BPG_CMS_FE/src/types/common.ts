@@ -131,6 +131,9 @@ export interface IncidentReport {
 }
 
 export interface MaterialRequestItem {
+  requestItemId?: number;
+  materialId?: number;
+  unitId?: number;
   name: string;
   quantity: number;
   unit: string;
@@ -199,6 +202,7 @@ export interface WBSTask {
   isRework?: boolean;
   weight?: number;
   predecessorTaskIds?: number[];
+  hasSubTasks?: boolean;
   isOutsourced?: boolean;
   outsourcedTeamName?: string;
   outsourcedTeamContact?: string;
@@ -215,6 +219,8 @@ export interface DailyLogComment {
   date: string;
 }
 
+export type DailyLogSource = 'Manual' | 'DirectAdjustment' | 'IncidentAdjustment';
+
 export interface DailyLog {
   id: string;
   projectId: string;
@@ -222,6 +228,8 @@ export interface DailyLog {
   taskName: string;
   engineerId: string;
   engineerName: string;
+  engineerRole?: string;
+  source?: DailyLogSource;
   progressFrom: number;
   progressTo: number;
   date: string;

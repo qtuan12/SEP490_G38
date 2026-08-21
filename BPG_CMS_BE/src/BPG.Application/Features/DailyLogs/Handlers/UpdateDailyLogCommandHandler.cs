@@ -208,6 +208,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var dto = _mapper.Map<DailyLogDto>(log);
                 dto.TaskName = log.Task.Name;
                 dto.CreatorName = creator?.FullName ?? string.Empty;
+                dto.CreatorRole = creator?.UserRoles.FirstOrDefault()?.Role?.RoleName ?? string.Empty;
+                dto.Source = DailyLogSource.Resolve(log.Description);
                 dto.Images = newUrls;
                 dto.OldProgressPercent = progressLog?.OldProgress ?? 0;
                 dto.EditWindowHours = editWindowHours;

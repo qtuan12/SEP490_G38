@@ -43,6 +43,7 @@ public class GetTaskDetailsQueryHandlerTests
             Status = BPG.Domain.Constants.TaskStatus.InProgress,
             ProgressPercent = 40,
             ObsoleteReason = null,
+            HasSubTasks = false,
             Assignees =
             [
                 new TaskAssigneeDto(8, "Engineer", "engineer@test.local")
@@ -63,7 +64,19 @@ public class GetTaskDetailsQueryHandlerTests
     }
 
     [Fact]
-    public async Task UTCID02_Handle_TaskNotFound_ShouldThrowNotFoundException()
+    public async Task UTCID02_Handle_ParentTask_ShouldReportSubTasks()
+    {
+        var task = TaskEntity();
+        task.SubTasks.Add(new ProjectTask { TaskId = 11, PhaseId = task.PhaseId, ParentTaskId = task.TaskId });
+        SetupTasks(task);
+
+        var result = await _handler.Handle(new GetTaskDetailsQuery(10), CancellationToken.None);
+
+        result.Data!.HasSubTasks.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UTCID03_Handle_TaskNotFound_ShouldThrowNotFoundException()
     {
         SetupTasks();
         Func<Task> act = () => _handler.Handle(new GetTaskDetailsQuery(10), CancellationToken.None);
