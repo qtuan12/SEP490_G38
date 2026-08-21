@@ -6,7 +6,7 @@ using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BPG.Application.Features.Tasks.Commands;
-using BPG.Domain.Common;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Tasks.Handlers;
 
@@ -118,18 +118,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                 UpdatedBy = currentUserId
             });
 
-            if (oldProgress != request.NewProgress)
-            {
-                await _unitOfWork.Repository<DailyLog>().AddAsync(new DailyLog
-                {
-                    TaskId = task.TaskId,
-                    LogDate = VietnamTime.Today,
-                    NewProgressPercent = request.NewProgress,
-                    Description = $"Hệ thống ghi nhận điều chỉnh tiến độ trực tiếp từ {oldProgress}% thành {request.NewProgress}%. Lý do: {request.UpdateReason}",
-                    CreatedBy = currentUserId,
-                    CreatedAt = DateTime.UtcNow
-                }, ct);
-            }
+
 
             _unitOfWork.Repository<ProjectTask>().Update(task);
             await _unitOfWork.SaveChangesAsync(ct);

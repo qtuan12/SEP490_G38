@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.DTOs.DailyLogs
 {
@@ -13,6 +14,8 @@ namespace BPG.Application.DTOs.DailyLogs
         public string Description { get; set; } = string.Empty;
         public long CreatedBy { get; set; }
         public string CreatorName { get; set; } = string.Empty;
+        public string CreatorRole { get; set; } = string.Empty;
+        public string Source { get; set; } = DailyLogSource.Manual;
         public DateOnly LogDate { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsEdited { get; set; }
