@@ -7,7 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { User, Mail, Phone, BadgeCheck, Clock, Loader2, KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff, Pencil, Camera, Check, X, LogOut } from 'lucide-react';
 import { passwordRules, validatePassword } from '../utils/passwordPolicy';
-import { validateFullName, validatePhoneNumber } from '../utils/profileValidation';
+import { validateFullName, validatePhoneNumber, sanitizePhoneInput } from '../utils/profileValidation';
 import { formatDateVietnam } from '../utils/dateHelpers';
 import { usePWA } from '../context/PWAContext';
 import { PWARestrictedNotice } from '../components/PWARestrictedNotice';
@@ -340,7 +340,7 @@ export const Profile: React.FC = () => {
             </label>
             <input
               id="edit-phone" type="tel" value={editPhone}
-              onChange={e => setEditPhone(e.target.value)}
+              onChange={e => setEditPhone(sanitizePhoneInput(e.target.value))}
               placeholder="Ví dụ: 0912 345 678" disabled={editLoading} maxLength={15}
               style={{ height: '38px', width: '100%' }}
             />
