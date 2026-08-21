@@ -54,7 +54,7 @@ export const MaterialRequestAssessmentItemRow: React.FC<MaterialRequestAssessmen
                       {assessment.activeSupplies.map(supply => (
                         <div className="mr-assessment-inline__supply-value" key={supply.poId}>
                           <strong>{formatQuantity(supply.remainingQuantity)} {assessment.unitName}</strong>
-                          <b aria-hidden="true">+</b>
+                          <b aria-hidden="true">-</b>
                           <a
                             href={`/purchase-orders/${supply.poId}`}
                             target="_blank"
