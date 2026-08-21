@@ -75,6 +75,7 @@ export interface TaskDetails {
   status: string;
   progressPercent: number;
   obsoleteReason: string | null;
+  hasSubTasks: boolean;
   assignees: TaskAssignee[];
   dailyLogs: TaskDailyLog[];
   progressLogs: TaskProgressLog[];

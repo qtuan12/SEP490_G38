@@ -150,7 +150,7 @@ export const Login: React.FC = () => {
             alt={`${companyName} Logo`}
             className="h-20 w-20 object-contain mb-4 drop-shadow-md mx-auto"
           />
-          <h2 className="gradient-text text-[1.75rem] font-bold mb-1.5">{companyName}</h2>
+          <h2 className="gradient-text text-[1.75rem] font-bold mb-1.5 break-words leading-snug">{companyName}</h2>
           <p className="text-[hsl(var(--text-secondary))] text-[0.9rem]">
             Hệ thống Quản lý Thi công & Kiểm soát Vật tư
           </p>

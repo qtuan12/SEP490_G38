@@ -27,6 +27,7 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
                 .ThenInclude(a => a.User)
             .Include(t => t.ProgressLogs)
             .Include(t => t.DailyLogs)
+            .Include(t => t.SubTasks)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
 
         if (task == null)
@@ -45,6 +46,7 @@ public class GetTaskDetailsQueryHandler : IRequestHandler<GetTaskDetailsQuery, A
             Status = task.Status,
             ProgressPercent = task.ProgressPercent,
             ObsoleteReason = task.ObsoleteReason,
+            HasSubTasks = task.SubTasks.Any(),
             Assignees = task.Assignees.Select(a => new TaskAssigneeDto(
                 a.UserId,
                 a.User.FullName,

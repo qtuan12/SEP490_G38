@@ -664,6 +664,9 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EvidenceUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long?>("IncidentId")
                         .HasColumnType("bigint");
 
