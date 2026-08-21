@@ -619,7 +619,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             TaskId = incident.Task.TaskId,
             LogDate = VietnamTime.Today,
             NewProgressPercent = newProgress,
-            Description = $"Hệ thống ghi nhận giảm tiến độ từ {oldProgress}% xuống {newProgress}% do sự cố #{incident.IncidentId}. Lý do: {(string.IsNullOrWhiteSpace(reason) ? incident.Description : reason.Trim())}",
+            Description = $"{DailyLogSource.IncidentAdjustmentMarker} từ {oldProgress}% xuống {newProgress}% do sự cố #{incident.IncidentId}. Lý do: {(string.IsNullOrWhiteSpace(reason) ? incident.Description : reason.Trim())}",
             CreatedBy = currentUserId,
             CreatedAt = DateTime.UtcNow
         }, cancellationToken);

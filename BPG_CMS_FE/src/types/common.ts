@@ -216,6 +216,8 @@ export interface DailyLogComment {
   date: string;
 }
 
+export type DailyLogSource = 'Manual' | 'DirectAdjustment' | 'IncidentAdjustment';
+
 export interface DailyLog {
   id: string;
   projectId: string;
@@ -223,6 +225,8 @@ export interface DailyLog {
   taskName: string;
   engineerId: string;
   engineerName: string;
+  engineerRole?: string;
+  source?: DailyLogSource;
   progressFrom: number;
   progressTo: number;
   date: string;

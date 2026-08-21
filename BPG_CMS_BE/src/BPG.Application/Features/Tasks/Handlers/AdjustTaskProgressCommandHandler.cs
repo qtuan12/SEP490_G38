@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BPG.Application.Features.Tasks.Commands;
 using BPG.Domain.Common;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Tasks.Handlers;
 
@@ -125,7 +126,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                     TaskId = task.TaskId,
                     LogDate = VietnamTime.Today,
                     NewProgressPercent = request.NewProgress,
-                    Description = $"Hệ thống ghi nhận điều chỉnh tiến độ trực tiếp từ {oldProgress}% thành {request.NewProgress}%. Lý do: {request.UpdateReason}",
+                    Description = $"{DailyLogSource.DirectAdjustmentMarker} từ {oldProgress}% thành {request.NewProgress}%. Lý do: {request.UpdateReason}",
                     CreatedBy = currentUserId,
                     CreatedAt = DateTime.UtcNow
                 }, ct);
