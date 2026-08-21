@@ -36,8 +36,8 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
         if (dep == null)
             throw new NotFoundException("TaskDependency", $"{request.TaskId}-{request.PredecessorTaskId}");
 
-        if (dep.Task?.Phase != null && dep.Task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress)
-            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
+        if (dep.Task?.Phase != null && dep.Task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress && dep.Task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
+            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {

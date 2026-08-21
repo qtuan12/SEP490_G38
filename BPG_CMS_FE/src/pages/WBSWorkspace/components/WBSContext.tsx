@@ -15,6 +15,7 @@ export interface WBSContextType {
   isTPKT: boolean;
   canEdit: boolean;
   filterAssignee: string;
+  filterWeight: string;
 
   expandedPhases: Record<string, boolean>;
   togglePhase: (phaseId: string) => void;

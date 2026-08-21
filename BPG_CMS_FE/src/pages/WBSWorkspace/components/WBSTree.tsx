@@ -98,7 +98,12 @@ export const WBSTree = () => {
               const topLevelTasks = tasks
                 .filter(t => t.phaseId === ph.id && !t.parentTaskId)
                 .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
-                .sort((a, b) => a.sortOrder - b.sortOrder);
+                .sort((a, b) => {
+                  const wA = a.weight ?? 0;
+                  const wB = b.weight ?? 0;
+                  if (wA !== wB) return wB - wA;
+                  return a.sortOrder - b.sortOrder;
+                });
 
               const validTopLevelTasks = topLevelTasks.filter(t => t.status !== 'obsolete');
               const phaseProgress = validTopLevelTasks.length > 0
@@ -112,7 +117,12 @@ export const WBSTree = () => {
                 const children = allPhaseTasks
                   .filter(t => t.parentTaskId === parent.id)
                   .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
-                  .sort((a, b) => a.sortOrder - b.sortOrder);
+                  .sort((a, b) => {
+                    const wA = a.weight ?? 0;
+                    const wB = b.weight ?? 0;
+                    if (wA !== wB) return wB - wA;
+                    return a.sortOrder - b.sortOrder;
+                  });
                 phaseTasks.push(...children);
               });
               const isExpanded = expandedPhases[ph.id];
@@ -580,6 +590,36 @@ export const WBSTree = () => {
                                 )}
                               </div>
                             )}
+
+                            {t.weight !== undefined && t.weight !== null && (() => {
+                              let color = 'hsl(var(--slate-500))';
+                              let bgColor = 'hsl(var(--slate-500) / 0.1)';
+                              let borderColor = 'hsl(var(--slate-500) / 0.2)';
+                              
+                              if (t.weight === 1) {
+                                color = '#64748b'; // slate-500
+                                bgColor = 'rgba(100, 116, 139, 0.1)';
+                                borderColor = 'rgba(100, 116, 139, 0.2)';
+                              } else if (t.weight === 2) {
+                                color = '#3b82f6'; // blue-500
+                                bgColor = 'rgba(59, 130, 246, 0.1)';
+                                borderColor = 'rgba(59, 130, 246, 0.2)';
+                              } else if (t.weight === 3) {
+                                color = '#f59e0b'; // amber-500
+                                bgColor = 'rgba(245, 158, 11, 0.1)';
+                                borderColor = 'rgba(245, 158, 11, 0.2)';
+                              } else if (t.weight === 4) {
+                                color = '#ef4444'; // red-500
+                                bgColor = 'rgba(239, 68, 68, 0.1)';
+                                borderColor = 'rgba(239, 68, 68, 0.2)';
+                              }
+
+                              return (
+                                <span style={{ padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: bgColor, color: color, borderRadius: '4px', border: `1px solid ${borderColor}`, whiteSpace: 'nowrap', marginRight: '4px' }} title="Mức độ quan trọng">
+                                  Mức độ: {t.weight === 1 ? 'Bình thường' : t.weight === 2 ? 'Cao' : t.weight === 3 ? 'Quan trọng' : t.weight === 4 ? 'Rất quan trọng' : t.weight}
+                                </span>
+                              );
+                            })()}
 
                             {t.assignedTo && t.assignedName && (
                               <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>

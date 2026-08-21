@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -71,23 +71,25 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const allTasks = wbsData?.tasks || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
+  const [filterWeight, setFilterWeight] = useState('');
 
   let phases = allPhases;
   let tasks = allTasks;
 
-  if (searchTerm.trim() || filterAssignee) {
+  if (searchTerm.trim() || filterAssignee || filterWeight) {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchingPhaseIds = new Set<string>();
     const matchingTaskIds = new Set<string>();
 
     allPhases.forEach(p => {
-      if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
+      if (!filterAssignee && !filterWeight && p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
     });
     
     allTasks.forEach(t => {
       const matchesSearch = !normalizedSearch || t.name.toLowerCase().includes(normalizedSearch);
       const matchesAssignee = !filterAssignee || (t.assignedTo && t.assignedTo.toString() === filterAssignee.toString());
-      if (matchesSearch && matchesAssignee) matchingTaskIds.add(t.id);
+      const matchesWeight = !filterWeight || (t.weight?.toString() === filterWeight);
+      if (matchesSearch && matchesAssignee && matchesWeight) matchingTaskIds.add(t.id);
     });
 
     let addedNew = true;
@@ -108,7 +110,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
     allPhases.forEach(p => {
       if (matchingPhaseIds.has(p.id)) {
-         if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) {
+         if (!filterAssignee && !filterWeight && p.name.toLowerCase().includes(normalizedSearch)) {
             allTasks.filter(t => t.phaseId === p.id).forEach(t => matchingTaskIds.add(t.id));
          }
       }
@@ -398,7 +400,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isProjectMember, isTPKT, canEdit, materialRequests, filterAssignee,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isProjectMember, isTPKT, canEdit, materialRequests, filterAssignee, filterWeight,
     expandedPhases, togglePhase,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -475,6 +477,20 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                 {members.map(member => (
                   <option key={member.userId} value={member.userId}>
                     {member.userName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative shrink-0 w-full sm:w-auto">
+              <select
+                value={filterWeight}
+                onChange={(e) => setFilterWeight(e.target.value)}
+                className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[160px]"
+              >
+                <option value="">Tất cả mức độ</option>
+                {Array.from(new Set(allTasks.map(t => t.weight).filter(w => w != null))).sort((a, b) => b! - a!).map(w => (
+                  <option key={w} value={w!.toString()}>
+                    {w === 1 ? '1 - Bình thường' : w === 2 ? '2 - Cao' : w === 3 ? '3 - Quan trọng' : w === 4 ? '4 - Rất quan trọng' : `Mức độ ${w}`}
                   </option>
                 ))}
               </select>
