@@ -6,7 +6,7 @@ describe('canViewMaterialRequestAssessment', () => {
     ['accountant'],
     ['TechnicalManager'],
     ['DIRECTOR'],
-  ])('cho phép vai trò Procurement: %s', role => {
+  ])('cho phép vai trò Procurement: %s', (role: string) => {
     expect(canViewMaterialRequestAssessment([role])).toBe(true);
   });
 
@@ -15,7 +15,7 @@ describe('canViewMaterialRequestAssessment', () => {
     [['admin']],
     [[]],
     [undefined],
-  ])('từ chối vai trò ngoài Procurement hoặc phiên không có vai trò', roles => {
+  ])('từ chối vai trò ngoài Procurement hoặc phiên không có vai trò', (roles: string[] | undefined) => {
     expect(canViewMaterialRequestAssessment(roles)).toBe(false);
   });
 });
