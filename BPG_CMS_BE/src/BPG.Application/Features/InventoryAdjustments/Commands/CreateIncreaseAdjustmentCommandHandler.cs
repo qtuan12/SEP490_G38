@@ -69,6 +69,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 AdjustmentType = InventoryAdjustmentType.Increase,
                 Reason = request.Reason,
                 Description = request.Description,
+                EvidenceUrl = request.EvidenceUrl,
                 Status = InventoryAdjustmentStatus.Pending, // Require approval by TPKT
                 CreatedBy = userId
             };

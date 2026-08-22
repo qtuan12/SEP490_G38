@@ -63,6 +63,17 @@ namespace BPG.Api.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id:long}/assessment")]
+        [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
+        [Authorize(Roles = RolePolicies.Procurement)]
+        public async Task<IActionResult> GetMaterialRequestAssessment(
+            [FromRoute] long id,
+            CancellationToken ct)
+        {
+            var result = await Mediator.Send(new GetMaterialRequestAssessmentQuery(id), ct);
+            return ApiOk(result, "Lấy cơ sở thẩm định yêu cầu vật tư thành công.");
+        }
+
         [HttpPost("{id:long}/cancel")]
         [EnableRateLimiting(RateLimitPolicies.Mutation)]
         [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]

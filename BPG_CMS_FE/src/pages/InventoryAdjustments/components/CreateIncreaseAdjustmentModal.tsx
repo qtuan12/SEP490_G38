@@ -6,8 +6,9 @@ import { projectService } from '../../../services/projectService';
 import { directPurchaseService } from '../../../services/directPurchaseService';
 import type { PhaseBOQItemDto } from '../../../services/directPurchaseService';
 import type { MaterialCatalog } from '../../../types/masterData';
-import { Search, X } from 'lucide-react';
+import { Search, X, UploadCloud } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
+import { compressAndUploadFile, type UploadedFileState } from '../../../utils/uploadHelper';
 
 interface Props {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   const [loadingBOQ, setLoadingBOQ] = useState(false);
   const [items, setItems] = useState<{ materialId: number; unitId: number; quantity: number }[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [evidenceFile, setEvidenceFile] = useState<UploadedFileState | null>(null);
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('');
   const [selectedQuantity, setSelectedQuantity] = useState<number | ''>('');
@@ -45,6 +47,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       setPhaseId('');
       setBoqMaterials([]);
       setItems([]);
+      setEvidenceFile(null);
     }
   }, [isOpen]);
 
@@ -143,6 +146,30 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
     setItems(items.filter(x => x.materialId !== id));
   };
 
+  const handleEvidenceFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const newFileState: UploadedFileState = {
+        id: Math.random().toString(36).substring(7),
+        name: file.name,
+        status: 'uploading',
+        file
+      };
+      setEvidenceFile(newFileState);
+      
+      compressAndUploadFile(
+        file,
+        'general',
+        (url) => {
+          setEvidenceFile(prev => prev ? { ...prev, status: 'success', url } : null);
+        },
+        (errorMessage) => {
+          setEvidenceFile(prev => prev ? { ...prev, status: 'error', errorMessage } : null);
+        }
+      );
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phaseId) {
@@ -157,6 +184,10 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
       setLocalError('Vui lòng thêm ít nhất 1 vật tư.');
       return;
     }
+    if (!evidenceFile || evidenceFile.status !== 'success' || !evidenceFile.url) {
+      setLocalError('Vui lòng đính kèm ảnh bằng chứng hợp lệ.');
+      return;
+    }
 
     setLoading(true);
     setLocalError(null);
@@ -165,6 +196,7 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         phaseId: Number(phaseId),
         reason,
         description,
+        evidenceUrl: evidenceFile.url,
         items
       });
       onSuccess(result.message);
@@ -224,6 +256,40 @@ export const CreateIncreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
             onChange={e => setDescription(e.target.value)}
             rows={3}
           />
+        </FormItem>
+
+        <FormItem label="Ảnh bằng chứng (*)">
+          <div className="flex items-center gap-4">
+            <label className={`cursor-pointer flex items-center justify-center w-32 h-20 border-2 border-dashed rounded-lg hover:bg-gray-50 transition-colors ${evidenceFile && evidenceFile.status === 'success' ? 'border-green-400 bg-green-50' : 'border-gray-300'}`}>
+              <input type="file" className="hidden" accept="image/*" onChange={handleEvidenceFileChange} />
+              <div className="flex flex-col items-center gap-1 text-gray-500">
+                <UploadCloud size={20} />
+                <span className="text-xs font-medium">Tải ảnh lên</span>
+              </div>
+            </label>
+            {evidenceFile && (
+              <div className="flex-1 min-w-0 flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                {evidenceFile.status === 'uploading' && <span className="text-sm text-blue-600 font-medium animate-pulse">Đang tải...</span>}
+                {evidenceFile.status === 'success' && (
+                  <div className="flex items-center gap-3 min-w-0">
+                    {evidenceFile.url && (
+                      <img 
+                        src={evidenceFile.url} 
+                        alt="Thumbnail" 
+                        className="w-12 h-12 object-cover rounded shadow-sm border border-gray-200 shrink-0" 
+                      />
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm text-green-600 font-medium">Tải lên thành công</span>
+                      <span className="text-xs text-gray-500 truncate">{evidenceFile.name}</span>
+                    </div>
+                  </div>
+                )}
+                {evidenceFile.status === 'error' && <span className="text-sm text-red-600 font-medium truncate">Lỗi: {evidenceFile.errorMessage}</span>}
+                <button type="button" onClick={() => setEvidenceFile(null)} className="ml-auto text-gray-400 hover:text-red-500"><X size={16} /></button>
+              </div>
+            )}
+          </div>
         </FormItem>
 
         <div className="border border-gray-800 rounded-2xl p-5 bg-white flex flex-col gap-3">

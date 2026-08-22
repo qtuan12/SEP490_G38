@@ -7,7 +7,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button, Input, Select, FormItem } from '../../../components/ui';
 import { userService } from '../../../services/userService';
 import type { UserProfile } from '../../../services/authService';
-import { validateFullName, validatePhoneNumber } from '../../../utils/profileValidation';
+import { validateFullName, validatePhoneNumber, sanitizePhoneInput } from '../../../utils/profileValidation';
 
 const schema = z.object({
   name: z.string().superRefine((val, ctx) => {
@@ -90,7 +90,14 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({ isOpen, onClose, o
         </FormItem>
 
         <FormItem label="Số điện thoại" error={errors.phoneNumber?.message}>
-          <Input type="tel" placeholder="Ví dụ: 0912345678" {...register('phoneNumber')} error={!!errors.phoneNumber} />
+          <Input
+            type="tel"
+            placeholder="Ví dụ: 0912345678"
+            {...register('phoneNumber', {
+              onChange: e => { e.target.value = sanitizePhoneInput(e.target.value); },
+            })}
+            error={!!errors.phoneNumber}
+          />
         </FormItem>
 
         <FormItem label="Vai trò hệ thống" error={errors.role?.message}>

@@ -24,6 +24,7 @@ export interface InventoryAdjustmentDto {
   adjustmentType: string;
   reason: string;
   description: string | null;
+  evidenceUrl: string | null;
   status: string;
   createdBy: number | null;
   createdAt: string;
@@ -39,6 +40,7 @@ export interface CreateIncreaseAdjustmentCommand {
   phaseId: number;
   reason: string;
   description?: string;
+  evidenceUrl?: string;
   items: { materialId: number; unitId: number; quantity: number }[];
 }
 

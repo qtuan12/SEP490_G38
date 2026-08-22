@@ -7,6 +7,7 @@ using BPG.Application.IServices;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace BPG.Application.Features.Users.Handlers;
 
@@ -15,12 +16,16 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
     private readonly IUnitOfWork _uow;
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
+    private readonly ILogger<CreateUserHandler>? _logger;
 
-    public CreateUserHandler(IUnitOfWork uow, IMapper mapper, IEmailService emailService)
+    public CreateUserHandler(
+        IUnitOfWork uow, IMapper mapper, IEmailService emailService,
+        ILogger<CreateUserHandler>? logger = null)
     {
         _uow = uow;
         _mapper = mapper;
         _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<UserDto> Handle(CreateUserCommand cmd, CancellationToken ct)
@@ -69,20 +74,38 @@ public class CreateUserHandler : IRequestHandler<CreateUserCommand, UserDto>
 
         // Gửi email sau khi commit: gửi trong transaction thì email đã bay đi rồi mà DB vẫn có
         // thể rollback, người nhận cầm mật khẩu của một tài khoản không tồn tại.
-        await _emailService.SendFromTemplateAsync(
-            user.Email,
-            "Thông tin tài khoản BPG Construction",
-            "WelcomeNewUser",
-            new Dictionary<string, string>
-            {
-                { "FullName", user.FullName },
-                { "Email", user.Email },
-                { "Password", password }
-            },
-            ct);
+        //
+        // Tài khoản ở đây đã commit thật rồi — nếu SMTP lỗi thì đó là một sự cố khác, không phải
+        // lý do để trả lỗi cho request này. Để exception văng ra ngoài sẽ khiến Admin thấy "tạo
+        // thất bại" trong khi tài khoản đã tồn tại, bấm tạo lại thì bị chặn do trùng email.
+        var welcomeEmailSent = true;
+        try
+        {
+            await _emailService.SendFromTemplateAsync(
+                user.Email,
+                "Thông tin tài khoản BPG Construction",
+                "WelcomeNewUser",
+                new Dictionary<string, string>
+                {
+                    { "FullName", user.FullName },
+                    { "Email", user.Email },
+                    { "Password", password }
+                },
+                ct);
+        }
+        catch (Exception ex)
+        {
+            welcomeEmailSent = false;
+            _logger?.LogWarning(ex,
+                "Gửi email chào mừng thất bại cho tài khoản mới UserId={UserId}, Email={Email}. " +
+                "Tài khoản đã tạo thành công, cần thông báo mật khẩu cho người dùng theo cách khác.",
+                user.UserId, user.Email);
+        }
 
         user.UserRoles = new List<UserRole> { new() { Role = role } };
-        return _mapper.Map<UserDto>(user);
+        var dto = _mapper.Map<UserDto>(user);
+        dto.WelcomeEmailSent = welcomeEmailSent;
+        return dto;
     }
 
     /// <summary>
