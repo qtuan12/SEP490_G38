@@ -136,7 +136,9 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
                 if (spentInPhase + totalAmount > phaseMaxAmount)
                     throw new BusinessException(ErrorCodes.DpOverPhaseMaxAmount,
-                        $"Giai đoạn '{dp.Phase.Name}' chỉ được mua khẩn cấp tối đa {phaseMaxAmount:N0}đ. " +
+                        // Tên giai đoạn thường đã có sẵn tiền tố "Giai đoạn N: ...", nên không lặp lại chữ
+                        // "Giai đoạn" trong câu — tránh "Giai đoạn Giai đoạn 1: ...".
+                        $"\"{dp.Phase.Name}\" chỉ được mua khẩn cấp tối đa {phaseMaxAmount:N0}đ. " +
                         $"Đã dùng {spentInPhase:N0}đ, phiếu này {totalAmount:N0}đ, tổng {spentInPhase + totalAmount:N0}đ — vượt {spentInPhase + totalAmount - phaseMaxAmount:N0}đ. " +
                         "Vui lòng bớt vật tư khỏi phiếu, lập Yêu cầu vật tư theo quy trình thường, hoặc liên hệ Kế toán/Quản trị viên.");
             }
@@ -152,7 +154,7 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             // Giai đoạn đã nghiệm thu thì đóng băng - phiếu nháp để lâu có thể rơi vào tình huống này.
             if (dp.Phase.Status == PhaseStatus.Approved)
                 throw new BusinessException(ErrorCodes.DpPhaseFrozen,
-                    $"Giai đoạn '{dp.Phase.Name}' đã được nghiệm thu và đóng băng, không thể gửi phiếu mua trực tiếp.");
+                    $"\"{dp.Phase.Name}\" đã được nghiệm thu và đóng băng, không thể gửi phiếu mua trực tiếp.");
 
             var purchaseDateOnly = DateOnly.FromDateTime(dp.PurchaseDate.Date);
 
@@ -163,15 +165,11 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                     $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) không được sau ngày hôm nay ({todayVn:dd/MM/yyyy}). " +
                     "Phiếu mua trực tiếp chỉ ghi nhận khoản đã mua thực tế.");
 
-            // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
-            // và không vượt quá ngày kết thúc giai đoạn.
-            if (purchaseDateOnly < project.PlannedStart)
-                throw new BusinessException(ErrorCodes.DpPurchaseDateBeforeProject,
-                    $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu dự án '{project.Name}' ({project.PlannedStart:dd/MM/yyyy}) trở đi.");
-
-            if (dp.Phase.EndDate.HasValue && purchaseDateOnly > dp.Phase.EndDate.Value)
-                throw new BusinessException(ErrorCodes.DpPurchaseDateAfterPhase,
-                    $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) vượt quá ngày kết thúc giai đoạn '{dp.Phase.Name}' ({dp.Phase.EndDate.Value:dd/MM/yyyy}).");
+            // Chỉ mua khẩn cấp cho vật tư của giai đoạn khi giai đoạn đó đã thực sự bắt đầu.
+            if (dp.Phase.StartDate.HasValue && purchaseDateOnly < dp.Phase.StartDate.Value)
+                throw new BusinessException(ErrorCodes.DpPurchaseDateBeforePhase,
+                    $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn \"{dp.Phase.Name}\" " +
+                    $"({dp.Phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
 
             // ---------- Tính lại định mức BOQ TẠI THỜI ĐIỂM GỬI ----------
             // Phiếu khác có thể đã tiêu thụ hết định mức trong lúc bản nháp nằm chờ.

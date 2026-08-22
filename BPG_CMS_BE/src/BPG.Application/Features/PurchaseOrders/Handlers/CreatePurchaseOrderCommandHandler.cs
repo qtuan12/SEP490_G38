@@ -46,7 +46,8 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             // 1b. Dự án phải đang thi công thì mới đặt hàng được.
             // Ngày đơn hàng / hạn giao hàng KHÔNG bị ràng buộc theo ngày bắt đầu dự án hay ngày kết thúc
             // giai đoạn: đặt trước cho giai đoạn sau, hoặc hẹn giao sau mốc kế hoạch, đều là bình thường.
-            // Trạng thái dự án mới là thứ quyết định còn được phát sinh đơn hàng hay không.
+            // Trạng thái dự án và trạng thái giai đoạn (xem 1c bên dưới) mới là thứ quyết định
+            // còn được phát sinh đơn hàng hay không.
             var phase = linkedRequest.Phase;
 
             var project = await _uow.Repository<Project>().Query()
@@ -57,6 +58,15 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
             if (project.Status != ProjectStatus.InProgress)
                 throw new BusinessException(ErrorCodes.PoProjectNotActive,
                     $"Dự án '{project.Name}' hiện không ở trạng thái Đang thi công nên không thể tạo đơn mua hàng.");
+
+            // 1c. Giai đoạn đã nghiệm thu thì bị đóng băng, không phát sinh đơn mua hàng mới —
+            // đồng bộ với rule đã áp dụng cho MaterialRequest (CreateMaterialRequestCommandHandler)
+            // và phiếu mua khẩn cấp (DirectPurchaseGuard.EnsureProjectOpenForDraftingAsync).
+            if (phase.Status == PhaseStatus.Approved)
+                throw new BusinessException(ErrorCodes.PoPhaseFrozen,
+                    // Tên giai đoạn thường đã có sẵn tiền tố "Giai đoạn N: ...", nên không lặp lại chữ
+                    // "Giai đoạn" trong câu — tránh "Giai đoạn Giai đoạn 1: ...".
+                    $"\"{phase.Name}\" đã được nghiệm thu và đóng băng, không thể tạo đơn mua hàng.");
 
             // 2. Validate quantities: PO qty + đã đặt qua các PO còn hiệu lực ≤ số lượng yêu cầu
             var maxQtyByMaterial = linkedRequest.Items
