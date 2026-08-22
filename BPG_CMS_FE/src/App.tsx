@@ -474,7 +474,7 @@ function App() {
               <Route
                 path="/projects/:projectId/reports/boq"
                 element={
-                  <ProtectedRoute allowedRoles={RoleGroup.ProjectViewers}>
+                  <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <ProjectRoute>
                       <DesktopOnlyGuard>
                         <BoqVsActualReport />

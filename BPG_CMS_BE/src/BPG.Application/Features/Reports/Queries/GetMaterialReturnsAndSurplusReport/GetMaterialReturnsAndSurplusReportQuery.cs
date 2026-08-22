@@ -4,9 +4,11 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using BPG.Application.Common.Models;
+using BPG.Application.Common.Helpers;
 using BPG.Application.DTOs.Reports;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -39,8 +41,9 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             throw new BPG.Domain.Exceptions.BusinessException("ERR_FORBIDDEN", "Bạn không có quyền xem báo cáo của dự án này.");
         }
 
-        var fromDt = request.FromDate?.Date;
-        var toDt = request.ToDate?.Date.AddDays(1).AddTicks(-1);
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        var fromDt = dateRange.From;
+        var toDt = dateRange.ToInclusive;
 
         // 1. Get Project info
         string projectName = "Tất cả dự án (Toàn công ty)";
@@ -55,19 +58,35 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             }
         }
 
-        // 2. Load latest PO material unit price map for valuation
-        var poItems = await _unitOfWork.Repository<PurchaseOrderItem>().Query()
+        // 2. Load a quantity-weighted historical price in each material's base unit.
+        // Restrict the price pool to the same accessible project scope and report cut-off.
+        var poPriceQuery = _unitOfWork.Repository<PurchaseOrderItem>().Query()
             .AsNoTracking()
-            .Where(poi => poi.UnitPrice > 0)
-            .Select(poi => new { poi.POItemId, poi.MaterialId, poi.UnitPrice })
-            .ToListAsync(cancellationToken);
+            .Where(poi => poi.UnitPrice > 0
+                && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.Draft
+                && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.PendingApproval
+                && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.Rejected
+                && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.Cancelled
+                && (request.ProjectId > 0
+                    ? poi.PurchaseOrder.ProjectId == request.ProjectId
+                    : accessibleIds.Contains(poi.PurchaseOrder.ProjectId)));
+        if (toDt.HasValue)
+        {
+            poPriceQuery = poPriceQuery.Where(poi => poi.PurchaseOrder.OrderDate <= toDt.Value);
+        }
 
-        var materialPriceMap = poItems
-            .GroupBy(p => p.MaterialId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderByDescending(x => x.POItemId).First().UnitPrice
-            );
+        var priceTotals = await poPriceQuery
+            .GroupBy(poi => poi.MaterialId)
+            .Select(g => new
+            {
+                MaterialId = g.Key,
+                TotalBaseQuantity = g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)),
+                TotalValue = g.Sum(x => x.Quantity * x.UnitPrice)
+            })
+            .ToListAsync(cancellationToken);
+        var baseUnitPriceMap = priceTotals.ToDictionary(
+            x => x.MaterialId,
+            x => x.TotalBaseQuantity > 0 ? x.TotalValue / x.TotalBaseQuantity : 0m);
 
         // 3. Query Material Returns
         var returnsQuery = _unitOfWork.Repository<MaterialReturn>().Query()
@@ -169,7 +188,9 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         int totalReturnItemsCount = returnList.Sum(r => r.Items.Count);
         int totalReturnDistinctMaterialsCount = returnList.SelectMany(r => r.Items).Select(i => i.MaterialId).Distinct().Count();
         decimal totalReturnVolume = returnList.Sum(r => r.Items.Sum(i => i.Quantity));
-        decimal totalReturnEstimatedValue = returnList.Sum(r => r.Items.Sum(i => i.Quantity * materialPriceMap.GetValueOrDefault(i.MaterialId, 0m)));
+        decimal totalReturnEstimatedValue = returnList.Sum(r => r.Items.Sum(i =>
+            i.Quantity / (i.ConversionRate > 0 ? i.ConversionRate : 1m)
+            * baseUnitPriceMap.GetValueOrDefault(i.MaterialId, 0m)));
 
         var returnReportItems = returnList.Select(r =>
         {
@@ -179,7 +200,9 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
 
             var itemsDetail = r.Items.Select(item =>
             {
-                var unitPrice = materialPriceMap.GetValueOrDefault(item.MaterialId, 0m);
+                var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+                var baseUnitPrice = baseUnitPriceMap.GetValueOrDefault(item.MaterialId, 0m);
+                var displayUnitPrice = baseUnitPrice / conversionRate;
                 return new MaterialReturnItemDetailDto
                 {
                     ReturnItemId = item.ReturnItemId,
@@ -188,8 +211,8 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
                     MaterialName = item.Material?.Name ?? string.Empty,
                     UnitName = item.Unit?.UnitName ?? item.Material?.BaseUnit?.UnitName ?? string.Empty,
                     Quantity = item.Quantity,
-                    UnitPrice = unitPrice,
-                    EstimatedValueVnd = item.Quantity * unitPrice
+                    UnitPrice = displayUnitPrice,
+                    EstimatedValueVnd = item.Quantity * displayUnitPrice
                 };
             }).ToList();
 
@@ -367,7 +390,14 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         };
 
         // 8. Monthly Trends (Past 12 months)
-        var referenceEnd = toDt ?? DateTime.UtcNow;
+        var project = request.ProjectId > 0
+            ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
+            : null;
+        bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
+
+        var referenceEnd = toDt ?? (isProjectFinished
+            ? (returnList.Any() ? returnList.Max(r => r.CreatedAt) : project!.PlannedEnd.ToDateTime(TimeOnly.MaxValue))
+            : DateTime.UtcNow);
         var monthlyTrends = new List<ReturnAndSurplusMonthlyTrendDto>();
 
         for (int i = 11; i >= 0; i--)
@@ -379,8 +409,11 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
 
             var returnsInMonth = returnList.Where(r => r.CreatedAt.Year == y && r.CreatedAt.Month == m).ToList();
             int returnSlipCount = returnsInMonth.Count;
-            decimal retQty = returnsInMonth.Sum(r => r.Items.Sum(it => it.Quantity));
-            decimal retVal = returnsInMonth.Sum(r => r.Items.Sum(it => it.Quantity * materialPriceMap.GetValueOrDefault(it.MaterialId, 0m)));
+            decimal retQty = returnsInMonth.Sum(r => r.Items.Sum(it =>
+                it.Quantity / (it.ConversionRate > 0 ? it.ConversionRate : 1m)));
+            decimal retVal = returnsInMonth.Sum(r => r.Items.Sum(it =>
+                it.Quantity / (it.ConversionRate > 0 ? it.ConversionRate : 1m)
+                * baseUnitPriceMap.GetValueOrDefault(it.MaterialId, 0m)));
 
             var actionsInMonth = surplusActionList.Where(a => a.ActionDate.Year == y && a.ActionDate.Month == m).ToList();
             decimal surplusProcQty = actionsInMonth.Sum(a => a.Quantity);
@@ -405,16 +438,16 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             .Select(g =>
             {
                 var first = g.First();
-                var totalQty = g.Sum(x => x.Quantity);
-                var unitPrice = materialPriceMap.GetValueOrDefault(g.Key, 0m);
+                var totalBaseQty = g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m));
+                var baseUnitPrice = baseUnitPriceMap.GetValueOrDefault(g.Key, 0m);
                 return new TopReturnedMaterialDto
                 {
                     MaterialId = g.Key,
                     MaterialCode = first.Material?.Code ?? string.Empty,
                     MaterialName = first.Material?.Name ?? string.Empty,
-                    UnitName = first.Unit?.UnitName ?? first.Material?.BaseUnit?.UnitName ?? string.Empty,
-                    TotalQuantity = totalQty,
-                    EstimatedValueVnd = totalQty * unitPrice,
+                    UnitName = first.Material?.BaseUnit?.UnitName ?? first.Unit?.UnitName ?? string.Empty,
+                    TotalQuantity = totalBaseQty,
+                    EstimatedValueVnd = totalBaseQty * baseUnitPrice,
                     ReturnCount = g.Count()
                 };
             })
@@ -435,7 +468,9 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             var pActions = surplusActionList.Where(a => a.ProjectId == p.ProjectId).ToList();
 
             int retSlips = pReturns.Count;
-            decimal retVal = pReturns.Sum(r => r.Items.Sum(it => it.Quantity * materialPriceMap.GetValueOrDefault(it.MaterialId, 0m)));
+            decimal retVal = pReturns.Sum(r => r.Items.Sum(it =>
+                it.Quantity / (it.ConversionRate > 0 ? it.ConversionRate : 1m)
+                * baseUnitPriceMap.GetValueOrDefault(it.MaterialId, 0m)));
             int sCount = pSurplusItems.Count;
             int sResolvedCount = pSurplusItems.Count(x =>
                 x.Item.ProcessedQuantity >= x.Item.Quantity ||

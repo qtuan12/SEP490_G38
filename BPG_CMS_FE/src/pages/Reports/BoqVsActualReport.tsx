@@ -6,7 +6,7 @@ import type { Project } from '../../types/common';
 import { ArrowLeft, AlertTriangle, PackageCheck, TrendingUp } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
-import { getNearestAvailableYear } from '../../utils/reportYearHelpers';
+import { getPreferredReportYear } from '../../utils/reportYearHelpers';
 import { formatNumber } from '../../utils/formatNumber';
 
 interface Props {
@@ -59,10 +59,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
           setProject(projs.find(p => p.id === projectId) || null);
           setItems(report.items || []);
           setMonthlyTrends(trends);
-          setSelectedYear(year => getNearestAvailableYear(
-            year,
-            trends.map(trend => trend.year),
-          ) ?? year);
+          setSelectedYear(getPreferredReportYear(trends, (t: MonthlyBoqConsumptionTrendDto) => (t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0));
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Lỗi tải báo cáo đối chiếu định mức');
@@ -180,8 +177,12 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
           {/* Monthly BOQ Consumption Trend Chart */}
           {(monthlyTrends || []).length > 0 && (() => {
-            const availableYears = Array.from(new Set((monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
-            const filteredTrends = (monthlyTrends || []).filter(t => t.year === selectedYear);
+            const hasAnyDataYear = (monthlyTrends || []).some(t => (t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0);
+            const availableYears = Array.from(new Set((monthlyTrends || []).map(t => t.year)))
+              .filter(y => !hasAnyDataYear || (monthlyTrends || []).some(t => t.year === y && ((t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0)))
+              .sort((a, b) => b - a);
+            const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
+            const filteredTrends = (monthlyTrends || []).filter(t => t.year === activeYear);
 
             return (
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
