@@ -54,7 +54,7 @@ export const canCreateDailyLog = (
   isProjectLeader: boolean,
   isProjectMember: boolean,
 ): boolean => {
-  if (!task || task.status === 'obsolete') return false;
+  if (!task || task.status === 'obsolete' || task.hasSubTasks) return false;
   if (!user) return false;
 
   if (!hasSiteEngineerRole(user) || !isProjectMember) return false;

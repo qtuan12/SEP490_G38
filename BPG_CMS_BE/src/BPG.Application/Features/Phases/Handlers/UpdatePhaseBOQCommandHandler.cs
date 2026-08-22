@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Features.Phases.Commands;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
@@ -36,143 +37,105 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
 
     public async Task<bool> Handle(UpdatePhaseBOQCommand request, CancellationToken cancellationToken)
     {
-        // 1. Verify Phase exists and belongs to Project
-        var phase = await _uow.Repository<Phase>().Query()
-            .Include(p => p.Project)
-            .FirstOrDefaultAsync(p => p.PhaseId == request.PhaseId && p.ProjectId == request.ProjectId, cancellationToken);
+        await PhaseBOQModificationGuard.EnsureEditableAsync(
+            _uow, request.ProjectId, request.PhaseId, cancellationToken);
 
-        if (phase == null)
-        {
-            throw new NotFoundException("Phase", request.PhaseId);
-        }
-
-        // 2. Verify Project status allows BOQ modifications
-        bool isProjectEditable = phase.Project == null || 
-            string.Equals(phase.Project.Status, ProjectStatus.Draft, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase);
-
-        if (!isProjectEditable)
-        {
-            throw new BusinessException("ERR_BOQ_PROJECT_NOT_EDITABLE", "Không thể thay đổi định mức vật tư của dự án đã hoàn thành hoặc đã đóng.");
-        }
-
-        bool isPhaseEditable = !string.Equals(phase.Status, PhaseStatus.Approved, StringComparison.OrdinalIgnoreCase) &&
-                               !string.Equals(phase.Status, PhaseStatus.Completed, StringComparison.OrdinalIgnoreCase);
-
-        if (!isPhaseEditable)
-        {
-            throw new BusinessException("ERR_BOQ_PHASE_APPROVED", "Không thể thay đổi định mức vật tư của giai đoạn đã nghiệm thu hoặc hoàn thành.");
-        }
-
-        if (phase.Project != null && string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase))
-        {
-            var hasMR = await _uow.Repository<MaterialRequest>().Query()
-                .AnyAsync(r => r.PhaseId == request.PhaseId 
-                            && !r.IsDeleted 
-                            && r.Status != MaterialRequestStatus.Rejected 
-                            && r.Status != MaterialRequestStatus.Cancelled, cancellationToken);
-
-            var hasDP = await _uow.Repository<DirectPurchaseRequest>().Query()
-                .AnyAsync(dp => dp.PhaseId == request.PhaseId 
-                             && !dp.IsDeleted 
-                             && dp.Status != DirectPurchaseStatus.Rejected, cancellationToken);
-
-            if (hasMR || hasDP)
-            {
-                throw new BusinessException("ERR_BOQ_PHASE_IN_USE", "Không thể thay đổi định mức vật tư do giai đoạn đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
-            }
-        }
-
-        // 3. Fetch all existing BOQItems of the Phase (including soft-deleted ones)
         var existingAll = await _uow.Repository<BOQItem>().Query()
             .IgnoreQueryFilters()
             .Where(b => b.PhaseId == request.PhaseId)
             .ToListAsync(cancellationToken);
 
         var existingActive = existingAll.Where(b => !b.IsDeleted).ToList();
-
-        // Load all Material Names in catalog to show in user-friendly error messages
-        var allMatIds = request.Items.Select(i => i.MaterialId)
+        var requestedMaterialIds = request.Items.Select(x => x.MaterialId).Distinct().ToList();
+        var allMaterialIds = requestedMaterialIds
             .Concat(existingActive.Select(x => x.MaterialId))
             .Distinct()
             .ToList();
+        var requestedUnitIds = request.Items.Select(x => x.UnitId).Distinct().ToList();
 
-        var materialNames = await _uow.Repository<MaterialCatalog>().Query()
-            .Where(m => allMatIds.Contains(m.MaterialId))
-            .ToDictionaryAsync(m => m.MaterialId, m => m.Name, cancellationToken);
+        var materials = await _uow.Repository<MaterialCatalog>().Query()
+            .Where(x => allMaterialIds.Contains(x.MaterialId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+        var materialById = materials.ToDictionary(x => x.MaterialId);
 
-        // 4. Identify deleted items: currently active but not present in the new request list
+        var units = await _uow.Repository<BPG.Domain.Entities.Unit>().Query()
+            .Where(x => requestedUnitIds.Contains(x.UnitId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+        var unitById = units.ToDictionary(x => x.UnitId);
+
+        var conversions = await _uow.Repository<MaterialConversion>().Query()
+            .Where(x => requestedMaterialIds.Contains(x.MaterialId)
+                && requestedUnitIds.Contains(x.AlternativeUnitId))
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+        var conversionByPair = conversions.ToDictionary(
+            x => (x.MaterialId, x.AlternativeUnitId),
+            x => x.ConversionRate);
+
+        var preparedItems = new Dictionary<long, (BOQItemInput Input, decimal ConversionRate)>();
+        foreach (var item in request.Items)
+        {
+            if (!materialById.TryGetValue(item.MaterialId, out var material))
+                throw new NotFoundException(nameof(MaterialCatalog), item.MaterialId);
+
+            if (!unitById.TryGetValue(item.UnitId, out var unit))
+                throw new NotFoundException(nameof(BPG.Domain.Entities.Unit), item.UnitId);
+
+            decimal conversionRate;
+            if (material.BaseUnitId == item.UnitId)
+            {
+                conversionRate = 1m;
+            }
+            else if (!conversionByPair.TryGetValue((item.MaterialId, item.UnitId), out conversionRate))
+            {
+                throw new BusinessException("ERR_INVALID_UNIT", $"Đơn vị tính không được hỗ trợ cho vật tư '{material.Name}'.");
+            }
+
+            if (unit.IsDiscrete && item.Quantity % 1 != 0)
+            {
+                throw new BusinessException(
+                    ErrorCodes.InvalidUnitQuantity,
+                    $"Đơn vị '{unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
+            }
+
+            preparedItems[item.MaterialId] = (item, conversionRate);
+        }
+
+        var inUseMaterialIds = await PhaseBOQModificationGuard.GetInUseMaterialIdsAsync(
+            _uow, request.PhaseId, cancellationToken);
         var newMaterialIds = request.Items.Select(i => i.MaterialId).ToHashSet();
         var deletedBOQItems = existingActive.Where(b => !newMaterialIds.Contains(b.MaterialId)).ToList();
 
         foreach (var deleted in deletedBOQItems)
         {
-            // Check if material is referenced in any MaterialRequestItem in this phase
-            var hasMR = await _uow.Repository<MaterialRequestItem>().Query()
-                .AnyAsync(mri => mri.Request.PhaseId == request.PhaseId && mri.MaterialId == deleted.MaterialId && !mri.Request.IsDeleted, cancellationToken);
-
-            // Check if material is referenced in any DirectPurchaseItem in this phase
-            var hasDP = await _uow.Repository<DirectPurchaseItem>().Query()
-                .AnyAsync(dpi => dpi.DirectPurchaseRequest.PhaseId == request.PhaseId && dpi.MaterialId == deleted.MaterialId && !dpi.DirectPurchaseRequest.IsDeleted, cancellationToken);
-
-            // Check if material is referenced in any MaterialIssuanceItem in this phase
-            var hasIssuance = await _uow.Repository<MaterialIssuanceItem>().Query()
-                .AnyAsync(mii => mii.Issuance.Task.PhaseId == request.PhaseId && mii.MaterialId == deleted.MaterialId && !mii.Issuance.IsDeleted, cancellationToken);
-
-            if (hasMR || hasDP || hasIssuance)
+            if (inUseMaterialIds.Contains(deleted.MaterialId))
             {
-                materialNames.TryGetValue(deleted.MaterialId, out var matName);
-                throw new BusinessException("ERR_BOQ_ITEM_IN_USE", $"Không thể xóa vật tư '{matName ?? deleted.MaterialId.ToString()}' ra khỏi định mức do đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
+                var materialName = materialById.GetValueOrDefault(deleted.MaterialId)?.Name
+                    ?? deleted.MaterialId.ToString();
+                throw new BusinessException("ERR_BOQ_ITEM_IN_USE", $"Không thể xóa vật tư '{materialName}' ra khỏi định mức do đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
             }
 
-            // Perform soft delete
             deleted.IsDeleted = true;
             _uow.Repository<BOQItem>().Update(deleted);
             _logger.LogInformation("Soft-deleted BOQ item Id: {BOQItemId} for MaterialId: {MaterialId} in PhaseId: {PhaseId}", deleted.BOQItemId, deleted.MaterialId, request.PhaseId);
         }
 
-        // 5. Process new/updated BOQ items
-        foreach (var item in request.Items)
+        foreach (var prepared in preparedItems.Values)
         {
-            var material = await _uow.Repository<MaterialCatalog>().Query()
-                .FirstOrDefaultAsync(m => m.MaterialId == item.MaterialId, cancellationToken);
-            if (material == null)
-            {
-                throw new NotFoundException("Material", item.MaterialId);
-            }
-
-            // Verify Unit & Conversion
-            decimal conversionRate = 1.0m;
-            if (material.BaseUnitId != item.UnitId)
-            {
-                var conversion = await _uow.Repository<MaterialConversion>().Query()
-                    .FirstOrDefaultAsync(c => c.MaterialId == item.MaterialId && c.AlternativeUnitId == item.UnitId, cancellationToken);
-                if (conversion == null)
-                {
-                    throw new BusinessException("ERR_INVALID_UNIT", $"Đơn vị tính không được hỗ trợ cho vật tư '{material.Name}'.");
-                }
-                conversionRate = conversion.ConversionRate;
-            }
-
+            var item = prepared.Input;
+            var conversionRate = prepared.ConversionRate;
+            var material = materialById[item.MaterialId];
             var currentActive = existingActive.FirstOrDefault(x => x.MaterialId == item.MaterialId);
             if (currentActive != null)
             {
-                // Check lock only if quantity is changed
-                if (currentActive.Quantity != item.Quantity)
+                var hasChanged = currentActive.Quantity != item.Quantity
+                    || currentActive.UnitId != item.UnitId
+                    || currentActive.ConversionRate != conversionRate;
+                if (hasChanged && inUseMaterialIds.Contains(item.MaterialId))
                 {
-                    var hasMR = await _uow.Repository<MaterialRequestItem>().Query()
-                        .AnyAsync(mri => mri.Request.PhaseId == request.PhaseId && mri.MaterialId == item.MaterialId && !mri.Request.IsDeleted, cancellationToken);
-
-                    var hasDP = await _uow.Repository<DirectPurchaseItem>().Query()
-                        .AnyAsync(dpi => dpi.DirectPurchaseRequest.PhaseId == request.PhaseId && dpi.MaterialId == item.MaterialId && !dpi.DirectPurchaseRequest.IsDeleted, cancellationToken);
-
-                    var hasIssuance = await _uow.Repository<MaterialIssuanceItem>().Query()
-                        .AnyAsync(mii => mii.Issuance.Task.PhaseId == request.PhaseId && mii.MaterialId == item.MaterialId && !mii.Issuance.IsDeleted, cancellationToken);
-
-                    if (hasMR || hasDP || hasIssuance)
-                    {
-                        throw new BusinessException("ERR_BOQ_ITEM_IN_USE", $"Không thể thay đổi định mức vật tư '{material.Name}' do đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
-                    }
+                    throw new BusinessException("ERR_BOQ_ITEM_IN_USE", $"Không thể thay đổi định mức vật tư '{material.Name}' do đã phát sinh yêu cầu cấp phát hoặc mua sắm.");
                 }
 
                 currentActive.Quantity = item.Quantity;
@@ -183,7 +146,6 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
             }
             else
             {
-                // Check if a soft-deleted item exists for the same Material
                 var currentDeleted = existingAll.FirstOrDefault(x => x.MaterialId == item.MaterialId && x.IsDeleted);
                 if (currentDeleted != null)
                 {
@@ -196,7 +158,6 @@ public class UpdatePhaseBOQCommandHandler : IRequestHandler<UpdatePhaseBOQComman
                 }
                 else
                 {
-                    // Create new BOQItem
                     var newBoq = new BOQItem
                     {
                         PhaseId = request.PhaseId,

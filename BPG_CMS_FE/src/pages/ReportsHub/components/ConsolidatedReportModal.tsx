@@ -14,12 +14,18 @@ interface Props {
 export const ConsolidatedReportModal: React.FC<Props> = ({ projectId, fromDate, toDate, onClose }) => {
   const [data, setData] = useState<ConsolidatedExecutiveReportDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     reportService.getConsolidatedExecutiveReport(projectId, { fromDate, toDate })
       .then(res => setData(res))
-      .catch(err => console.error('Error loading consolidated report', err))
+      .catch(err => {
+        console.error('Error loading consolidated report', err);
+        setData(null);
+        setError(err instanceof Error ? err.message : 'Không thể tải báo cáo tổng hợp.');
+      })
       .finally(() => setLoading(false));
   }, [projectId, fromDate, toDate]);
 
@@ -59,7 +65,7 @@ export const ConsolidatedReportModal: React.FC<Props> = ({ projectId, fromDate, 
               <LoadingSpinner size="md" label="Đang tổng hợp số liệu phân tích quản trị..." />
             </div>
           ) : !data ? (
-            <div className="text-center py-20 text-red-500 font-bold">Không thể tải dữ liệu báo cáo tổng hợp.</div>
+            <div className="text-center py-20 text-red-500 font-bold">{error || 'Không thể tải dữ liệu báo cáo tổng hợp.'}</div>
           ) : (
             <div className="space-y-6 print:space-y-4">
               {/* Document Header */}

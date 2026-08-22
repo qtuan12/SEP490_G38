@@ -58,8 +58,9 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
     }
   }, [editingCommentContent, editingCommentId]);
 
-  const isIncident = log.progressTo < log.progressFrom;
   const delta = log.progressTo - log.progressFrom;
+  const isIncident = log.source === 'IncidentAdjustment';
+  const isDirectAdjustment = log.source === 'DirectAdjustment';
 
   const searchParams = new URLSearchParams(window.location.search);
   const highlightedLogId = searchParams.get('logId');
@@ -83,10 +84,18 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
     padding: '20px',
     border: isHighlighted
       ? '2px solid hsl(var(--primary))'
-      : (isIncident ? '1.5px solid hsl(var(--danger) / 0.3)' : '1px solid hsl(var(--border))'),
+      : isIncident
+        ? '1.5px solid hsl(var(--danger) / 0.3)'
+        : isDirectAdjustment
+          ? '1.5px solid hsl(var(--warning) / 0.35)'
+          : '1px solid hsl(var(--border))',
     boxShadow: isHighlighted
       ? '0 0 20px hsl(var(--primary) / 0.35)'
-      : (isIncident ? '0 4px 12px hsl(var(--danger-glow))' : 'var(--shadow-sm)'),
+      : isIncident
+        ? '0 4px 12px hsl(var(--danger-glow))'
+        : isDirectAdjustment
+          ? '0 4px 12px hsl(var(--warning-glow))'
+          : 'var(--shadow-sm)',
     transition: 'all 0.4s ease-in-out'
   };
 
@@ -94,6 +103,8 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
   let nodeClass = "timeline-node-info";
   if (isIncident) {
     nodeClass = "timeline-node-danger";
+  } else if (isDirectAdjustment) {
+    nodeClass = "timeline-node-warning";
   } else if (delta > 0) {
     nodeClass = "timeline-node-success";
   }
@@ -175,7 +186,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
         {/* Log Header */}
         <div className="flex justify-between items-start flex-wrap gap-3 min-w-0">
           <div className="flex gap-2.5 items-center min-w-0">
-            <div className={`w-[38px] h-[38px] rounded-full flex items-center justify-center font-bold text-[0.85rem] shrink-0 ${isIncident ? 'bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))]' : 'bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))]'}`}>
+            <div className={`w-[38px] h-[38px] rounded-full flex items-center justify-center font-bold text-[0.85rem] shrink-0 ${isIncident ? 'bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))]' : isDirectAdjustment ? 'bg-[hsl(var(--warning-glow))] text-[hsl(var(--warning))]' : 'bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))]'}`}>
               {log.engineerName.charAt(0)}
             </div>
             <div className="min-w-0">
@@ -183,25 +194,12 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                 <strong className="text-[0.9rem] truncate">{log.engineerName}</strong>
                 {(() => {
                   const mInfo = members.find(m => String(m.userId) === String(log.engineerId));
-                  let cRole = mInfo ? mInfo.role : '';
-                  if (!cRole) {
-                    if (String(user?.id) === String(log.engineerId)) {
-                      cRole = user?.role || '';
-                    } else {
-                      if (log.engineerName.toLowerCase().includes('tuan') || log.engineerName.toLowerCase().includes('tpkt')) {
-                        cRole = 'technicalmanager';
-                      } else if (log.engineerName.toLowerCase().includes('admin')) {
-                        cRole = 'admin';
-                      } else {
-                        cRole = 'siteengineer';
-                      }
-                    }
-                  }
-                  return (
+                  const cRole = log.engineerRole || mInfo?.role || (String(user?.id) === String(log.engineerId) ? user?.role : '');
+                  return cRole ? (
                     <Badge variant={getRoleBadgeVariant(cRole)} className="text-[0.6rem] normal-case py-0.5 px-1.5 h-auto shrink-0">
                       {getRoleLabel(cRole)}
                     </Badge>
-                  );
+                  ) : null;
                 })()}
                 {(canEditLog && log.canEdit !== false) && (
                   <button
@@ -233,7 +231,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
           {/* Progress changes */}
           <div className="text-right shrink-0">
             <span className="text-[0.7rem] text-[hsl(var(--text-muted))] font-medium">Tiến độ được báo cáo tại thời điểm này</span>
-            <div className={`font-extrabold text-base flex items-center justify-end gap-1 ${isIncident ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+            <div className={`font-extrabold text-base flex items-center justify-end gap-1 ${isIncident ? 'text-[hsl(var(--danger))]' : isDirectAdjustment ? 'text-[hsl(var(--warning))]' : delta > 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--primary))]'}`}>
               <span>{log.progressFrom}%</span>
               <span>&rarr;</span>
               <span>{log.progressTo}%</span>
@@ -245,8 +243,10 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
         </div>
 
         {/* Task Info Row */}
-        <div className={`bg-[hsl(var(--bg-main))] px-3 py-2 rounded-sm text-sm font-medium flex items-center justify-between border-l-4 min-w-0 flex-wrap gap-2 ${isIncident ? 'border-[hsl(var(--danger))]' : 'border-[hsl(var(--primary))]'}`}>
+        <div className={`bg-[hsl(var(--bg-main))] px-3 py-2 rounded-sm text-sm font-medium flex items-center justify-between border-l-4 min-w-0 flex-wrap gap-2 ${isIncident ? 'border-[hsl(var(--danger))]' : isDirectAdjustment ? 'border-[hsl(var(--warning))]' : 'border-[hsl(var(--primary))]'}`}>
           <span className="min-w-0 break-words">Công việc: <strong className="text-[hsl(var(--text-primary))] break-words">{log.taskName}</strong></span>
+          {isIncident && <Badge variant="danger">Điều chỉnh do sự cố</Badge>}
+          {isDirectAdjustment && <Badge variant="warning">Điều chỉnh kỹ thuật</Badge>}
         </div>
 
         {/* Content Text */}

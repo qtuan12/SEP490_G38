@@ -5,7 +5,7 @@ using MediatR;
 
 namespace BPG.Application.Features.Units.Queries;
 
-[Cacheable(DurationSeconds = 300)]
+// [Cacheable(DurationSeconds = 300)]
 public class GetUnitsQuery : IRequest<PagedList<UnitDto>>
 {
     public int PageNumber { get; set; } = 1;

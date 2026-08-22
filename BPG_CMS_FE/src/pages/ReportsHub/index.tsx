@@ -117,7 +117,7 @@ export const ReportsHub: React.FC = () => {
     const end = new Date();
     const start = new Date();
     if (preset === '30days') {
-      start.setDate(end.getDate() - 30);
+      start.setDate(end.getDate() - 29);
     } else if (preset === 'quarter') {
       start.setFullYear(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
     }
@@ -230,7 +230,8 @@ export const ReportsHub: React.FC = () => {
         </div>
       </div>
 
-      {/* Global Date Filter Bar */}
+      {/* Portfolio metrics are current-state metrics and do not support a historical range. */}
+      {!(selectedProjectId === 'all' && activeTab === 'executive') && (
       <div className="bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] rounded-2xl p-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold uppercase tracking-wider text-[hsl(var(--text-muted))] flex items-center gap-1.5 px-2">
@@ -241,6 +242,7 @@ export const ReportsHub: React.FC = () => {
               type="date"
               className="text-xs bg-transparent border-none focus:outline-none text-[hsl(var(--text-primary))]"
               value={fromDate}
+              max={toDate || undefined}
               onChange={e => setFromDate(e.target.value)}
             />
             <span className="text-xs text-[hsl(var(--text-muted))]">đến</span>
@@ -248,6 +250,7 @@ export const ReportsHub: React.FC = () => {
               type="date"
               className="text-xs bg-transparent border-none focus:outline-none text-[hsl(var(--text-primary))]"
               value={toDate}
+              min={fromDate || undefined}
               onChange={e => setToDate(e.target.value)}
             />
           </div>
@@ -283,6 +286,7 @@ export const ReportsHub: React.FC = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Segmented Pill Tabs */}
       <div className="flex border-b border-[hsl(var(--border))] overflow-x-auto custom-scrollbar bg-[hsl(var(--bg-card))] rounded-2xl p-1.5 items-center gap-1 shadow-sm">

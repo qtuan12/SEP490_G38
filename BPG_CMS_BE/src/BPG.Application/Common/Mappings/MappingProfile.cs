@@ -4,6 +4,7 @@ using BPG.Domain.Entities;
 using BPG.Application.DTOs.PhaseAcceptances;
 using BPG.Application.DTOs.MaterialCategories;
 using BPG.Application.DTOs.MaterialCatalogs;
+using BPG.Domain.Constants;
 using System.Linq;
 
 namespace BPG.Application.Common.Mappings
@@ -65,6 +66,11 @@ namespace BPG.Application.Common.Mappings
             CreateMap<DailyLog, BPG.Application.DTOs.DailyLogs.DailyLogDto>()
                 .ForMember(dest => dest.TaskName, opt => opt.MapFrom(src => src.Task != null ? src.Task.Name : string.Empty))
                 .ForMember(dest => dest.CreatorName, opt => opt.MapFrom(src => src.Creator != null ? src.Creator.FullName : string.Empty))
+                .ForMember(dest => dest.CreatorRole, opt => opt.MapFrom(src =>
+                    src.Creator != null && src.Creator.UserRoles != null && src.Creator.UserRoles.Any() && src.Creator.UserRoles.FirstOrDefault()!.Role != null
+                        ? src.Creator.UserRoles.FirstOrDefault()!.Role!.RoleName
+                        : string.Empty))
+                .ForMember(dest => dest.Source, opt => opt.MapFrom(src => DailyLogSource.Resolve(src.Description)))
                 .ForMember(dest => dest.Images, opt => opt.Ignore())
                 .ForMember(dest => dest.Comments, opt => opt.MapFrom(src => src.Comments));
 

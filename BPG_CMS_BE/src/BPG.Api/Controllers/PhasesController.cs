@@ -59,6 +59,24 @@ public class PhasesController : BaseApiController
         return ApiOk(result);
     }
 
+    [HttpPost("{phaseId}/boq/import-preview")]
+    [EnableRateLimiting(RateLimitPolicies.Mutation)]
+    [Authorize(Roles = RolePolicies.TechnicalManager)]
+    public async Task<IActionResult> PreviewPhaseBOQImport(
+        [FromRoute] long projectId,
+        [FromRoute] long phaseId,
+        [FromBody] PreviewPhaseBOQImportRequest request,
+        CancellationToken ct)
+    {
+        var rows = (request.Rows ?? new()).Select(x => new PhaseBOQImportRowInput(
+            x.RowNumber,
+            x.MaterialCode,
+            x.Quantity,
+            x.UnitCode)).ToList();
+        var result = await Mediator.Send(new PreviewPhaseBOQImportCommand(projectId, phaseId, rows), ct);
+        return ApiOk(result);
+    }
+
     [HttpGet("{phaseId}/boq")]
     [EnableRateLimiting(RateLimitPolicies.QueryDetail)]
     [Authorize(Roles = RolePolicies.ProjectViewers)]

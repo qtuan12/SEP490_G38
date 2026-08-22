@@ -22,6 +22,7 @@ public record TaskDetailsDto
     public string Status { get; set; } = string.Empty;
     public byte ProgressPercent { get; set; }
     public string? ObsoleteReason { get; set; }
+    public bool HasSubTasks { get; set; }
 
     public List<TaskAssigneeDto> Assignees { get; set; } = new();
     public List<TaskDailyLogDto> DailyLogs { get; set; } = new();

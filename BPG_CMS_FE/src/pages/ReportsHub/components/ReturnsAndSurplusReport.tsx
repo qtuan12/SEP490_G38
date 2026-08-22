@@ -286,19 +286,56 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
       {/* Cross-Project Comparison (When viewing 'all') */}
       {projectId === 'all' && data.crossProjectMatrix.length > 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">So Sánh Hoàn Trả & Xử Lý Thừa Theo Từng Dự Án</h4>
-          <p className="text-xs text-slate-500 mb-4">So sánh số lượng mặt hàng thừa phát sinh và mặt hàng đã giải phóng giữa các công trình</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-0.5">So Sánh Hoàn Trả & Xử Lý Thừa Theo Từng Dự Án</h4>
+              <p className="text-xs text-slate-500 m-0">So sánh số lượng mặt hàng thừa phát sinh và mặt hàng đã giải phóng giữa các công trình</p>
+            </div>
+          </div>
 
-          <div className="h-64 w-full">
+          <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.crossProjectMatrix} margin={{ top: 10, right: 20, left: 10, bottom: 25 }}>
+              <BarChart data={data.crossProjectMatrix} margin={{ top: 10, right: 20, left: -10, bottom: 65 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                <XAxis dataKey="projectName" tick={{ fontSize: 10, fontWeight: 600 }} angle={-15} textAnchor="end" />
+                <XAxis 
+                  dataKey="projectName" 
+                  interval={0}
+                  angle={-25} 
+                  textAnchor="end"
+                  height={75}
+                  tick={{ fontSize: 11, fontWeight: 500, fill: '#64748b' }} 
+                  tickFormatter={(val: string) => (val && val.length > 22 ? `${val.slice(0, 20)}...` : val)}
+                />
                 <YAxis tick={{ fontSize: 11 }} />
                 <RechartsTooltip
-                  formatter={(value, name) => [`${formatNumber(Number(value || 0))} mặt hàng`, name]}
+                  cursor={{ fill: 'rgba(99, 102, 241, 0.05)' }}
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-2xl shadow-xl text-xs max-w-sm">
+                          <p className="font-bold text-slate-900 dark:text-white mb-2 border-b border-slate-100 dark:border-slate-700 pb-1.5 leading-snug">
+                            {label}
+                          </p>
+                          <div className="space-y-1.5">
+                            {payload.map((entry, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-4">
+                                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                  {entry.name}:
+                                </span>
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {formatNumber(Number(entry.value || 0))} mặt hàng
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '11px', paddingBottom: '16px' }} />
                 <Bar dataKey="surplusItemCount" name="Tổng mặt hàng thừa" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={32} />
                 <Bar dataKey="surplusResolvedItemCount" name="Mặt hàng đã giải phóng" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
               </BarChart>

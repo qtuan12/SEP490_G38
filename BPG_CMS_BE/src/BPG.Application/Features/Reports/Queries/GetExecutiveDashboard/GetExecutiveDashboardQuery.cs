@@ -55,8 +55,9 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             .OrderBy(p => p.OrderIndex)
             .ToListAsync(cancellationToken);
 
-        var fromDt = request.FromDate?.Date;
-        var toDt = request.ToDate?.Date.AddDays(1).AddTicks(-1);
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        var fromDt = dateRange.From;
+        var toDt = dateRange.ToInclusive;
 
         var allTasks = phases.SelectMany(p => p.Tasks)
             .Where(t => t.Status != TaskStatus.Obsolete)
@@ -64,25 +65,31 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                      && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
             .ToList();
 
-        int totalTasks = allTasks.Count;
-        int completedTasks = allTasks.Count(t => ProgressCalculator.IsCompleted(t.Status));
-        int inProgressTasks = allTasks.Count(t => ProgressCalculator.IsInProgress(t.Status));
-
         var now = DateTime.UtcNow;
-        var currentDate = now.Date;
+        var reportAsOf = toDt.HasValue && toDt.Value < now ? toDt.Value : now;
+        var isHistoricalSnapshot = toDt.HasValue && toDt.Value < now;
+        decimal ReportProgress(ProjectTask task) => isHistoricalSnapshot
+            ? GetProgressAt(task, reportAsOf)
+            : ProgressCalculator.GetEffectiveProgress(task);
+
+        int totalTasks = allTasks.Count;
+        int completedTasks = allTasks.Count(t => ReportProgress(t) >= 100m);
+        int inProgressTasks = allTasks.Count(t => ReportProgress(t) > 0m && ReportProgress(t) < 100m);
+        var currentDate = reportAsOf.Date;
 
         int delayedTasks = allTasks.Count(t =>
-            t.EndDate.ToDateTime(TimeOnly.MinValue) < now &&
-            !ProgressCalculator.IsCompleted(t.Status));
+            t.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf &&
+            ReportProgress(t) < 100m);
 
         int atRiskTasks = 0;
         var atRiskTaskInfos = new List<DelayedTaskInfoDto>();
         var delayedTaskInfos = new List<DelayedTaskInfoDto>();
 
-        foreach (var t in allTasks.Where(t => !ProgressCalculator.IsCompleted(t.Status) && t.StartDate.ToDateTime(TimeOnly.MinValue) <= now))
+        foreach (var t in allTasks.Where(t => ReportProgress(t) < 100m && t.StartDate.ToDateTime(TimeOnly.MinValue) <= reportAsOf))
         {
+            var taskProgress = ReportProgress(t);
             var endDt = t.EndDate.ToDateTime(TimeOnly.MinValue);
-            bool isDelayed = endDt < now;
+            bool isDelayed = endDt < reportAsOf;
 
             if (isDelayed)
             {
@@ -92,7 +99,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                     TaskId = t.TaskId,
                     TaskName = t.Name,
                     PhaseName = phaseName,
-                    ProgressPercent = t.ProgressPercent,
+                    ProgressPercent = decimal.ToInt32(Math.Round(taskProgress)),
                     EndDate = t.EndDate,
                     AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName,
                     WarningType = "Red"
@@ -101,7 +108,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             }
 
             // At risk: ≤ 3 days left and behind schedule by 20%+
-            var daysLeft = (endDt - now).TotalDays;
+            var daysLeft = (endDt - reportAsOf).TotalDays;
             if (daysLeft <= 3)
             {
                 var totalDuration = (endDt - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
@@ -110,7 +117,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 if (totalDuration > 0)
                 {
                     var expectedProgress = (elapsed / totalDuration) * 100;
-                    if (t.ProgressPercent < expectedProgress - 20)
+                    if (taskProgress < (decimal)expectedProgress - 20m)
                     {
                         atRiskTasks++;
                         var phaseName = phases.FirstOrDefault(p => p.Tasks.Any(task => task.TaskId == t.TaskId))?.Name ?? string.Empty;
@@ -119,7 +126,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                             TaskId = t.TaskId,
                             TaskName = t.Name,
                             PhaseName = phaseName,
-                            ProgressPercent = t.ProgressPercent,
+                            ProgressPercent = decimal.ToInt32(Math.Round(taskProgress)),
                             EndDate = t.EndDate,
                             AssigneeName = t.Assignees.FirstOrDefault()?.User?.FullName,
                             WarningType = "Yellow"
@@ -132,10 +139,14 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         // Phase breakdown with weighted progress
         var phaseBreakdown = phases.Select(phase =>
         {
-            var phaseTasks = phase.Tasks.Where(t => t.Status != TaskStatus.Obsolete).ToList();
+            var phaseTasks = phase.Tasks
+                .Where(t => t.Status != TaskStatus.Obsolete)
+                .Where(t => (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
+                         && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
+                .ToList();
             int ptTotal = phaseTasks.Count;
-            int ptDone = phaseTasks.Count(t => ProgressCalculator.IsCompleted(t.Status));
-            decimal pProgress = BPG.Application.Common.Helpers.ProgressCalculator.CalculateWeightedProgress(phaseTasks);
+            int ptDone = phaseTasks.Count(t => ReportProgress(t) >= 100m);
+            decimal pProgress = CalculateWeightedProgressAt(phaseTasks, ReportProgress);
 
             return new PhaseProgressSummaryDto
             {
@@ -146,7 +157,9 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 CompletedTasks = ptDone,
                 ProgressPercent = pProgress
             };
-        }).ToList();
+        })
+        .Where(p => p.TotalTasks > 0 || (!fromDt.HasValue && !toDt.HasValue))
+        .ToList();
 
         // BOQ exceeded logic
         var mrQuery = _unitOfWork.Repository<MaterialRequest>()
@@ -189,13 +202,15 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             .ToList();
 
         // 1. Period Comparison Calculation
-        DateTime curEnd = request.ToDate ?? DateTime.UtcNow;
-        DateTime curStart = request.FromDate ?? curEnd.AddDays(-30);
-        TimeSpan span = curEnd - curStart;
-        if (span.TotalDays <= 0) span = TimeSpan.FromDays(30);
+        DateTime curEnd = toDt ?? now;
+        DateTime curStart = fromDt ?? curEnd.Date.AddDays(-29);
+        int periodLengthDays = Math.Max(1, (curEnd.Date - curStart.Date).Days + 1);
+        DateTime prevStart = curStart.AddDays(-periodLengthDays);
+        DateTime prevEnd = curStart.AddTicks(-1);
 
-        DateTime prevStart = curStart - span;
-        DateTime prevEnd = curStart;
+        int curCompletedTasks = phases.SelectMany(p => p.Tasks)
+            .Where(t => t.Status != TaskStatus.Obsolete)
+            .Count(t => t.UpdatedAt >= curStart && t.UpdatedAt <= curEnd && ProgressCalculator.IsCompleted(t.Status));
 
         int prevCompletedTasks = phases.SelectMany(p => p.Tasks)
             .Where(t => t.Status != TaskStatus.Obsolete)
@@ -256,13 +271,13 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 && mr.CreatedAt <= prevEnd)
             .CountAsync(cancellationToken);
 
-        decimal completedDelta = prevCompletedTasks > 0 ? Math.Round(((decimal)(completedTasks - prevCompletedTasks) / prevCompletedTasks) * 100, 1) : (completedTasks > 0 ? 100m : 0m);
+        decimal completedDelta = prevCompletedTasks > 0 ? Math.Round(((decimal)(curCompletedTasks - prevCompletedTasks) / prevCompletedTasks) * 100, 1) : (curCompletedTasks > 0 ? 100m : 0m);
         decimal incidentsDelta = prevIncidentsCount > 0 ? Math.Round(((decimal)(curIncidentsCount - prevIncidentsCount) / prevIncidentsCount) * 100, 1) : (curIncidentsCount > 0 ? 100m : 0m);
         decimal costDelta = prevPoCost > 0 ? Math.Round(((curPoCost - prevPoCost) / prevPoCost) * 100, 1) : (curPoCost > 0 ? 100m : 0m);
 
         var periodComparison = new PeriodComparisonMetricsDto
         {
-            CurrentCompletedTasks = completedTasks,
+            CurrentCompletedTasks = curCompletedTasks,
             PreviousCompletedTasks = prevCompletedTasks,
             CompletedTasksDeltaPercent = completedDelta,
             CurrentIncidents = curIncidentsCount,
@@ -283,26 +298,57 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
+        var comparisonPhases = request.ProjectId > 0
+            ? await _unitOfWork.Repository<Phase>()
+                .Query()
+                .Include(p => p.Tasks)
+                    .ThenInclude(t => t.ProgressLogs)
+                .Where(p => accessibleIds.Contains(p.ProjectId))
+                .AsNoTracking()
+                .ToListAsync(cancellationToken)
+            : phases;
+
+        var matrixMrQuery = _unitOfWork.Repository<MaterialRequest>()
+            .Query()
+            .Where(mr => accessibleIds.Contains(mr.Phase!.ProjectId) && mr.Items.Any(i => i.IsOverBOQ));
+        if (fromDt.HasValue) matrixMrQuery = matrixMrQuery.Where(mr => mr.CreatedAt >= fromDt.Value);
+        if (toDt.HasValue) matrixMrQuery = matrixMrQuery.Where(mr => mr.CreatedAt <= toDt.Value);
+        var overBoqByProject = await matrixMrQuery
+            .GroupBy(mr => mr.Phase!.ProjectId)
+            .Select(g => new { ProjectId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ProjectId, x => x.Count, cancellationToken);
+
+        var matrixIncidentQuery = _unitOfWork.Repository<Incident>()
+            .Query()
+            .Where(i => accessibleIds.Contains(i.ProjectId));
+        if (fromDt.HasValue) matrixIncidentQuery = matrixIncidentQuery.Where(i => i.CreatedAt >= fromDt.Value);
+        if (toDt.HasValue) matrixIncidentQuery = matrixIncidentQuery.Where(i => i.CreatedAt <= toDt.Value);
+        var incidentsByProject = await matrixIncidentQuery
+            .GroupBy(i => i.ProjectId)
+            .Select(g => new
+            {
+                ProjectId = g.Key,
+                Count = g.Count(),
+                Loss = g.Sum(i => i.EstimatedMaterialLoss ?? 0m)
+            })
+            .ToDictionaryAsync(x => x.ProjectId, cancellationToken);
+
         foreach (var proj in allAccessibleProjects)
         {
-            var pPhases = phases.Where(p => p.ProjectId == proj.ProjectId).ToList();
-            var pTasks = pPhases.SelectMany(p => p.Tasks).Where(t => t.Status != TaskStatus.Obsolete).ToList();
-            decimal pProg = ProgressCalculator.CalculateWeightedProgress(pTasks);
+            var pPhases = comparisonPhases.Where(p => p.ProjectId == proj.ProjectId).ToList();
+            var pTasks = pPhases.SelectMany(p => p.Tasks)
+                .Where(t => t.Status != TaskStatus.Obsolete)
+                .Where(t => (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
+                         && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
+                .ToList();
+            decimal pProg = CalculateWeightedProgressAt(pTasks, ReportProgress);
             int pTotal = pTasks.Count;
-            int pDelayed = pTasks.Count(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < now && !ProgressCalculator.IsCompleted(t.Status));
-
-            int pOverBoq = await _unitOfWork.Repository<MaterialRequest>()
-                .Query()
-                .Where(mr => mr.Phase.ProjectId == proj.ProjectId && mr.Items.Any(i => i.IsOverBOQ))
-                .CountAsync(cancellationToken);
-
-            var projIncidents = await _unitOfWork.Repository<Incident>()
-                .Query()
-                .Where(i => i.ProjectId == proj.ProjectId)
-                .ToListAsync(cancellationToken);
-
-            int pIncidentsCount = projIncidents.Count;
-            decimal pLoss = projIncidents.Sum(i => i.EstimatedMaterialLoss ?? 0m);
+            int pDelayed = pTasks.Count(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf && ReportProgress(t) < 100m);
+            int pAtRisk = pTasks.Count(t => IsTaskAtRisk(t, reportAsOf, ReportProgress(t)));
+            int pOverBoq = overBoqByProject.GetValueOrDefault(proj.ProjectId);
+            incidentsByProject.TryGetValue(proj.ProjectId, out var incidentMetrics);
+            int pIncidentsCount = incidentMetrics?.Count ?? 0;
+            decimal pLoss = incidentMetrics?.Loss ?? 0m;
 
             string health = "Green";
             if (pDelayed >= 3 || pLoss > 50000000m || pOverBoq >= 3) health = "Red";
@@ -316,7 +362,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 ProgressPercent = pProg,
                 TotalTasks = pTotal,
                 DelayedTasks = pDelayed,
-                AtRiskTasks = 0,
+                AtRiskTasks = pAtRisk,
                 OverBoqCount = pOverBoq,
                 TotalIncidents = pIncidentsCount,
                 EstimatedLossVnd = pLoss,
@@ -363,7 +409,7 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         while (currentM <= targetM)
         {
             var mEnd = currentM.AddMonths(1).AddTicks(-1);
-            bool isFutureMonth = currentM > new DateTime(now.Year, now.Month, 1);
+            bool isFutureMonth = currentM > new DateTime(reportAsOf.Year, reportAsOf.Month, 1);
 
             double plannedWeightSum = 0;
             foreach (var item in taskWeights)
@@ -475,6 +521,35 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         }
 
         return 0m;
+    }
+
+    private static decimal CalculateWeightedProgressAt(
+        IEnumerable<ProjectTask> tasks,
+        Func<ProjectTask, decimal> progressSelector)
+    {
+        var list = tasks.ToList();
+        if (list.Count == 0) return 0m;
+
+        var totalWeight = list.Sum(ProgressCalculator.GetEffectiveWeight);
+        if (totalWeight <= 0m) return 0m;
+
+        return Math.Round(list.Sum(t => ProgressCalculator.GetEffectiveWeight(t) * progressSelector(t)) / totalWeight, 1);
+    }
+
+    private static bool IsTaskAtRisk(ProjectTask task, DateTime asOf, decimal progress)
+    {
+        if (progress >= 100m) return false;
+
+        var start = task.StartDate.ToDateTime(TimeOnly.MinValue);
+        var end = task.EndDate.ToDateTime(TimeOnly.MinValue);
+        if (start > asOf || end < asOf || (end - asOf).TotalDays > 3) return false;
+
+        var duration = (end - start).TotalDays + 1;
+        if (duration <= 0) return false;
+
+        var elapsed = (asOf.Date - start).TotalDays + 1;
+        var expectedProgress = Math.Min(100, elapsed / duration * 100);
+        return progress < (decimal)expectedProgress - 20m;
     }
 }
 

@@ -13,6 +13,7 @@ export const PortfolioDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetricsDto | null>(null);
   const [warnings, setWarnings] = useState<DashboardWarningDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,7 +25,10 @@ export const PortfolioDashboard: React.FC = () => {
         setMetrics(metricsData);
         setWarnings(warningsData);
       })
-      .catch(err => console.error('Error loading portfolio data:', err))
+      .catch(err => {
+        console.error('Error loading portfolio data:', err);
+        setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu tổng quan dự án.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -34,6 +38,11 @@ export const PortfolioDashboard: React.FC = () => {
         <LoadingSpinner size="md" label="Đang tải Dữ liệu Portfolio..." />
       </div>
     );
+  }
+
+
+  if (error) {
+    return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
   if (!metrics) return null;
