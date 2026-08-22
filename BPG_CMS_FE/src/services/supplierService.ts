@@ -50,9 +50,7 @@ export const supplierService = {
     const formData = new FormData();
     formData.append('file', file);
     return unwrapWithMessage(
-      await apiClient.post<ApiResponse<ImportSuppliersResult>>('/suppliers/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      await apiClient.postFormData<ApiResponse<ImportSuppliersResult>>('/suppliers/import', formData)
     );
   },
 
