@@ -20,6 +20,7 @@ public class AdjustTaskProgressCommandHandlerTests
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepo = new();
     private readonly Mock<IGenericRepository<TaskDependency>> _dependencyRepo = new();
     private readonly Mock<IGenericRepository<DailyLog>> _dailyLogRepo = new();
+    private readonly Mock<IGenericRepository<ProjectMember>> _memberRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
     private readonly AdjustTaskProgressCommandHandler _handler;
 
@@ -28,6 +29,7 @@ public class AdjustTaskProgressCommandHandlerTests
         _uow.Setup(x => x.Repository<ProjectTask>()).Returns(_taskRepo.Object);
         _uow.Setup(x => x.Repository<TaskDependency>()).Returns(_dependencyRepo.Object);
         _uow.Setup(x => x.Repository<DailyLog>()).Returns(_dailyLogRepo.Object);
+        _uow.Setup(x => x.Repository<ProjectMember>()).Returns(_memberRepo.Object);
         _dailyLogRepo.Setup(x => x.AddAsync(It.IsAny<DailyLog>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         _uow.Setup(x => x.CommitTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
@@ -36,6 +38,7 @@ public class AdjustTaskProgressCommandHandlerTests
         _currentUser.SetupUser(1, BPG.Domain.Constants.UserRole.TechnicalManager);
         SetupTasks(ValidTask());
         SetupDependencies();
+        SetupMembers();
 
         _handler = new AdjustTaskProgressCommandHandler(
             _uow.Object,
@@ -197,4 +200,7 @@ public class AdjustTaskProgressCommandHandlerTests
 
     private void SetupDependencies(params TaskDependency[] dependencies) =>
         _dependencyRepo.Setup(x => x.Query()).Returns(dependencies.AsQueryable().BuildMock());
+
+    private void SetupMembers(params ProjectMember[] members) =>
+        _memberRepo.Setup(x => x.Query()).Returns(members.AsQueryable().BuildMock());
 }
