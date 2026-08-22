@@ -93,13 +93,7 @@ export const CategoryManagement: React.FC = () => {
         </span>
       ),
     },
-    {
-      key: 'categoryId',
-      header: 'ID',
-      render: (cat: MaterialCategory) => (
-        <span className="text-[hsl(var(--text-secondary))] font-mono">#{cat.categoryId}</span>
-      ),
-    },
+
     {
       key: 'categoryName',
       header: 'Tên Danh mục',

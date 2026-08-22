@@ -267,7 +267,7 @@ export const SupplierManagement: React.FC = () => {
           </div>
 
           {canManageSuppliers && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 isLoading={templateMutation.isPending}
@@ -275,7 +275,7 @@ export const SupplierManagement: React.FC = () => {
                 className="h-10 font-semibold flex items-center gap-1.5"
               >
                 <Download size={15} />
-                <span>Tải mẫu</span>
+                <span>Tải file mẫu</span>
               </Button>
               <Button
                 variant="secondary"
@@ -283,7 +283,7 @@ export const SupplierManagement: React.FC = () => {
                 className="h-10 font-semibold flex items-center gap-1.5"
               >
                 <Upload size={16} />
-                <span>Import Excel</span>
+                <span>Nhập từ Excel</span>
               </Button>
               <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
                 <Plus size={18} />
