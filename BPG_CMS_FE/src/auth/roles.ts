@@ -36,7 +36,6 @@ export const RoleGroup = {
   ],
   Reports: [
     Role.TechnicalManager,
-    Role.SiteEngineer,
     Role.Accountant,
     Role.Director,
   ],

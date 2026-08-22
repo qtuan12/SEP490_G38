@@ -7,7 +7,7 @@ namespace BPG.Application.Features.Users.Validators
 {
     public class UpdateUserCommandValidator : AbstractValidator<UpdateUserCommand>
     {
-        private static readonly Regex NamePattern = new(@"^[\p{L}\s]+$", RegexOptions.Compiled);
+        private static readonly Regex NamePattern = new(@"^[\p{L}\s0-9.'-]+$", RegexOptions.Compiled);
         private static readonly Regex PhonePattern = new(@"^(0[0-9]{9}|\+84[0-9]{9})$", RegexOptions.Compiled);
 
         public UpdateUserCommandValidator()
@@ -18,7 +18,7 @@ namespace BPG.Application.Features.Users.Validators
                 // Chuẩn hóa NFC trước khi so regex: một số IME/hệ điều hành gõ chữ Việt có dấu
                 // ở dạng NFD (chữ cái + dấu ghép rời), khiến \p{L} không khớp dấu.
                 .Must(name => NamePattern.IsMatch(name!.Trim().Normalize(NormalizationForm.FormC)))
-                .WithMessage("Họ tên chỉ được chứa chữ cái và khoảng trắng.")
+                .WithMessage("Họ tên chỉ được chứa chữ cái, số, khoảng trắng và các ký tự - . '")
                 .When(x => !string.IsNullOrWhiteSpace(x.Name));
 
             RuleFor(x => x.Email)

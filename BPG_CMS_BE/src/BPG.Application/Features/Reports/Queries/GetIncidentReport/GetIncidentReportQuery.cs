@@ -1,5 +1,6 @@
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
 using BPG.Domain.Constants;
@@ -53,15 +54,14 @@ public class GetIncidentReportQueryHandler
             query = query.Where(i => accessibleIds.Contains(i.ProjectId));
         }
 
-        if (request.FromDate.HasValue)
+        var dateRange = ReportDateRange.Create(request.FromDate, request.ToDate);
+        if (dateRange.From.HasValue)
         {
-            var fromDt = request.FromDate.Value.Date;
-            query = query.Where(i => i.CreatedAt >= fromDt);
+            query = query.Where(i => i.CreatedAt >= dateRange.From.Value);
         }
-        if (request.ToDate.HasValue)
+        if (dateRange.ToInclusive.HasValue)
         {
-            var toDt = request.ToDate.Value.Date.AddDays(1).AddTicks(-1);
-            query = query.Where(i => i.CreatedAt <= toDt);
+            query = query.Where(i => i.CreatedAt <= dateRange.ToInclusive.Value);
         }
 
         var incidents = await query
@@ -97,10 +97,24 @@ public class GetIncidentReportQueryHandler
         DateTime startMonth;
         DateTime endMonth;
 
+        var project = (request.ProjectId > 0 && _unitOfWork.Repository<Project>() != null)
+            ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
+            : null;
+        bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
+
         if (request.FromDate.HasValue)
         {
             startMonth = request.FromDate.Value.Date;
             endMonth = request.ToDate?.Date ?? now;
+        }
+        else if (isProjectFinished)
+        {
+            var earliest = incidents.Any() ? incidents.Min(i => i.CreatedAt).Year : project!.PlannedStart.Year;
+            var latest = incidents.Any() ? incidents.Max(i => i.CreatedAt).Year : project!.PlannedEnd.Year;
+            int startYear = Math.Min(earliest, latest);
+            int endYear = Math.Max(earliest, latest);
+            startMonth = new DateTime(startYear, 1, 1);
+            endMonth = new DateTime(endYear, 12, 31);
         }
         else
         {

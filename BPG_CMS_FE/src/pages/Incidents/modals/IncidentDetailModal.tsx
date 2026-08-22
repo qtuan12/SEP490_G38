@@ -1292,10 +1292,10 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
                       <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Users size={12} />
-                        Số ngày nhân công khắc phục
+                        Số ngày khắc phục
                       </div>
                       <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>
-                        {incident.estimatedLaborDays != null ? `${incident.estimatedLaborDays} công` : '0 công'}
+                        {incident.estimatedLaborDays != null ? `${incident.estimatedLaborDays} ngày` : '0 ngày'}
                       </strong>
                     </div>
                   )}

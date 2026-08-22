@@ -5,7 +5,7 @@ import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type IncidentReportDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { parseDateSafe } from '../../../utils/dateHelpers';
-import { getNearestAvailableYear } from '../../../utils/reportYearHelpers';
+import { getPreferredReportYear } from '../../../utils/reportYearHelpers';
 
 interface Props {
   projectId: string | null;
@@ -90,10 +90,10 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
       .then(report => {
         if (requestId !== requestIdRef.current) return;
         setLoadState({ requestIdentity, data: report, error: null });
-        setSelectedYear(year => getNearestAvailableYear(
-          year,
-          (report.monthlyTrends || []).map(trend => trend.year),
-        ) ?? year);
+        setSelectedYear(getPreferredReportYear(
+          report.monthlyTrends || [],
+          trend => (trend.totalIncidentsCount || 0) > 0 || (trend.resolvedIncidentsCount || 0) > 0,
+        ));
       })
       .catch(err => {
         if (requestId !== requestIdRef.current) return;
@@ -256,8 +256,12 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
         )}
 
         {(data.monthlyTrends || []).length > 0 && (() => {
-          const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
-          const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === selectedYear);
+          const hasAnyDataYear = (data.monthlyTrends || []).some(t => (t.totalIncidentsCount || 0) > 0 || (t.resolvedIncidentsCount || 0) > 0);
+          const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year)))
+            .filter(y => !hasAnyDataYear || (data.monthlyTrends || []).some(t => t.year === y && ((t.totalIncidentsCount || 0) > 0 || (t.resolvedIncidentsCount || 0) > 0)))
+            .sort((a, b) => b - a);
+          const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
+          const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === activeYear);
 
           return (
             <div className={`${typeDist.length > 0 ? 'lg:col-span-7' : 'lg:col-span-12'} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm`}>
