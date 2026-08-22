@@ -82,12 +82,12 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
 
           if (requestId !== requestIdRef.current) return;
           const aggregatedData = activeProjects
-              .map((project, index) => ({
-                name: project.name.length > 16 ? project.name.substring(0, 16) + '…' : project.name,
-                po: reports[index]?.totalPoCost || 0,
-                dp: reports[index]?.totalDirectPurchaseCost || 0,
-              }))
-              .filter(item => item.po > 0 || item.dp > 0);
+            .map((project, index) => ({
+              name: project.name.length > 16 ? project.name.substring(0, 16) + '…' : project.name,
+              po: reports[index]?.totalPoCost || 0,
+              dp: reports[index]?.totalDirectPurchaseCost || 0,
+            }))
+            .filter(item => item.po > 0 || item.dp > 0);
           setLoadState({ requestIdentity, data: null, allProjectsData: aggregatedData, error: null });
           return;
         }
@@ -132,7 +132,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
     return <div className="p-10 text-center text-red-500 font-semibold">{error}</div>;
   }
 
-  const formatCurrency = (v: number) => `${formatNumber(v)} VNĐ`;
+  const formatCurrency = (v: number) => `${formatNumber(Math.round(v || 0))} VNĐ`;
   /** Ngày thuần (ngày đặt hàng, ngày giao dự kiến) — không quy đổi múi giờ. */
   const formatOrderDate = (d?: string) => formatPlainDate(d) || '—';
   /** Mốc thời gian UTC từ backend (thời điểm tạo phiếu). */
@@ -152,12 +152,12 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={allProjectsData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 11 }} 
-                    interval={0} 
-                    angle={-30} 
-                    textAnchor="end" 
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                    angle={-30}
+                    textAnchor="end"
                     height={70}
                     tickFormatter={(v: string) => (v && v.length > 22 ? `${v.slice(0, 20)}...` : v)}
                   />
@@ -194,7 +194,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
             <ShoppingCart size={22} />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">PO Mua sắm (Nhập kho)</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Đơn Mua sắm (Nhập kho)</div>
             <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(data.totalPoCost)}</div>
             <div className="text-[10px] font-semibold text-slate-400 mt-0.5">{data.purchaseOrders.length} đơn hàng</div>
           </div>
@@ -207,7 +207,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Thi công Thực tế (Xuất kho)</div>
             <div className="text-lg font-black text-purple-700 dark:text-purple-300 mt-0.5">{formatCurrency(data.totalMaterialIssuanceValue || 0)}</div>
-            <div className="text-[10px] font-semibold text-purple-600 mt-0.5">Giá trị vật tư đã xuất dùng</div>
+            <div className="text-[10px] font-semibold text-purple-600 mt-0.5">Giá trị ước tính vật tư đã xuất dùng</div>
           </div>
         </div>
 
@@ -306,7 +306,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
               <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                 <tr>
                   <th className="px-4 py-3 text-center w-12">STT</th>
-                  <th className="px-4 py-3">Số PO</th>
+                  <th className="px-4 py-3">Mã Dơn Hàng</th>
                   <th className="px-4 py-3">Nhà cung cấp</th>
                   <th className="px-4 py-3 text-right">Tổng giá trị</th>
                   <th className="px-4 py-3">Ngày đặt</th>

@@ -1,4 +1,6 @@
 using BPG.Application.Features.Reports.Queries.GetBoqVsActualReport;
+using BPG.Application.Features.Reports.Queries.GetCostReferenceReport;
+using BPG.Application.Features.Reports.Queries.GetExecutiveDashboard;
 using BPG.Application.Features.Reports.Queries.GetIncidentReport;
 using BPG.Application.Features.Reports.Queries.GetProcurementReport;
 using BPG.Application.IRepositories;
@@ -96,6 +98,7 @@ public class ReportQueryHandlerTests
         SetupRepository<MaterialRequestItem>(unitOfWork);
         SetupRepository<ProjectTask>(unitOfWork);
         SetupRepository<InventoryTransaction>(unitOfWork);
+        SetupRepository<DirectPurchaseRequest>(unitOfWork);
 
         var handler = new GetBoqVsActualReportQueryHandler(unitOfWork.Object, AccessibleProjects());
 
@@ -210,6 +213,125 @@ public class ReportQueryHandlerTests
     }
 
     [Fact]
+    public async Task ProcurementReport_ShouldExcludeRejectedDirectPurchaseAutoPoFromEveryMoneyValue()
+    {
+        var autoPo = new PurchaseOrder
+        {
+            POId = 82,
+            ProjectId = ProjectId,
+            PONumber = "DP-PO-000002",
+            Status = PurchaseOrderStatus.FullyReceived,
+            OrderDate = new DateTime(2026, 1, 10),
+            TotalAmount = 900_000m
+        };
+        var autoPoItem = new PurchaseOrderItem
+        {
+            POItemId = 92,
+            POId = autoPo.POId,
+            PurchaseOrder = autoPo,
+            MaterialId = MaterialId,
+            Quantity = 1m,
+            ConversionRate = 1m,
+            UnitPrice = 900_000m
+        };
+        autoPo.Items.Add(autoPoItem);
+
+        var rejectedDirectPurchase = new DirectPurchaseRequest
+        {
+            DirectPurchaseId = 2,
+            ProjectId = ProjectId,
+            AutoPOId = autoPo.POId,
+            Status = DirectPurchaseStatus.Rejected,
+            PurchaseDate = autoPo.OrderDate,
+            TotalAmount = autoPo.TotalAmount
+        };
+
+        var phase = new Phase { PhaseId = 30, ProjectId = ProjectId };
+        var task = new ProjectTask { TaskId = 50, PhaseId = phase.PhaseId, Phase = phase };
+        var issuance = new MaterialIssuance
+        {
+            MaterialIssuanceId = 60,
+            TaskId = task.TaskId,
+            Task = task,
+            CreatedAt = new DateTime(2026, 1, 15)
+        };
+        var issuanceItem = new MaterialIssuanceItem
+        {
+            IssuanceItemId = 70,
+            MaterialIssuanceId = issuance.MaterialIssuanceId,
+            Issuance = issuance,
+            MaterialId = MaterialId,
+            Quantity = 1m,
+            ConversionRate = 1m
+        };
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        SetupRepository(unitOfWork, autoPo);
+        SetupRepository(unitOfWork, rejectedDirectPurchase);
+        SetupRepository<Supplier>(unitOfWork);
+        SetupRepository(unitOfWork, issuanceItem);
+        SetupRepository(unitOfWork, autoPoItem);
+
+        var handler = new GetProcurementReportQueryHandler(unitOfWork.Object, AccessibleProjects());
+        var result = await handler.Handle(new GetProcurementReportQuery(ProjectId), CancellationToken.None);
+
+        result.Data!.TotalPoCost.Should().Be(0m);
+        result.Data.TotalDirectPurchaseCost.Should().Be(0m);
+        result.Data.TotalMaterialIssuanceValue.Should().Be(0m);
+        result.Data.PurchaseOrders.Should().BeEmpty();
+        result.Data.DirectPurchases.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CostReferenceReport_ShouldOnlyCountNormalPoAndApprovedDirectPurchase()
+    {
+        var normalPo = PurchaseOrderWithItem(1, "PO-1", 100_000m);
+        var approvedAutoPo = PurchaseOrderWithItem(2, "DP-PO-000010", 200_000m);
+        var rejectedAutoPo = PurchaseOrderWithItem(3, "DP-PO-000011", 300_000m);
+
+        var approvedDirectPurchase = DirectPurchase(10, approvedAutoPo, DirectPurchaseStatus.Approved);
+        var rejectedDirectPurchase = DirectPurchase(11, rejectedAutoPo, DirectPurchaseStatus.Rejected);
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        SetupRepository(unitOfWork, normalPo, approvedAutoPo, rejectedAutoPo);
+        SetupRepository(unitOfWork, approvedDirectPurchase, rejectedDirectPurchase);
+
+        var handler = new GetCostReferenceReportQueryHandler(unitOfWork.Object, AccessibleProjects());
+        var result = await handler.Handle(new GetCostReferenceReportQuery(ProjectId), CancellationToken.None);
+
+        result.Data!.TotalPoCost.Should().Be(100_000m);
+        result.Data.TotalDirectPurchaseCost.Should().Be(200_000m);
+        result.Data.TotalCost.Should().Be(300_000m);
+    }
+
+    [Fact]
+    public async Task ExecutiveDashboard_ShouldExcludeRejectedAutoPoAndIncludeApprovedDirectPurchaseOnce()
+    {
+        var reportFrom = new DateTime(2026, 1, 1);
+        var reportTo = new DateTime(2026, 1, 31);
+        var normalPo = PurchaseOrderWithItem(1, "PO-1", 100_000m, reportFrom.AddDays(2));
+        var approvedAutoPo = PurchaseOrderWithItem(2, "DP-PO-000020", 200_000m, reportFrom.AddDays(3));
+        var rejectedAutoPo = PurchaseOrderWithItem(3, "DP-PO-000021", 300_000m, reportFrom.AddDays(4));
+        var approvedDirectPurchase = DirectPurchase(20, approvedAutoPo, DirectPurchaseStatus.Approved);
+        var rejectedDirectPurchase = DirectPurchase(21, rejectedAutoPo, DirectPurchaseStatus.Rejected);
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        SetupRepository<Phase>(unitOfWork);
+        SetupRepository<Incident>(unitOfWork);
+        SetupRepository<MaterialRequest>(unitOfWork);
+        SetupRepository<Project>(unitOfWork);
+        SetupRepository(unitOfWork, normalPo, approvedAutoPo, rejectedAutoPo);
+        SetupRepository(unitOfWork, approvedDirectPurchase, rejectedDirectPurchase);
+
+        var handler = new GetExecutiveDashboardQueryHandler(unitOfWork.Object, AccessibleProjects());
+        var result = await handler.Handle(
+            new GetExecutiveDashboardQuery(ProjectId, reportFrom, reportTo),
+            CancellationToken.None);
+
+        result.Data!.PeriodComparison!.CurrentProcurementCost.Should().Be(300_000m);
+    }
+
+    [Fact]
     public async Task ProcurementReport_ShouldUseQuantityWeightedHistoricalBasePrice()
     {
         var cutoff = new DateTime(2026, 1, 31);
@@ -314,6 +436,62 @@ public class ReportQueryHandlerTests
             Status = status,
             CreatedAt = createdAt
         };
+
+    private static PurchaseOrder PurchaseOrderWithItem(
+        long id,
+        string number,
+        decimal amount,
+        DateTime? orderDate = null)
+    {
+        var po = new PurchaseOrder
+        {
+            POId = id,
+            ProjectId = ProjectId,
+            PONumber = number,
+            Status = PurchaseOrderStatus.FullyReceived,
+            OrderDate = orderDate ?? new DateTime(2026, 1, 10),
+            TotalAmount = amount
+        };
+        po.Items.Add(new PurchaseOrderItem
+        {
+            POItemId = id,
+            POId = id,
+            PurchaseOrder = po,
+            MaterialId = MaterialId,
+            Quantity = 1m,
+            ConversionRate = 1m,
+            UnitPrice = amount,
+            LineTotal = amount
+        });
+        return po;
+    }
+
+    private static DirectPurchaseRequest DirectPurchase(
+        long id,
+        PurchaseOrder autoPo,
+        string status)
+    {
+        var directPurchase = new DirectPurchaseRequest
+        {
+            DirectPurchaseId = id,
+            ProjectId = ProjectId,
+            AutoPOId = autoPo.POId,
+            Status = status,
+            PurchaseDate = autoPo.OrderDate,
+            TotalAmount = autoPo.TotalAmount
+        };
+        directPurchase.Items.Add(new DirectPurchaseItem
+        {
+            DirectPurchaseItemId = id,
+            DirectPurchaseId = id,
+            MaterialId = MaterialId,
+            Quantity = 1m,
+            ConversionRate = 1m,
+            UnitPrice = autoPo.TotalAmount,
+            LineTotal = autoPo.TotalAmount
+        });
+        return directPurchase;
+    }
 
     private static IProjectAccessService AccessibleProjects()
     {

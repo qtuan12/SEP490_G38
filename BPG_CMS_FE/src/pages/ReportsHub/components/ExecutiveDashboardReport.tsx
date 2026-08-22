@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight, ShieldAlert, Layers, FileText } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight, ShieldAlert, Layers } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ExecutiveDashboardDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { formatPlainDate } from '../../../utils/dateHelpers';
-import { ConsolidatedReportModal } from './ConsolidatedReportModal';
 
 interface Props {
   projectId: number | null;
@@ -17,7 +16,6 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
   const [execDashboard, setExecDashboard] = useState<ExecutiveDashboardDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showConsolidatedReport, setShowConsolidatedReport] = useState(false);
   const [filterWarning, setFilterWarning] = useState<'All' | 'Red' | 'Yellow'>('All');
   const [filterPhase, setFilterPhase] = useState<string>('All');
   const navigate = useNavigate();
@@ -100,15 +98,6 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setShowConsolidatedReport(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors cursor-pointer"
-        >
-          <FileText size={16} /> Xem / In báo cáo tổng hợp
-        </button>
-      </div>
       {/* Top Metric Cards Row with Period-over-Period Badges */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
@@ -344,14 +333,6 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
             </div>
           )}
         </div>
-      )}
-      {showConsolidatedReport && (
-        <ConsolidatedReportModal
-          projectId={projectId}
-          fromDate={fromDate}
-          toDate={toDate}
-          onClose={() => setShowConsolidatedReport(false)}
-        />
       )}
     </div>
   );

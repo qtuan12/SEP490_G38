@@ -4,8 +4,9 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
+import { SearchSelect } from '../../../components/ui/SearchSelect';
 import { incidentService } from '../../../services/incidentService';
-import { UploadCloud, X, Package, Plus, Trash2, Search, Loader2 } from 'lucide-react';
+import { UploadCloud, X, Plus, Trash2, Loader2, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { LazyImage } from '../../../utils/imageOptimizer';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
@@ -82,8 +83,6 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   const [damagedMaterials, setDamagedMaterials] = useState<DamagedMaterial[]>([]);
   const [inventoryItems, setInventoryItems] = useState<IncidentMaterialOption[]>([]);
   const [loadingBOQ, setLoadingBOQ] = useState(false);
-  const [showMaterialSelector, setShowMaterialSelector] = useState(false);
-  const [searchMaterial, setSearchMaterial] = useState('');
 
   React.useEffect(() => {
     if (isOpen && phaseId) {
@@ -208,9 +207,15 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       return;
     }
 
+    const unselectedItem = damagedMaterials.find(m => !m.materialId || m.materialId === 0);
+    if (unselectedItem) {
+      toast.error('Vui lòng chọn vật tư cho tất cả các dòng.');
+      return;
+    }
+
     const emptyItem = damagedMaterials.find(m => !m.quantityLost || isNaN(m.quantityLost) || m.quantityLost <= 0);
     if (emptyItem) {
-      toast.error(`Vui lòng nhập SL > 0 cho vật tư "${emptyItem.materialName}".`);
+      toast.error(`Vui lòng nhập SL > 0 cho vật tư "${emptyItem.materialName || 'đã chọn'}".`);
       return;
     }
 
@@ -246,6 +251,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   };
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) addImages(Array.from(e.target.files));
+    e.target.value = '';
   };
   const addImages = (files: File[]) => {
     const remaining = 5 - uploadedFiles.length;
@@ -263,7 +269,8 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
         id: tempId,
         name: file.name,
         url: localUrl,
-        status: 'uploading'
+        status: 'uploading',
+        file,
       };
 
       setUploadedFiles(prev => [...prev, newFileState]);
@@ -285,6 +292,32 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
       );
     });
   };
+
+  const retryUpload = (id: string) => {
+    const target = uploadedFiles.find(f => f.id === id);
+    if (!target || !target.file) return;
+
+    setUploadedFiles(prev =>
+      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+    );
+
+    compressAndUploadFile(
+      target.file,
+      'incidents',
+      (uploadedUrl) => {
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
+        );
+      },
+      () => {
+        toast.error(`Không thể tải ảnh ${target.name} lên.`);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+        );
+      }
+    );
+  };
+
   const removeImage = (id: string) => {
     setUploadedFiles(prev => {
       const target = prev.find(f => f.id === id);
@@ -295,30 +328,71 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
     });
   };
 
+  const handleAddMaterialRow = () => {
+    setDamagedMaterials(prev => [
+      ...prev,
+      {
+        materialId: 0,
+        materialCode: '',
+        materialName: '',
+        unitId: 0,
+        unitName: '',
+        conversionRate: 1,
+        stockQuantity: 0,
+        isInPhaseBoq: false,
+        rawQuantity: '',
+        quantityLost: 0,
+      }
+    ]);
+  };
+
+  const handleSelectMaterial = (idx: number, selectedIdStr: string) => {
+    const selectedId = Number(selectedIdStr);
+    const found = inventoryItems.find(it => it.materialId === selectedId);
+    if (!found) return;
+
+    setDamagedMaterials(prev => {
+      const updated = [...prev];
+      updated[idx] = {
+        ...found,
+        rawQuantity: updated[idx]?.rawQuantity || '',
+        quantityLost: updated[idx]?.quantityLost || 0,
+      };
+      return updated;
+    });
+  };
+
+  const handleQuantityChange = (idx: number, raw: string) => {
+    const num = parseFloat(raw);
+    setDamagedMaterials(prev => {
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        rawQuantity: raw,
+        quantityLost: isNaN(num) ? 0 : num,
+      };
+      return updated;
+    });
+  };
+
+  const handleRemoveMaterialRow = (idx: number) => {
+    setDamagedMaterials(prev => prev.filter((_, i) => i !== idx));
+  };
+
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho " width="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho" width="full" maxWidth="1180px">
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '10px 14px',
-        borderRadius: '8px',
-        background: 'hsl(210, 100%, 97%)',
-        border: '1px solid hsl(210, 70%, 75%)',
-        marginBottom: '16px',
-      }}>
-        <Package size={18} color="hsl(210, 70%, 45%)" />
-        <div>
-          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'hsl(210, 70%, 45%)' }}>Sự cố Vật tư Kho</div>
-          <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>Mất mát, hư hỏng khi chưa xuất dùng  - Giai đoạn: {phaseName}</div>
-        </div>
+      <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100 mb-4 flex items-center justify-between">
+        <span>Giai đoạn: <strong>{phaseName}</strong></span>
+        <span className="text-xs font-semibold text-blue-600 bg-blue-100/70 px-2 py-0.5 rounded">Sự cố Vật tư Kho</span>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ minHeight: '510px' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[4.2fr_5.8fr] gap-6" style={{ minHeight: '480px' }}>
+          
+          {/* ── PHẦN 1: THÔNG TIN SỰ CỐ ────────────────────────── */}
           <div className="flex flex-col gap-3">
             <h4 style={{ margin: '0 0 4px 0', fontSize: '0.82rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Phần 1: Thông tin Sự cố
@@ -328,7 +402,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
                   Loại sự cố vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
                 </label>
-                <select className="input" {...register('incidentType')}>
+                <select className="input mt-1" {...register('incidentType')}>
                   <option value="InventoryLoss">Mất mát vật tư</option>
                   <option value="InventoryDamage">Hư hỏng vật tư</option>
                 </select>
@@ -341,7 +415,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 </label>
                 <textarea
                   id="report-desc"
-                  className="input"
+                  className="input mt-1"
                   placeholder="Mô tả vật tư bị mất/hư hỏng, số lượng ước tính, điều kiện phát hiện..."
                   {...register('description')}
                   rows={3}
@@ -356,7 +430,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 </label>
                 <input
                   type="datetime-local"
-                  className="input"
+                  className="input mt-1"
                   max={getLocalISOString()}
                   {...register('incidentDate')}
                 />
@@ -365,221 +439,260 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
 
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                  Hình ảnh / Biên bản kiểm kê (Tối đa 5 ảnh)
+                  Hình ảnh hiện trường (Tối đa 5 ảnh)
                 </label>
                 <div
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={() => { if (uploadedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
-                  style={{
-                    border: `2px dashed ${dragging ? 'hsl(210, 70%, 45%)' : 'hsl(var(--border))'}`,
-                    borderRadius: '8px',
-                    padding: '16px',
-                    textAlign: 'center',
-                    cursor: uploadedFiles.length >= 5 ? 'not-allowed' : 'pointer',
-                    background: dragging ? 'hsl(210, 100%, 97%)' : 'hsl(var(--bg-card))',
-                    opacity: uploadedFiles.length >= 5 ? 0.6 : 1,
-                    transition: 'all 0.2s',
-                  }}
+                  onClick={() => { if (uploadedFiles.length < 5) document.getElementById('inventory-incident-img-input')?.click(); }}
+                  className={`mt-1 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
+                    dragging
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100/80'
+                  } ${uploadedFiles.length >= 5 ? 'cursor-not-allowed opacity-90' : ''}`}
+                  style={{ padding: uploadedFiles.length > 0 ? '16px' : '24px' }}
                 >
-                  <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={uploadedFiles.length >= 5} />
-                  <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
-                  <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
-                    Kéo thả hoặc click để chọn ảnh
-                  </p>
-                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {uploadedFiles.length}/5 ảnh</span>
-                </div>
-                {uploadedFiles.length > 0 && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                    {uploadedFiles.map((file) => (
-                      <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
-                        <LazyImage src={file.url} alt={file.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <input
+                    id="inventory-incident-img-input"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    disabled={uploadedFiles.length >= 5}
+                  />
 
-                        {file.status === 'uploading' && (
-                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Loader2 size={12} className="animate-spin" style={{ color: '#fff' }} />
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); removeImage(file.id); }}
-                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}
-                        >
-                          <X size={10} color="white" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.82rem', fontWeight: 700, color: 'hsl(var(--primary))', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Phần 2: Đánh giá Thiệt hại & Đề xuất
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-              <div style={{ border: '1px solid hsl(var(--border))', borderRadius: '8px', padding: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                    Danh sách vật tư thiệt hại
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowMaterialSelector(!showMaterialSelector)}
-                    className="btn btn-secondary"
-                    style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <Plus size={14} /> Thêm vật tư
-                  </button>
-                </div>
-
-                {showMaterialSelector && (
-                  <div style={{ padding: '10px', background: 'hsl(var(--bg-muted))', borderRadius: '6px', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                      <div className="relative flex-1">
-                        <Search size={14} className="absolute left-2.5 top-2.5 text-[hsl(var(--text-muted))]" />
-                        <input
-                          type="text"
-                          placeholder="Tìm vật tư theo mã hoặc tên..."
-                          className="input"
-                          style={{ paddingLeft: '32px', fontSize: '0.8rem' }}
-                          value={searchMaterial}
-                          onChange={e => setSearchMaterial(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid hsl(var(--border))', borderRadius: '4px', background: 'hsl(var(--bg-card))' }}>
-                      {loadingBOQ ? (
-                        <div style={{ padding: '10px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
-                          <Loader2 size={14} className="animate-spin inline mr-1" />Đang tải danh sách vật tư ...
-                        </div>
-                      ) : inventoryItems.filter(item =>
-                        item.materialCode.toLowerCase().includes(searchMaterial.toLowerCase()) ||
-                        item.materialName.toLowerCase().includes(searchMaterial.toLowerCase())
-                      ).slice(0, 20).map(item => (
-                        <div key={item.materialId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderBottom: '1px solid hsl(var(--border))', fontSize: '0.8rem' }}>
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{item.materialCode} - {item.materialName}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
-                              {item.isInPhaseBoq
-                                ? `BOQ giai đoạn: ${formatQuantity(item.phaseBoqQuantity ?? 0)} ${item.unitName}`
-                                : 'Vật tư ngoài BOQ giai đoạn'}
-                              {' · '}Tồn khả dụng: <span style={{ color: 'hsl(var(--primary))', fontWeight: 600 }}>{formatQuantity(item.stockQuantity)} {item.unitName}</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="text-[hsl(var(--primary))] hover:underline"
-                            style={{ fontSize: '0.75rem', fontWeight: 600 }}
-                            onClick={() => {
-                              if (!damagedMaterials.find(m => m.materialId === item.materialId)) {
-                                setDamagedMaterials([...damagedMaterials, { ...item, rawQuantity: '', quantityLost: 0 }]);
-                              }
-                            }}
+                  {uploadedFiles.length > 0 ? (
+                    <div>
+                      <div
+                        className="flex flex-wrap items-center justify-center gap-3 my-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {uploadedFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className={`relative w-16 h-16 rounded shadow-sm border overflow-hidden group ${
+                              file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'
+                            }`}
                           >
-                            Chọn
-                          </button>
+                            <LazyImage src={file.url} alt={file.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                            {file.status === 'uploading' && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <Loader2 size={14} className="animate-spin text-white" />
+                              </div>
+                            )}
+
+                            {file.status === 'error' && (
+                              <>
+                                <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    retryUpload(file.id);
+                                  }}
+                                  className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                                  title="Thử lại upload"
+                                >
+                                  <RotateCcw size={10} />
+                                </button>
+                              </>
+                            )}
+
+                            {file.status === 'success' && (
+                              <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeImage(file.id);
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                              title="Xóa ảnh"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {uploadedFiles.length < 5 ? (
+                        <div className="mt-3 text-xs text-blue-600 font-semibold">
+                          <span
+                            className="cursor-pointer hover:underline"
+                            onClick={() => document.getElementById('inventory-incident-img-input')?.click()}
+                          >
+                            + Thêm ảnh khác (Đã chọn {uploadedFiles.length}/5 ảnh)
+                          </span>
                         </div>
-                      ))}
-                      {!loadingBOQ && inventoryItems.length === 0 && (
-                        <div style={{ padding: '10px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>
-                          Dự án không có vật tư nào còn tồn khả dụng.
+                      ) : (
+                        <div className="mt-3 text-xs text-slate-500 font-medium">
+                          Đã đạt tối đa 5/5 ảnh
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-
-                {damagedMaterials.length > 0 ? (
-                  <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                      <thead style={{ textAlign: 'left' }}>
-                        <tr>
-                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>Vật tư</th>
-                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))' }}>SL Lỗi/Mất</th>
-                          <th style={{ position: 'sticky', top: 0, zIndex: 1, padding: '8px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-muted))', width: '40px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {damagedMaterials.map((m, idx) => {
-                          const isDiscrete = isDiscreteUnit(m.unitName);
-                          return (
-                            <tr key={m.materialId}>
-                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                                <div style={{ fontWeight: 600 }}>{m.materialCode}</div>
-                                <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>{m.materialName}</div>
-                              </td>
-                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step={isDiscrete ? "1" : "any"}
-                                      placeholder="Nhập SL..."
-                                      className="input"
-                                      style={{
-                                        width: '90px',
-                                        padding: '4px 8px',
-                                        borderColor: (
-                                          (m.quantityLost > m.stockQuantity) ||
-                                          (isDiscrete && m.quantityLost > 0 && m.quantityLost % 1 !== 0)
-                                        ) ? '#dc2626' : undefined
-                                      }}
-                                      value={m.rawQuantity !== undefined ? m.rawQuantity : (m.quantityLost ? String(m.quantityLost) : '')}
-                                      onChange={e => {
-                                        const raw = e.target.value;
-                                        const num = parseFloat(raw);
-                                        const newArr = [...damagedMaterials];
-                                        newArr[idx] = {
-                                          ...newArr[idx],
-                                          rawQuantity: raw,
-                                          quantityLost: isNaN(num) ? 0 : num
-                                        };
-                                        setDamagedMaterials(newArr);
-                                      }}
-                                    />
-                                    <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-secondary))' }}>{m.unitName}</span>
-                                  </div>
-                                  {m.quantityLost > 0 && isDiscrete && m.quantityLost % 1 !== 0 && (
-                                    <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Đơn vị '{m.unitName}' phải là số nguyên</span>
-                                  )}
-                                  {m.quantityLost > m.stockQuantity && (
-                                    <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>Vượt tồn kho ({formatQuantity(m.stockQuantity)} {m.unitName})</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td style={{ padding: '8px', borderBottom: '1px solid hsl(var(--border))', textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setDamagedMaterials(damagedMaterials.filter((_, i) => i !== idx))}
-                                  style={{ color: 'hsl(var(--danger))', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div style={{ padding: '16px', textAlign: 'center', fontSize: '0.8rem', color: 'hsl(var(--text-muted))', border: '1px dashed hsl(var(--border))', borderRadius: '6px' }}>
-                    Chưa có vật tư nào được chọn.
-                  </div>
-                )}
+                  ) : (
+                    <div>
+                      <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-slate-600 mb-0.5">
+                        Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
+                      </p>
+                      <span className="text-xs text-slate-400">
+                        Hỗ trợ tối đa 5 ảnh, dung lượng tối đa 10MB/ảnh
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
+
+          {/* ── PHẦN 2: DANH SÁCH VẬT TƯ THIỆT HẠI ──────────────── */}
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm font-medium text-slate-700">
+                Danh sách vật tư thiệt hại <span className="text-red-500">*</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleAddMaterialRow}
+                disabled={loadingBOQ || (inventoryItems.length > 0 && damagedMaterials.length >= inventoryItems.length)}
+                className="btn btn-secondary py-1 px-2.5 text-xs flex items-center gap-1"
+              >
+                <Plus size={14} /><span>Thêm vật tư</span>
+              </button>
+            </div>
+
+            {loadingBOQ ? (
+              <div className="p-8 text-center text-sm text-slate-400 bg-slate-50 rounded-lg border border-slate-200">
+                <Loader2 size={18} className="animate-spin inline mr-2 text-blue-500" />
+                Đang tải danh sách vật tư từ kho và BOQ...
+              </div>
+            ) : damagedMaterials.length > 0 ? (
+              <div className="flex flex-col gap-3 max-h-[440px] overflow-y-auto pr-1">
+                {damagedMaterials.map((m, idx) => {
+                  const isDiscrete = m.unitName ? isDiscreteUnit(m.unitName) : false;
+                  const isOverStock = m.materialId > 0 && m.quantityLost > m.stockQuantity;
+                  const isDiscreteError = m.materialId > 0 && isDiscrete && m.quantityLost > 0 && m.quantityLost % 1 !== 0;
+
+                  const availableOptions = inventoryItems.filter(
+                    inv => inv.materialId === m.materialId || !damagedMaterials.some((d, dIdx) => d.materialId === inv.materialId && dIdx !== idx)
+                  );
+
+                  return (
+                    <div key={idx} className="flex flex-col gap-2.5 p-3.5 bg-slate-50/60 border border-slate-200 rounded-lg shadow-sm">
+                      <div className="grid grid-cols-[1fr_105px_95px_auto] gap-2 items-start">
+                        {/* Material Selection */}
+                        <div className="min-w-0">
+                          <SearchSelect
+                            options={availableOptions.map(inv => ({
+                              label: inv.materialName,
+                              value: String(inv.materialId),
+                              sublabel: `Mã: ${inv.materialCode} · Tồn: ${formatQuantity(inv.stockQuantity)} ${inv.unitName}${inv.isInPhaseBoq ? ` · BOQ: ${formatQuantity(inv.phaseBoqQuantity ?? 0)} ${inv.unitName}` : ''}`
+                            }))}
+                            value={m.materialId ? String(m.materialId) : ''}
+                            onChange={(val) => handleSelectMaterial(idx, val)}
+                            placeholder="-- Chọn vật tư --"
+                            error={!m.materialId}
+                          />
+                          {!m.materialId && <p className="text-red-500 text-xs mt-1">Vui lòng chọn vật tư</p>}
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="min-w-0">
+                          <input
+                            type="number"
+                            min={isDiscrete ? 1 : 0.01}
+                            step={isDiscrete ? "1" : "any"}
+                            placeholder="SL"
+                            value={m.rawQuantity !== undefined ? m.rawQuantity : (m.quantityLost ? String(m.quantityLost) : '')}
+                            onChange={e => handleQuantityChange(idx, e.target.value)}
+                            disabled={!m.materialId}
+                            className={`w-full text-sm px-3 py-2 rounded-md border ${
+                              isOverStock || isDiscreteError ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-200'
+                            } bg-white text-slate-900 focus:outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:cursor-not-allowed text-center font-medium`}
+                          />
+                          {isOverStock && <p className="text-red-500 text-[11px] mt-1 font-medium">Vượt tồn kho</p>}
+                          {isDiscreteError && <p className="text-red-500 text-[11px] mt-1 font-medium">Phải là số nguyên</p>}
+                        </div>
+
+                        {/* Unit */}
+                        <div className="min-w-0">
+                          <select
+                            disabled
+                            className="w-full text-sm px-2.5 py-2 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none cursor-default font-medium text-center"
+                            value={m.unitName || ''}
+                          >
+                            <option value={m.unitName || ''}>{m.unitName ? m.unitName : '-- ĐVT --'}</option>
+                          </select>
+                        </div>
+
+                        {/* Delete Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMaterialRow(idx)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-md transition-colors shrink-0"
+                          title="Xóa vật tư"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+
+                      {/* Bottom Info Bar matching CreateMaterialRequestModal */}
+                      {m.materialId > 0 && (
+                        <div className="flex items-center justify-between text-xs px-3 py-2 bg-white border border-slate-100 rounded-md shadow-sm">
+                          <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                            <span>Tồn khả dụng:</span>
+                            <strong className="text-slate-800 font-semibold">{formatQuantity(m.stockQuantity)} {m.unitName}</strong>
+                            {m.isInPhaseBoq && (
+                              <>
+                                <span className="text-slate-300">|</span>
+                                <span>Định mức BOQ:</span>
+                                <strong className="text-slate-700 font-semibold">{formatQuantity(m.phaseBoqQuantity ?? 0)} {m.unitName}</strong>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 font-medium">
+                            <span>Trạng thái:</span>
+                            {isOverStock ? (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700">
+                                Vượt tồn kho
+                              </span>
+                            ) : isDiscreteError ? (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-700">
+                                Cần số nguyên
+                              </span>
+                            ) : m.quantityLost > 0 ? (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700">
+                                Trong định mức
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500">
+                                Chưa nhập SL
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-8 text-center text-sm text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200 italic">
+                {inventoryItems.length === 0
+                  ? 'Dự án không có vật tư nào còn tồn khả dụng.'
+                  : 'Chưa có vật tư nào được chọn. Bấm "+ Thêm vật tư" để bắt đầu.'}
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* ── FOOTER ACTIONS ──────────────────────────────────── */}
         <div className="flex justify-end gap-3 mt-2 pt-4 border-t border-[hsl(var(--border))]">
           <button type="button" className="btn btn-secondary" onClick={onClose} disabled={mutation.isPending}>Hủy</button>
           <button
