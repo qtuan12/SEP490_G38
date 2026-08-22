@@ -541,6 +541,60 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
+        // Thông báo cho kỹ sư được phân công và Leader khi tiến độ bị giảm do sự cố
+        if (taskIdWithProgressDecrease.HasValue && incident.Task != null)
+        {
+            var affectedTask = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .Include(t => t.Assignees)
+                .Include(t => t.Phase)
+                .FirstOrDefaultAsync(t => t.TaskId == taskIdWithProgressDecrease.Value, cancellationToken);
+
+            if (affectedTask != null)
+            {
+                var decreasedTo = affectedTask.ProgressPercent;
+                var decreaseReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
+                    ? request.DecreaseProgressReason
+                    : incident.Description;
+                var notifyContent = $"Tiến độ công việc \"{affectedTask.Name}\" đã bị điều chỉnh giảm xuống {decreasedTo}% do xử lý sự cố: {decreaseReason}.";
+                const string notifyTitle = "Tiến độ công việc bị giảm do xử lý sự cố";
+
+                // Thông báo cho các kỹ sư được phân công
+                foreach (var assignee in affectedTask.Assignees)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        assignee.UserId,
+                        notifyTitle,
+                        notifyContent,
+                        NotificationType.Progress,
+                        NotificationReferenceType.Task,
+                        affectedTask.TaskId,
+                        cancellationToken);
+                }
+
+                // Thông báo cho Project Leader (nếu khác người thực hiện)
+                if (affectedTask.Phase != null)
+                {
+                    var projectLeaders = await _unitOfWork.Repository<ProjectMember>()
+                        .Query()
+                        .Where(pm => pm.ProjectId == affectedTask.Phase.ProjectId && pm.IsLeader && pm.UserId != currentUserId)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var leader in projectLeaders)
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            leader.UserId,
+                            notifyTitle,
+                            notifyContent,
+                            NotificationType.Progress,
+                            NotificationReferenceType.Task,
+                            affectedTask.TaskId,
+                            cancellationToken);
+                    }
+                }
+            }
+        }
+
         // Map and return
         var updatedIncident = await _unitOfWork.Repository<Incident>()
             .Query()

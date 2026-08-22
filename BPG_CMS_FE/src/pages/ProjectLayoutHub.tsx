@@ -210,8 +210,13 @@ export const ProjectLayoutHub: React.FC = () => {
     } catch (err: any) {
       console.error('Error loading project details:', err);
       if (requestId === projectFetchRequestId.current) {
-        setProjectError(err?.response?.data?.message || err?.message || 'Bạn không có quyền truy cập vào dự án này.');
-        setProject(null);
+        if (err?.status === 403 || err?.status === 404 || err?.message?.includes('quyền')) {
+          setProjectError(err?.response?.data?.message || err?.message || 'Bạn không có quyền truy cập vào dự án này.');
+          setProject(null);
+        } else {
+          // Do not clear the project for transient errors like 500 or 429
+          console.warn('Transient error loading project details, keeping old data', err);
+        }
       }
     } finally {
       if (requestId === projectFetchRequestId.current) setLoading(false);
@@ -933,7 +938,7 @@ export const ProjectLayoutHub: React.FC = () => {
         {activeTab === 'wbs' && <WBSWorkspace projectId={project.id} />}
         {activeTab === 'logs' && <DailyLogFeed projectId={project.id} />}
         {activeTab === 'materialrequests' && <ProjectMaterialRequestsTab projectId={Number(project.id)} />}
-        {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} />}
+        {activeTab === 'inventory' && <InventoryWorkspace projectId={Number(project.id)} projectStatus={project.status} />}
         {activeTab === 'inventoryadjustments' && <AdjustmentList projectId={Number(project.id)} />}
         {activeTab === 'surplus' && <SurplusWorkspace projectId={Number(project.id)} projectName={project.name} />}
         {activeTab === 'incidents' && <ProjectIncidents projectId={project.id} projectName={project.name} />}
