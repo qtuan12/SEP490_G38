@@ -6,8 +6,8 @@ import { reportService, type ProcurementReportDto } from '../../../services/repo
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { formatDateOnly, formatPlainDate } from '../../../utils/dateHelpers';
 import { getPOSupplierDisplayName } from '../../../utils/purchaseOrderHelpers';
-import { getNearestAvailableYear } from '../../../utils/reportYearHelpers';
 import { formatNumber } from '../../../utils/formatNumber';
+import { getPreferredReportYear } from '../../../utils/reportYearHelpers';
 
 interface Props {
   projectId: string | null;
@@ -96,12 +96,11 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
           fromDate: requestIdentity.fromDate,
           toDate: requestIdentity.toDate,
         });
-        if (requestId !== requestIdRef.current) return;
         setLoadState({ requestIdentity, data: report, allProjectsData: [], error: null });
-        setSelectedYear(year => getNearestAvailableYear(
-          year,
-          (report.monthlyTrends || []).map(trend => trend.year),
-        ) ?? year);
+        setSelectedYear(getPreferredReportYear(
+          report.monthlyTrends || [],
+          trend => (trend.poCostVnd || 0) > 0 || (trend.directPurchaseCostVnd || 0) > 0,
+        ));
       } catch (err) {
         if (requestId !== requestIdRef.current) return;
         console.error('Error fetching procurement report', err);
@@ -153,7 +152,15 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={allProjectsData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-35} textAnchor="end" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 11 }} 
+                    interval={0} 
+                    angle={-30} 
+                    textAnchor="end" 
+                    height={70}
+                    tickFormatter={(v: string) => (v && v.length > 22 ? `${v.slice(0, 20)}...` : v)}
+                  />
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
                   <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend verticalAlign="top" height={36} />
@@ -228,8 +235,12 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
 
       {/* Monthly Procurement & Expense Trend Chart */}
       {(data.monthlyTrends || []).length > 0 && (() => {
-        const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year))).sort((a, b) => b - a);
-        const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === selectedYear);
+        const hasAnyDataYear = (data.monthlyTrends || []).some(t => (t.poCostVnd || 0) > 0 || (t.directPurchaseCostVnd || 0) > 0);
+        const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year)))
+          .filter(y => !hasAnyDataYear || (data.monthlyTrends || []).some(t => t.year === y && ((t.poCostVnd || 0) > 0 || (t.directPurchaseCostVnd || 0) > 0)))
+          .sort((a, b) => b - a);
+        const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
+        const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === activeYear);
 
         return (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">

@@ -124,35 +124,6 @@ public record BoqVsActualItemDto
 }
 
 // ============================================================
-// Inventory Movement & Reconciliation Report
-// ============================================================
-
-public record InventoryMovementReportDto
-{
-    public long ProjectId { get; init; }
-    public DateTime? FromDate { get; init; }
-    public DateTime? ToDate { get; init; }
-    public int TotalMaterials { get; init; }
-    public List<InventoryMovementItemDto> Items { get; init; } = new();
-}
-
-public record InventoryMovementItemDto
-{
-    public long MaterialId { get; init; }
-    public string MaterialCode { get; init; } = string.Empty;
-    public string MaterialName { get; init; } = string.Empty;
-    public string UnitName { get; init; } = string.Empty;
-    public decimal OpeningBalance { get; init; }
-    public decimal TotalReceived { get; init; }
-    public decimal TotalIssued { get; init; }
-    public decimal TotalReturned { get; init; }
-    public decimal TotalTransferredIn { get; init; }
-    public decimal TotalTransferredOut { get; init; }
-    public decimal TotalAdjustments { get; init; }
-    public decimal ClosingBalance { get; init; }
-}
-
-// ============================================================
 // Cost Reference (legacy - kept for backward compatibility)
 // ============================================================
 
@@ -274,42 +245,6 @@ public record IncidentSummaryDto
     public bool HasReworkTask { get; init; }
     public long? ReworkTaskId { get; init; }
     public string? ReworkTaskName { get; init; }
-    public DateTime CreatedAt { get; init; }
-}
-
-// ============================================================
-// Inventory Ledger Report
-// ============================================================
-
-public record InventoryLedgerReportDto
-{
-    public long ProjectId { get; init; }
-    public int TotalMaterialTypes { get; init; }
-    public int ZeroStockCount { get; init; }
-    public List<CurrentInventorySummaryDto> CurrentStock { get; init; } = new();
-    public List<InventoryTransactionSummaryDto> Transactions { get; init; } = new();
-}
-
-public record CurrentInventorySummaryDto
-{
-    public long MaterialId { get; init; }
-    public string MaterialCode { get; init; } = string.Empty;
-    public string MaterialName { get; init; } = string.Empty;
-    public string UnitName { get; init; } = string.Empty;
-    public decimal CurrentQuantity { get; init; }
-}
-
-public record InventoryTransactionSummaryDto
-{
-    public long TransactionId { get; init; }
-    public long MaterialId { get; init; }
-    public string MaterialCode { get; init; } = string.Empty;
-    public string MaterialName { get; init; } = string.Empty;
-    public string UnitName { get; init; } = string.Empty;
-    public string ReferenceType { get; init; } = string.Empty;
-    public decimal QuantityChange { get; init; }
-    public decimal BalanceAfter { get; init; }
-    public string? CreatedByName { get; init; }
     public DateTime CreatedAt { get; init; }
 }
 

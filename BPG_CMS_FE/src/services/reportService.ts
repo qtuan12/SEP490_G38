@@ -242,6 +242,11 @@ export interface MonthlyProgressTrendDto {
   monthLabel: string;
   completedTasksCount: number;
   accumulatedProgressPercent: number;
+  plannedProgressPercent?: number;
+  actualProgressPercent?: number;
+  plannedMonthlyVolume?: number;
+  actualMonthlyVolume?: number;
+  isFuture?: boolean;
 }
 
 export interface MonthlyProcurementTrendDto {
@@ -305,38 +310,6 @@ export interface IncidentReportDto {
 }
 
 // ============================================================
-// Inventory Ledger Report
-// ============================================================
-export interface CurrentInventorySummaryDto {
-  materialId: number;
-  materialCode: string;
-  materialName: string;
-  unitName: string;
-  currentQuantity: number;
-}
-
-export interface InventoryTransactionSummaryDto {
-  transactionId: number;
-  materialId: number;
-  materialCode: string;
-  materialName: string;
-  unitName: string;
-  referenceType: string;
-  quantityChange: number;
-  balanceAfter: number;
-  createdByName?: string;
-  createdAt: string;
-}
-
-export interface InventoryLedgerReportDto {
-  projectId: number;
-  totalMaterialTypes: number;
-  zeroStockCount: number;
-  currentStock: CurrentInventorySummaryDto[];
-  transactions: InventoryTransactionSummaryDto[];
-}
-
-// ============================================================
 // Procurement Report
 // ============================================================
 export interface PurchaseOrderSummaryDto {
@@ -368,32 +341,6 @@ export interface ProcurementReportDto {
   purchaseOrders: PurchaseOrderSummaryDto[];
   directPurchases: DirectPurchaseSummaryDto[];
   monthlyTrends?: MonthlyProcurementTrendDto[];
-}
-
-// ============================================================
-// Inventory Movement & Reconciliation Report
-// ============================================================
-export interface InventoryMovementItemDto {
-  materialId: number;
-  materialCode: string;
-  materialName: string;
-  unitName: string;
-  openingBalance: number;
-  totalReceived: number;
-  totalIssued: number;
-  totalReturned: number;
-  totalTransferredIn: number;
-  totalTransferredOut: number;
-  totalAdjustments: number;
-  closingBalance: number;
-}
-
-export interface InventoryMovementReportDto {
-  projectId: number;
-  fromDate?: string;
-  toDate?: string;
-  totalMaterials: number;
-  items: InventoryMovementItemDto[];
 }
 
 // ============================================================
@@ -589,16 +536,6 @@ export const reportService = {
 
   async getIncidentReport(projectId: number, params?: ReportFilterParams): Promise<IncidentReportDto> {
     const response = await apiClient.get<ApiResponse<IncidentReportDto>>(`/reports/project/${projectId}/incidents`, { params });
-    return response.data;
-  },
-
-  async getInventoryMovement(projectId: number, params?: ReportFilterParams): Promise<InventoryMovementReportDto> {
-    const response = await apiClient.get<ApiResponse<InventoryMovementReportDto>>(`/reports/project/${projectId}/inventory-movement`, { params });
-    return response.data;
-  },
-
-  async getInventoryLedger(projectId: number): Promise<InventoryLedgerReportDto> {
-    const response = await apiClient.get<ApiResponse<InventoryLedgerReportDto>>(`/reports/project/${projectId}/inventory-ledger`);
     return response.data;
   },
 

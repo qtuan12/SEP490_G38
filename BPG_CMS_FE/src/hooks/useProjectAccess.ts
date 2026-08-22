@@ -59,6 +59,6 @@ export const useProjectAccess = (
     canManageAccounting: isProjectActive && hasAnyRole(RoleGroup.Accounting),
     canManageInventory: isProjectActive && hasAnyRole(RoleGroup.Inventory),
     canApprove: isProjectActive && hasAnyRole(RoleGroup.Approval),
-    canViewReports: hasAnyRole(RoleGroup.Reports) || isProjectMember,
+    canViewReports: hasAnyRole(RoleGroup.Reports),
   };
 };
