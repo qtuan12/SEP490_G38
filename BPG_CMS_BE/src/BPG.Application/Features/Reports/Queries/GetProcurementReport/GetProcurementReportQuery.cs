@@ -168,7 +168,7 @@ public class GetProcurementReportQueryHandler
         DateTime startMonth;
         DateTime endMonth;
 
-        var project = request.ProjectId > 0
+        var project = (request.ProjectId > 0 && _unitOfWork.Repository<Project>() != null)
             ? await _unitOfWork.Repository<Project>().GetByIdAsync(request.ProjectId, cancellationToken)
             : null;
         bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
