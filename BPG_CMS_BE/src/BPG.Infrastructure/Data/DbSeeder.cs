@@ -321,7 +321,7 @@ public static class DbSeeder
             new() { ConfigKey = SystemConfigKeys.ExpectedDelayPercent, ConfigValue = "10", DataType = "percentage", DisplayName = "Ngưỡng cảnh báo trễ tiến độ", Description = "Ngưỡng phần trăm chậm so với tiến độ kỳ vọng.", Unit = "%" },
             new() { ConfigKey = SystemConfigKeys.DailyLogEditWindowHours, ConfigValue = "24", DataType = "number", DisplayName = "Thời gian được sửa nhật ký", Description = "Số giờ kể từ lúc tạo mà nhật ký thi công còn được sửa.", Unit = "giờ" },
             new() { ConfigKey = SystemConfigKeys.DirectPurchasePhaseMaxAmount, ConfigValue = "20000000", DataType = "number", DisplayName = "Hạn mức mua trực tiếp mỗi giai đoạn", Description = "Tổng giá trị mua trực tiếp cộng dồn tối đa trong một giai đoạn.", Unit = "VNĐ" },
-            new() { ConfigKey = SystemConfigKeys.CompanyName, ConfigValue = "Công ty TNHH Đầu tư và Xây dựng Bùi Phú Gia", DataType = "string", DisplayName = "Tên công ty", Description = "Tên doanh nghiệp hiển thị trên hệ thống." },
+            new() { ConfigKey = SystemConfigKeys.CompanyName, ConfigValue = "BPG", DataType = "string", DisplayName = "Tên công ty", Description = "Tên doanh nghiệp hiển thị trên hệ thống." },
             new() { ConfigKey = SystemConfigKeys.CompanyLogoUrl, ConfigValue = "", DataType = "string", DisplayName = "Logo công ty", Description = "Để trống để giao diện sử dụng logo/fallback nội bộ." }
         };
 

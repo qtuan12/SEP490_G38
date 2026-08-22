@@ -65,6 +65,25 @@ public static class NotificationType
     public const string Incident = "Incident";
 }
 
+public static class DailyLogSource
+{
+    public const string Manual = "Manual";
+    public const string DirectAdjustment = "DirectAdjustment";
+    public const string IncidentAdjustment = "IncidentAdjustment";
+
+    public const string DirectAdjustmentMarker = "Hệ thống ghi nhận điều chỉnh tiến độ trực tiếp";
+    public const string IncidentAdjustmentMarker = "Hệ thống ghi nhận giảm tiến độ";
+
+    public static string Resolve(string? description)
+    {
+        if (description?.StartsWith(IncidentAdjustmentMarker, StringComparison.Ordinal) == true)
+            return IncidentAdjustment;
+        if (description?.StartsWith(DirectAdjustmentMarker, StringComparison.Ordinal) == true)
+            return DirectAdjustment;
+        return Manual;
+    }
+}
+
 public static class IncidentType
 {
     public const string NgoaiLuc = "NgoaiLuc";   // Nguyên nhân ngoại lực (thiên tai, bên thứ 3...)

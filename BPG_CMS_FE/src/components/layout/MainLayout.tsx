@@ -139,21 +139,21 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         transition-all duration-300 ease-in-out
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className={`flex items-center gap-3 border-b border-[hsl(var(--border))] ${isCollapsed ? 'py-5 justify-center' : 'px-6 py-5 justify-between'}`}>
+        <div className={`flex items-center gap-3 overflow-hidden border-b border-[hsl(var(--border))] ${isCollapsed ? 'py-5 justify-center' : 'px-6 py-5 justify-between'}`}>
           <div
-            className="flex items-center gap-3 justify-center cursor-pointer"
+            className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
             onClick={() => handleNavClick('/dashboard')}
           >
             {!isCollapsed && (
               <img
                 src={companyLogoUrl}
                 alt={`${companyName} Logo`}
-                className="h-10 w-10 object-contain rounded-sm"
+                className="h-10 w-10 object-contain rounded-sm shrink-0"
               />
             )}
             {!isCollapsed && (
-              <div className="overflow-hidden whitespace-nowrap">
-                <h1 className="text-xl font-bold tracking-wider">{companyName}</h1>
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold tracking-wider break-words leading-tight">{companyName}</h1>
                 <span className="text-[11px] text-[hsl(var(--text-muted))] uppercase font-semibold">BPG CMS</span>
               </div>
             )}

@@ -281,6 +281,8 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 var dto = _mapper.Map<DailyLogDto>(log);
                 dto.TaskName = task.Name;
                 dto.CreatorName = creator?.FullName ?? string.Empty;
+                dto.CreatorRole = creator?.UserRoles.FirstOrDefault()?.Role?.RoleName ?? string.Empty;
+                dto.Source = DailyLogSource.Resolve(log.Description);
                 dto.Images = request.Images ?? new List<string>();
                 dto.OldProgressPercent = oldProgress;
 

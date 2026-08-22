@@ -119,6 +119,7 @@ export const TaskDetailSE: React.FC = () => {
     deadline: detail.endDate,
     progress: detail.progressPercent,
     status: detail.status === 'Obsolete' ? 'obsolete' : undefined,
+    hasSubTasks: detail.hasSubTasks,
     history: [],
   };
   const canCreateLog = detail.status !== 'Obsolete'
@@ -137,9 +138,12 @@ export const TaskDetailSE: React.FC = () => {
       <div className="card p-4 flex flex-col gap-3.5">
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-lg font-bold m-0 text-[hsl(var(--text-primary))]">{detail.name}</h2>
-          <Badge variant={STATUS_VARIANT[detail.status] || 'default'} className="shrink-0">
-            {STATUS_LABEL[detail.status] || detail.status}
-          </Badge>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Badge variant={STATUS_VARIANT[detail.status] || 'default'}>
+              {STATUS_LABEL[detail.status] || detail.status}
+            </Badge>
+            {detail.hasSubTasks && <Badge variant="info">Công việc tổng hợp</Badge>}
+          </div>
         </div>
 
         <div>
@@ -172,6 +176,12 @@ export const TaskDetailSE: React.FC = () => {
         {detail.description && (
           <p className="text-sm text-[hsl(var(--text-secondary))] whitespace-pre-wrap m-0 border-t border-[hsl(var(--border)/0.5)] pt-3">
             {detail.description}
+          </p>
+        )}
+
+        {detail.hasSubTasks && (
+          <p className="text-xs text-[hsl(var(--text-muted))] m-0 border-t border-[hsl(var(--border)/0.5)] pt-3">
+            Tiến độ được tổng hợp từ các công việc con.
           </p>
         )}
       </div>

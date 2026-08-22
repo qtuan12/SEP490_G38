@@ -27,6 +27,7 @@ namespace BPG.Application.UnitTests.Phases
         private readonly Mock<IGenericRepository<BOQItem>> _mockBoqRepo;
         private readonly Mock<IGenericRepository<MaterialCatalog>> _mockMaterialRepo;
         private readonly Mock<IGenericRepository<MaterialConversion>> _mockConversionRepo;
+        private readonly Mock<IGenericRepository<BPG.Domain.Entities.Unit>> _mockUnitRepo;
         private readonly Mock<IGenericRepository<MaterialRequestItem>> _mockRequestItemRepo;
         private readonly Mock<IGenericRepository<DirectPurchaseItem>> _mockPurchaseItemRepo;
         private readonly Mock<IGenericRepository<MaterialIssuanceItem>> _mockIssuanceItemRepo;
@@ -48,6 +49,7 @@ namespace BPG.Application.UnitTests.Phases
             _mockBoqRepo = new Mock<IGenericRepository<BOQItem>>();
             _mockMaterialRepo = new Mock<IGenericRepository<MaterialCatalog>>();
             _mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
+            _mockUnitRepo = new Mock<IGenericRepository<BPG.Domain.Entities.Unit>>();
             _mockRequestItemRepo = new Mock<IGenericRepository<MaterialRequestItem>>();
             _mockPurchaseItemRepo = new Mock<IGenericRepository<DirectPurchaseItem>>();
             _mockIssuanceItemRepo = new Mock<IGenericRepository<MaterialIssuanceItem>>();
@@ -58,6 +60,7 @@ namespace BPG.Application.UnitTests.Phases
             _mockUow.Setup(u => u.Repository<BOQItem>()).Returns(_mockBoqRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialCatalog>()).Returns(_mockMaterialRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialConversion>()).Returns(_mockConversionRepo.Object);
+            _mockUow.Setup(u => u.Repository<BPG.Domain.Entities.Unit>()).Returns(_mockUnitRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialRequestItem>()).Returns(_mockRequestItemRepo.Object);
             _mockUow.Setup(u => u.Repository<DirectPurchaseItem>()).Returns(_mockPurchaseItemRepo.Object);
             _mockUow.Setup(u => u.Repository<MaterialIssuanceItem>()).Returns(_mockIssuanceItemRepo.Object);
@@ -90,6 +93,11 @@ namespace BPG.Application.UnitTests.Phases
             _mockPurchaseItemRepo.Setup(r => r.Query()).Returns(new List<DirectPurchaseItem>().AsQueryable().BuildMockDbSet().Object);
             _mockIssuanceItemRepo.Setup(r => r.Query()).Returns(new List<MaterialIssuanceItem>().AsQueryable().BuildMockDbSet().Object);
             _mockConversionRepo.Setup(r => r.Query()).Returns(new List<MaterialConversion>().AsQueryable().BuildMockDbSet().Object);
+            _mockUnitRepo.Setup(r => r.Query()).Returns(new List<BPG.Domain.Entities.Unit>
+            {
+                new() { UnitId = 1, UnitCode = "BASE", UnitName = "Base" },
+                new() { UnitId = 2, UnitCode = "ALT", UnitName = "Alternative" }
+            }.AsQueryable().BuildMockDbSet().Object);
             _mockRequestRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest>().AsQueryable().BuildMockDbSet().Object);
             _mockPurchaseRepo.Setup(r => r.Query()).Returns(new List<DirectPurchaseRequest>().AsQueryable().BuildMockDbSet().Object);
         }
@@ -186,6 +194,59 @@ namespace BPG.Application.UnitTests.Phases
 
             var ex = await Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(command, CancellationToken.None));
             Assert.Equal("ERR_INVALID_UNIT", ex.ErrorCode);
+        }
+
+        [Fact]
+        public async Task UTCID06_Handle_ChangeUnitOfInUseItem_ShouldThrowBusinessException()
+        {
+            SetupBaseMocks();
+            var phase = new Phase { PhaseId = 1, ProjectId = 1, Status = "Draft" };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new[] { phase }.AsQueryable().BuildMockDbSet().Object);
+
+            var material = new MaterialCatalog { MaterialId = 10, BaseUnitId = 1, Name = "Mat 1" };
+            _mockMaterialRepo.Setup(r => r.Query()).Returns(new[] { material }.AsQueryable().BuildMockDbSet().Object);
+            _mockConversionRepo.Setup(r => r.Query()).Returns(new[]
+            {
+                new MaterialConversion { MaterialId = 10, AlternativeUnitId = 2, ConversionRate = 2 }
+            }.AsQueryable().BuildMockDbSet().Object);
+
+            var existing = new BOQItem { PhaseId = 1, MaterialId = 10, UnitId = 1, Quantity = 50, ConversionRate = 1 };
+            _mockBoqRepo.Setup(r => r.Query()).Returns(new[] { existing }.AsQueryable().BuildMockDbSet().Object);
+            var usedItem = new MaterialRequestItem
+            {
+                MaterialId = 10,
+                Request = new MaterialRequest { PhaseId = 1 }
+            };
+            _mockRequestItemRepo.Setup(r => r.Query()).Returns(new[] { usedItem }.AsQueryable().BuildMockDbSet().Object);
+
+            var ex = await Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(Command(items: new List<BOQItemInput>
+            {
+                new(10, 50, 2)
+            }), CancellationToken.None));
+
+            Assert.Equal("ERR_BOQ_ITEM_IN_USE", ex.ErrorCode);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_FractionalQuantityForDiscreteUnit_ShouldThrowBusinessException()
+        {
+            SetupBaseMocks();
+            var phase = new Phase { PhaseId = 1, ProjectId = 1, Status = "Draft" };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new[] { phase }.AsQueryable().BuildMockDbSet().Object);
+            var material = new MaterialCatalog { MaterialId = 10, BaseUnitId = 1, Name = "Mat 1" };
+            _mockMaterialRepo.Setup(r => r.Query()).Returns(new[] { material }.AsQueryable().BuildMockDbSet().Object);
+            _mockUnitRepo.Setup(r => r.Query()).Returns(new[]
+            {
+                new BPG.Domain.Entities.Unit { UnitId = 1, UnitCode = "PCS", UnitName = "Cái", IsDiscrete = true }
+            }.AsQueryable().BuildMockDbSet().Object);
+            _mockBoqRepo.Setup(r => r.Query()).Returns(Array.Empty<BOQItem>().AsQueryable().BuildMockDbSet().Object);
+
+            var ex = await Assert.ThrowsAsync<BusinessException>(() => _handler.Handle(Command(items: new List<BOQItemInput>
+            {
+                new(10, 1.5m, 1)
+            }), CancellationToken.None));
+
+            Assert.Equal(BPG.Domain.Constants.ErrorCodes.InvalidUnitQuantity, ex.ErrorCode);
         }
     }
 }

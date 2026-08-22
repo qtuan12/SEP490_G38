@@ -41,6 +41,15 @@ public static class BOQCheckStatus
     public const string OverBOQ = "OverBOQ";
 }
 
+public static class BOQImportRowStatus
+{
+    public const string New = "New";
+    public const string Updated = "Updated";
+    public const string Unchanged = "Unchanged";
+    public const string Deleted = "Deleted";
+    public const string Error = "Error";
+}
+
 public static class MaterialRequestStatus
 {
     public const string Draft = "Draft";
