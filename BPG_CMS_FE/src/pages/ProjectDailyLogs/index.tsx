@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DailyLogFeed } from './components/DailyLogFeed';
 import { TaskProgressHistoryPanel } from '../../components/TaskProgressHistoryPanel';
 import { Drawer } from '../../components/ui';
-import { ArrowLeft, BarChart2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
@@ -59,16 +59,7 @@ export const ProjectDailyLogs: React.FC = () => {
           <span>Quay lại</span>
         </button>
 
-        {/* Nút mở drawer lịch sử — chỉ hiện khi đang xem theo task */}
-        {taskId && (
-          <button
-            onClick={() => setIsHistoryOpen(true)}
-            className="btn btn-secondary inline-flex items-center gap-1.5 text-xs px-3.5 py-2"
-          >
-            <BarChart2 size={15} />
-            Lịch sử tiến độ
-          </button>
-        )}
+
       </div>
 
       {project && (

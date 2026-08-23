@@ -2,6 +2,7 @@ using AutoMapper;
 using BPG.Application.DTOs.Suppliers;
 using BPG.Application.Features.Suppliers.Commands;
 using BPG.Application.IRepositories;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using ClosedXML.Excel;
 using MediatR;
@@ -45,7 +46,7 @@ namespace BPG.Application.Features.Suppliers.Handlers
 
             var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1;
 
-            // Dòng 1 là Header (STT | Tên NCC | Liên hệ | Địa chỉ | Khu vực | Đánh giá | Ghi chú)
+            // Dòng 1 là Header (STT | Tên NCC | Liên hệ | Địa chỉ | Khu vực)
             for (int row = 2; row <= lastRow; row++)
             {
                 var supplierName = worksheet.Cell(row, 2).GetString().Trim();
@@ -63,20 +64,13 @@ namespace BPG.Application.Features.Suppliers.Handlers
                     continue;
                 }
 
-                decimal? rating = null;
-                var ratingRaw = worksheet.Cell(row, 6).GetString().Trim();
-                if (!string.IsNullOrWhiteSpace(ratingRaw) && decimal.TryParse(ratingRaw, out var parsed))
-                    rating = Math.Clamp(parsed, 0, 5);
-
                 newSuppliers.Add(new Supplier
                 {
                     SupplierName = supplierName,
                     ContactInfo = worksheet.Cell(row, 3).GetString().Trim().NullIfEmpty(),
                     Address = worksheet.Cell(row, 4).GetString().Trim().NullIfEmpty(),
                     ServiceArea = worksheet.Cell(row, 5).GetString().Trim().NullIfEmpty(),
-                    Rating = rating,
-                    EvaluationNote = worksheet.Cell(row, 7).GetString().Trim().NullIfEmpty(),
-                    CollaborationStatus = "Active"
+                    CollaborationStatus = CollaborationStatus.Regular
                 });
 
                 nameSet.Add(supplierName.ToLower());
