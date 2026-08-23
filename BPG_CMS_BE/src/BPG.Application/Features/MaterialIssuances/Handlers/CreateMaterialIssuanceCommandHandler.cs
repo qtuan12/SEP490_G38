@@ -275,10 +275,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
                 await _uow.Repository<MaterialIssuanceItem>().AddRangeAsync(issuanceItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
-                await _uow.CommitTransactionAsync(cancellationToken);
 
-                try
-                {
                 var actorName = await _uow.Repository<User>().Query()
                     .AsNoTracking()
                     .Where(u => u.UserId == currentUserId)
@@ -328,24 +325,28 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                         cancellationToken);
                 }
 
-                // Realtime: broadcast to members viewing this project's inventory workspace
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + project.ProjectId,
-                    HubMethodNames.MaterialIssuanceChanged,
-                    issuance.MaterialIssuanceId,
-                    cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
 
-                // Realtime: broadcast to members viewing global inventory (Project_0)
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + 0,
-                    HubMethodNames.MaterialIssuanceChanged,
-                    issuance.MaterialIssuanceId,
-                    cancellationToken);
+                try
+                {
+                    // Realtime: broadcast to members viewing this project's inventory workspace
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + project.ProjectId,
+                        HubMethodNames.MaterialIssuanceChanged,
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+
+                    // Realtime: broadcast to members viewing global inventory (Project_0)
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + 0,
+                        HubMethodNames.MaterialIssuanceChanged,
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex,
-                        "Material issuance {IssuanceId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        "Material issuance {IssuanceId} was committed, but post-commit realtime broadcast failed for project {ProjectId}.",
                         issuance.MaterialIssuanceId,
                         project.ProjectId);
                 }

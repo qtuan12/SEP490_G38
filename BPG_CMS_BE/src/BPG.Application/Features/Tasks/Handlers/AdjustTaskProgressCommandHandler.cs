@@ -128,44 +128,16 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                 await _unitOfWork.SaveChangesAsync(ct);
             }
 
-            await _unitOfWork.CommitTransactionAsync(ct);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackTransactionAsync(CancellationToken.None);
-            throw;
-        }
+            var projectId = task.Phase?.ProjectId ?? 0;
+            var notificationContent = request.NewProgress < oldProgress
+                ? $"Tiến độ công việc \"{task.Name}\" đã bị TPKT điều chỉnh giảm xuống {request.NewProgress}% với lý do: {request.UpdateReason}."
+                : $"Tiến độ công việc \"{task.Name}\" đã được TPKT điều chỉnh lên {request.NewProgress}% với lý do: {request.UpdateReason}.";
 
-        var projectId = task.Phase?.ProjectId ?? 0;
-        var notificationContent = request.NewProgress < task.ProgressPercent
-            ? $"Tiến độ công việc \"{task.Name}\" đã bị TPKT điều chỉnh giảm xuống {request.NewProgress}% với lý do: {request.UpdateReason}."
-            : $"Tiến độ công việc \"{task.Name}\" đã được TPKT điều chỉnh lên {request.NewProgress}% với lý do: {request.UpdateReason}.";
-
-        // Thông báo cho các kỹ sư được phân công
-        foreach (var assignee in task.Assignees)
-        {
-            await _notificationService.SendNotificationAsync(
-                userId: assignee.UserId,
-                title: "Tiến độ công việc bị điều chỉnh trực tiếp",
-                content: notificationContent,
-                notificationType: BPG.Domain.Constants.NotificationType.Progress,
-                referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
-                referenceId: task.TaskId,
-                ct: ct);
-        }
-
-        // Thông báo cho Project Leader của dự án (nếu khác với người thực hiện)
-        if (projectId > 0)
-        {
-            var projectLeaders = await _unitOfWork.Repository<ProjectMember>()
-                .Query()
-                .Where(pm => pm.ProjectId == projectId && pm.IsLeader && pm.UserId != currentUserId)
-                .ToListAsync(ct);
-
-            foreach (var leader in projectLeaders)
+            // Thông báo cho các kỹ sư được phân công
+            foreach (var assignee in task.Assignees)
             {
                 await _notificationService.SendNotificationAsync(
-                    userId: leader.UserId,
+                    userId: assignee.UserId,
                     title: "Tiến độ công việc bị điều chỉnh trực tiếp",
                     content: notificationContent,
                     notificationType: BPG.Domain.Constants.NotificationType.Progress,
@@ -173,6 +145,34 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                     referenceId: task.TaskId,
                     ct: ct);
             }
+
+            // Thông báo cho Project Leader của dự án (nếu khác với người thực hiện)
+            if (projectId > 0)
+            {
+                var projectLeaders = await _unitOfWork.Repository<ProjectMember>()
+                    .Query()
+                    .Where(pm => pm.ProjectId == projectId && pm.IsLeader && pm.UserId != currentUserId)
+                    .ToListAsync(ct);
+
+                foreach (var leader in projectLeaders)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        userId: leader.UserId,
+                        title: "Tiến độ công việc bị điều chỉnh trực tiếp",
+                        content: notificationContent,
+                        notificationType: BPG.Domain.Constants.NotificationType.Progress,
+                        referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
+                        referenceId: task.TaskId,
+                        ct: ct);
+                }
+            }
+
+            await _unitOfWork.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync(CancellationToken.None);
+            throw;
         }
 
         // Trigger realtime WBS Tree update

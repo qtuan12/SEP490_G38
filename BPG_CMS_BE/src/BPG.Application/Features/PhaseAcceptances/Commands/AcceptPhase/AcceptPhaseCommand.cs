@@ -144,41 +144,34 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
         phaseRepo.Update(phase);
 
         await _unitOfWork.SaveChangesAsync(ct);
-        await _unitOfWork.CommitTransactionAsync(ct);
 
-        // Gửi thông báo realtime
-        try
+        // 1. Gửi thông báo đến Giám đốc (trừ người thực hiện)
+        await _notificationService.SendNotificationToRoleAsync(
+            BPG.Domain.Constants.UserRole.Director,
+            "Nghiệm thu hoàn thành giai đoạn",
+            $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu và hoàn thành.",
+            NotificationType.Progress,
+            userId,
+            $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
+            acceptance.AcceptanceId,
+            ct);
+
+        // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án (trừ người thực hiện)
+        var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
+            .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader && pm.UserId != userId, ct);
+        if (projectLeader != null)
         {
-            // 1. Gửi thông báo đến Giám đốc (trừ người thực hiện)
-            await _notificationService.SendNotificationToRoleAsync(
-                BPG.Domain.Constants.UserRole.Director,
+            await _notificationService.SendNotificationAsync(
+                projectLeader.UserId,
                 "Nghiệm thu hoàn thành giai đoạn",
-                $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu và hoàn thành.",
+                $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu.",
                 NotificationType.Progress,
-                userId,
                 $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
                 acceptance.AcceptanceId,
                 ct);
+        }
 
-            // 2. Gửi thông báo tới Project Leader (Chỉ huy trưởng) của dự án (trừ người thực hiện)
-            var projectLeader = await _unitOfWork.Repository<ProjectMember>().Query()
-                .FirstOrDefaultAsync(pm => pm.ProjectId == phase.ProjectId && pm.IsLeader && pm.UserId != userId, ct);
-            if (projectLeader != null)
-            {
-                await _notificationService.SendNotificationAsync(
-                    projectLeader.UserId,
-                    "Nghiệm thu hoàn thành giai đoạn",
-                    $"Giai đoạn '{phase.Name}' của dự án '{phase.Project?.Name}' đã được nghiệm thu.",
-                    NotificationType.Progress,
-                    $"/projects/{phase.ProjectId}/phases/{phase.PhaseId}/acceptance",
-                    acceptance.AcceptanceId,
-                    ct);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error sending notification: {ex.Message}");
-        }
+        await _unitOfWork.CommitTransactionAsync(ct);
 
         return acceptance.AcceptanceId;
     }
