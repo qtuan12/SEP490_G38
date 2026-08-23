@@ -151,7 +151,6 @@ export const WBSTree = () => {
                   return a.sortOrder - b.sortOrder;
                 });
 
-              const validTopLevelTasks = topLevelTasks.filter(t => t.status !== 'obsolete');
               // Lấy thẳng tiến độ phase từ BE đã tính chuẩn xác
               const phaseProgress = (ph as any).progress || 0;
 

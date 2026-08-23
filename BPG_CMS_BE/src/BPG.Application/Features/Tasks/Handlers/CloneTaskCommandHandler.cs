@@ -76,7 +76,7 @@ public class CloneTaskCommandHandler : IRequestHandler<CloneTaskCommand, ApiResp
                 .Query()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(task => task.TaskId == source.ParentTaskId.Value, ct);
-            if (parentTask != null && parentTask.Status == TaskStatus.Obsolete)
+            if (parentTask != null && parentTask.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
             {
                 throw new BusinessException(ErrorCodes.InvalidTransition, "Không thể nhân bản công việc khi công việc cha đã bị dừng.");
             }
