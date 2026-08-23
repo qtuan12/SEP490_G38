@@ -766,7 +766,7 @@ export const WBSTree = () => {
                                                 onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                                                 onClick={() => { setTaskMenuId(null); setSelectedTaskId(t.id); setIsReportIncidentOpen(true); }}
                                               >
-                                                <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố</span>
+                                                <AlertTriangle size={12} style={{ color: 'hsl(var(--warning))' }} /><span>Báo cáo sự cố thi công</span>
                                               </div>
                                             ) : (
                                               <div

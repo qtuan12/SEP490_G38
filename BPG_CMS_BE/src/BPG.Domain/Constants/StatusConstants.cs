@@ -31,6 +31,10 @@ public static class IncidentStatus
 {
     public const string Reported = "Reported";
     public const string UnderReview = "WaitingReview";
+    public const string WaitingAccountant = "WaitingAccountant";
+    public const string UnderResolution = "UnderResolution";
+    public const string Rejected = "Rejected";
+    public const string Approved = "Approved";
     public const string Resolved = "Resolved";
     public const string Closed = "Closed";
 }
@@ -173,6 +177,8 @@ public static class InventoryAdjustmentStatus
     public const string Pending = "Pending";
     public const string Approved = "Approved";
     public const string Rejected = "Rejected";
+    public const string RevisionRequired = "RevisionRequired";
+    public const string Cancelled = "Cancelled";
 }
 
 /// <summary>

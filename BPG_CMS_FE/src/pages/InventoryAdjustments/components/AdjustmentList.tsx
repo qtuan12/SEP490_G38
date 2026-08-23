@@ -163,6 +163,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
           </Badge>
         );
       case 'Approved': return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã duyệt</Badge>;
+      case 'RevisionRequired': return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Cần điều chỉnh</Badge>;
       case 'Rejected': return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
       default: return <Badge variant="default">{status}</Badge>;
     }
@@ -216,6 +217,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
             <option value="" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Tất cả trạng thái</option>
             <option value="Pending" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Chờ duyệt</option>
             <option value="Approved" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Đã duyệt</option>
+            <option value="RevisionRequired" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Cần điều chỉnh</option>
             <option value="Rejected" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Từ chối</option>
           </select>
         </div>

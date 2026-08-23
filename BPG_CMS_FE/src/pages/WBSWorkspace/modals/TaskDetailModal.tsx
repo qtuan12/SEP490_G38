@@ -458,7 +458,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
                 >
                   <AlertCircle size={15} />
-                  <span>Báo cáo Sự cố</span>
+                  <span>Báo cáo sự cố thi công</span>
                 </button>
               )}
               {(!isPL || isParentTask) && (

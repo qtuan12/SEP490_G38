@@ -6,25 +6,33 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
 import type { IncidentReport, ProjectMember, WBSPhase, WBSTask } from '../../../types/common';
-import { Info, AlertCircle } from 'lucide-react';
+import { AlertCircle, CalendarDays } from 'lucide-react';
 
 const schema = z.object({
   handlingInstruction: z.string().min(1, 'Vui lòng nhập hướng dẫn xử lý/giải quyết'),
   resolutionAction: z.enum(['rework', 'reduce_progress']),
   reworkName: z.string().optional(),
+  reworkDescription: z.string().optional(),
+  reworkStartDate: z.string().optional(),
   reworkDeadline: z.string().optional(),
+  reworkWeight: z.any().optional(),
   reworkAssigneeId: z.string().optional(),
   reduceProgressValue: z.number().min(0).max(100).optional(),
 }).superRefine((data, ctx) => {
   if (data.resolutionAction === 'rework') {
     if (!data.reworkName || data.reworkName.trim().length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng nhập tên công việc Rework', path: ['reworkName'] });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng nhập tên công việc.', path: ['reworkName'] });
+    }
+    if (!data.reworkStartDate) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng chọn ngày bắt đầu.', path: ['reworkStartDate'] });
     }
     if (!data.reworkDeadline) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng chọn hạn hoàn thành', path: ['reworkDeadline'] });
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng chọn ngày kết thúc.', path: ['reworkDeadline'] });
     }
-    if (!data.reworkAssigneeId) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Vui lòng chọn kỹ sư', path: ['reworkAssigneeId'] });
+    if (data.reworkStartDate && data.reworkDeadline) {
+      if (new Date(data.reworkStartDate) > new Date(data.reworkDeadline)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày bắt đầu không được lớn hơn ngày kết thúc.', path: ['reworkStartDate'] });
+      }
     }
   } else {
     if (data.reduceProgressValue === undefined || data.reduceProgressValue <= 0) {
@@ -47,6 +55,41 @@ interface ResolveIncidentModalProps {
   onError: (msg: string) => void;
 }
 
+const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+
+const getDefaultEndDate = (task: WBSTask | null | undefined, phase: WBSPhase | null | undefined) => {
+  if (task?.deadline) {
+    try {
+      return new Date(task.deadline).toISOString().split('T')[0];
+    } catch {}
+  }
+  if ((task as any)?.endDate) {
+    try {
+      return new Date((task as any).endDate).toISOString().split('T')[0];
+    } catch {}
+  }
+  if (phase?.deadline) {
+    try {
+      return new Date(phase.deadline).toISOString().split('T')[0];
+    } catch {}
+  }
+  if (phase?.endDate) {
+    try {
+      return new Date(phase.endDate).toISOString().split('T')[0];
+    } catch {}
+  }
+  return getTodayDateStr();
+};
+
+const getDefaultStartDate = (task: WBSTask | null | undefined) => {
+  if (task?.startDate) {
+    try {
+      return new Date(task.startDate).toISOString().split('T')[0];
+    } catch {}
+  }
+  return getTodayDateStr();
+};
+
 export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOpen'>> = ({
   onClose,
   incident,
@@ -56,14 +99,17 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
   onSuccess,
   onError
 }) => {
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, control, setValue, setError } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, control, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       resolutionAction: 'rework',
       handlingInstruction: '',
       reworkName: `[ Khắc phục ] - ${incident.taskName}`,
-      reworkDeadline: phase?.deadline || '',
-      reworkAssigneeId: members.length > 0 ? members[0].userId : '',
+      reworkDescription: '',
+      reworkStartDate: getDefaultStartDate(task),
+      reworkDeadline: getDefaultEndDate(task, phase),
+      reworkWeight: '1',
+      reworkAssigneeId: '',
       reduceProgressValue: 0
     }
   });
@@ -77,14 +123,18 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
       handlingInstruction: '',
       resolutionAction: 'rework',
       reworkName: `[ Khắc phục ] - ${incident.taskName}`,
-      reworkDeadline: phase?.deadline || '',
-      reworkAssigneeId: members.length > 0 ? members[0].userId : '',
+      reworkDescription: '',
+      reworkStartDate: getDefaultStartDate(task),
+      reworkDeadline: getDefaultEndDate(task, phase),
+      reworkWeight: '1',
+      reworkAssigneeId: '',
       reduceProgressValue: 0
     });
-  }, [incident, phase, members, reset]);
+  }, [incident, phase, task, members, reset]);
 
-  const isExceedingReserve = reworkDeadline && phase?.deadline
-    ? new Date(reworkDeadline) > new Date(phase.deadline)
+  const phaseEndDate = phase?.deadline || phase?.endDate;
+  const isExceedingReserve = reworkDeadline && phaseEndDate
+    ? new Date(reworkDeadline) > new Date(phaseEndDate)
     : false;
 
   const mutation = useMutation({
@@ -95,8 +145,8 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
       if (data.resolutionAction === 'rework') {
         createReworkTask = true;
         reworkTaskName = data.reworkName!.trim();
-        reworkTaskStartDate = new Date().toISOString();
-        reworkTaskEndDate = data.reworkDeadline ? new Date(data.reworkDeadline).toISOString() : new Date().toISOString();
+        reworkTaskStartDate = new Date(data.reworkStartDate!).toISOString();
+        reworkTaskEndDate = new Date(data.reworkDeadline!).toISOString();
       } else {
         createReworkTask = false;
         decreaseProgressTo = (task?.progress || 0) - Number(data.reduceProgressValue);
@@ -111,6 +161,9 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
           reworkTaskStartDate,
           reworkTaskEndDate,
           reworkAssigneeId: data.reworkAssigneeId ? Number(data.reworkAssigneeId) : undefined,
+          reworkTaskDescription: data.reworkDescription || undefined,
+          reworkTaskWeight: data.reworkWeight ? Number(data.reworkWeight) : 1,
+          isOutsourced: false,
           decreaseProgressTo,
           decreaseProgressReason: data.handlingInstruction,
           handlingInstruction: data.handlingInstruction
@@ -133,16 +186,6 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
   });
 
   const onSubmit = (data: FormData) => {
-    if (data.resolutionAction === 'rework' && data.reworkDeadline) {
-      const selectedDate = new Date(data.reworkDeadline);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (selectedDate < today) {
-        setError('reworkDeadline', { type: 'manual', message: 'Hạn hoàn thành không được nằm trong quá khứ' });
-        return;
-      }
-    }
     mutation.mutate(data);
   };
 
@@ -151,6 +194,9 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
     let msg = 'Vui lòng kiểm tra lại các thông tin bắt buộc.';
     if (errs.reduceProgressValue?.message) msg = errs.reduceProgressValue.message;
     else if (errs.reworkName?.message) msg = errs.reworkName.message;
+    else if (errs.reworkStartDate?.message) msg = errs.reworkStartDate.message;
+    else if (errs.reworkDeadline?.message) msg = errs.reworkDeadline.message;
+    else if (errs.handlingInstruction?.message) msg = errs.handlingInstruction.message;
 
     onError(msg);
   };
@@ -180,7 +226,7 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
               <span style={{ fontWeight: 700, fontSize: '0.95rem', color: resolutionAction === 'rework' ? 'hsl(var(--primary))' : 'hsl(var(--text-secondary))' }}>Tạo công việc mới</span>
             </div>
             <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', paddingLeft: '28px', lineHeight: '1.4' }}>
-              Lập công việc khắc phục mới để sửa lỗi, đồng thời khóa (Obsolete) công việc hiện tại.
+              Lập công việc khắc phục mới để sửa lỗi, đồng thời khóa công việc hiện tại.
             </span>
           </label>
 
@@ -208,11 +254,12 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
           </label>
         </div>
 
+        {/* Hướng dẫn xử lý */}
         <div style={{ padding: '16px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-card))' }}>
           <label htmlFor="handlingInstruction" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hướng dẫn xử lý / Giải quyết <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
           <textarea
             id="handlingInstruction"
-            rows={3}
+            rows={2}
             className="input"
             style={{ marginTop: '6px' }}
             placeholder="Nhập hướng giải quyết cho sự cố này..."
@@ -221,75 +268,131 @@ export const ResolveIncidentForm: React.FC<Omit<ResolveIncidentModalProps, 'isOp
           {errors.handlingInstruction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.handlingInstruction.message}</span>}
         </div>
 
+        {/* Dynamic section: Rework task details OR reduce progress */}
         <div style={{ padding: '20px', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-md)', backgroundColor: 'hsl(var(--bg-main)/0.3)' }}>
           {resolutionAction === 'rework' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="flex flex-col gap-4">
+              {/* THỜI GIAN GIAI ĐOẠN */}
               {phase && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', backgroundColor: 'hsl(var(--primary-glow))', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', color: 'hsl(var(--primary))', border: '1px solid hsl(var(--primary)/0.2)' }}>
-                  <Info size={16} style={{ flexShrink: 0 }} />
-                  <span>Hạn chót của Giai đoạn: <strong style={{ marginLeft: '4px' }}>{phase.deadline || 'Không xác định'}</strong></span>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="rework-name" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Tên Công việc mới <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-                <input
-                  id="rework-name"
-                  type="text"
-                  className="input"
-                  style={{ marginTop: '6px' }}
-                  {...register('reworkName')}
-                />
-                {errors.reworkName && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.reworkName.message}</span>}
-                <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', display: 'block', marginTop: '6px' }}>
-                  * Task cũ sẽ chuyển sang Khóa.Task mới sẽ làm lại từ 0%.
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label htmlFor="rework-deadline" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Hạn hoàn thành <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-                  <input
-                    id="rework-deadline"
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    className="input"
-                    style={{ marginTop: '6px' }}
-                    {...register('reworkDeadline')}
-                  />
-                  {errors.reworkDeadline && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.reworkDeadline.message}</span>}
-                </div>
-                <div>
-                  <label htmlFor="rework-assignee" style={{ fontWeight: 600, color: 'hsl(var(--text-primary))' }}>Giao cho kỹ sư phụ trách <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-                  <select id="rework-assignee" className="input" style={{ marginTop: '6px' }} {...register('reworkAssigneeId')}>
-                    {members.map(m => (
-                      <option key={m.userId} value={m.userId}>{m.userName} </option>
-                    ))}
-                  </select>
-                  {errors.reworkAssigneeId && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>{errors.reworkAssigneeId.message}</span>}
-                </div>
-              </div>
-
-              {isExceedingReserve && (
-                <div className="animate-fade-in" style={{
-                  display: 'flex',
-                  gap: '12px',
-                  padding: '16px',
-                  backgroundColor: 'hsl(var(--danger-glow))',
-                  border: '1px solid hsl(var(--danger) / 0.3)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: 'hsl(var(--danger))',
-                  fontSize: '0.85rem'
-                }}>
-                  <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div>
-                    <strong style={{ display: 'block', fontSize: '0.9rem', marginBottom: '4px' }}>CẢNH BÁO: VỠ KẾ HOẠCH DỰ DỰ PHÒNG!</strong>
-                    <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: '1.4', color: 'hsl(var(--danger)/0.9)' }}>
-                      Hạn hoàn thành công việc Rework đã vượt quá hạn chót của Giai đoạn. Cảnh báo đỏ vỡ tiến độ sẽ lập tức được gửi lên Giám đốc để xử lý đàm phán!
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-3.5 rounded-xl border border-emerald-100/60 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-start gap-3 transition-all">
+                  <div className="bg-white/80 p-2 rounded-lg text-emerald-600 shadow-sm border border-emerald-50">
+                    <CalendarDays size={18} className="stroke-[1.75]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-1">Thời gian Giai đoạn</p>
+                    <p className="text-[13px] font-semibold text-slate-700 truncate">
+                      {phase.startDate ? new Date(phase.startDate).toLocaleDateString('vi-VN') : '---'} - {phase.endDate ? new Date(phase.endDate).toLocaleDateString('vi-VN') : (phase.deadline ? new Date(phase.deadline).toLocaleDateString('vi-VN') : '---')}
                     </p>
                   </div>
                 </div>
               )}
+
+              {/* Tên công việc */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-700">
+                  Tên công việc <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Đổ bê tông móng..."
+                  {...register('reworkName')}
+                  className={`w-full text-sm px-3.5 py-2.5 rounded-md border ${errors.reworkName ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                />
+                {errors.reworkName && <p className="text-red-500 text-xs mt-1">{errors.reworkName.message}</p>}
+              </div>
+
+              {/* Mô tả chi tiết */}
+              <div>
+                <label className="block text-sm font-medium mb-1.5 text-slate-700">Mô tả chi tiết</label>
+                <textarea
+                  placeholder="Mô tả các yêu cầu kỹ thuật, vị trí..."
+                  {...register('reworkDescription')}
+                  rows={3}
+                  className="w-full text-sm px-3.5 py-2.5 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 resize-none"
+                />
+              </div>
+
+              {/* Ngày bắt đầu & Ngày kết thúc - Hàng 2 cột rộng rãi không bị che lấp */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-slate-700">
+                    Ngày bắt đầu <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    {...register('reworkStartDate')}
+                    className={`w-full text-sm px-3.5 py-2.5 rounded-md border ${errors.reworkStartDate ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                  />
+                  {errors.reworkStartDate && <p className="text-red-500 text-xs mt-1">{errors.reworkStartDate.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-slate-700">
+                    Ngày kết thúc <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    {...register('reworkDeadline')}
+                    className={`w-full text-sm px-3.5 py-2.5 rounded-md border ${errors.reworkDeadline ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
+                  />
+                  {errors.reworkDeadline && <p className="text-red-500 text-xs mt-1">{errors.reworkDeadline.message}</p>}
+                </div>
+              </div>
+
+              {/* Mức độ quan trọng & Người phụ trách */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-slate-700">Mức độ quan trọng</label>
+                  <select
+                    {...register('reworkWeight')}
+                    className="w-full text-sm px-3.5 py-2.5 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                  >
+                    <option value="1">1 - Bình thường (Mặc định)</option>
+                    <option value="2">2 - Cao</option>
+                    <option value="3">3 - Quan trọng</option>
+                    <option value="4">4 - Rất quan trọng</option>
+                  </select>
+                  <p className="text-[11px] text-slate-400 mt-1.5">Mức độ càng cao, % hoàn thành của công việc này càng đóng góp nhiều vào tiến độ chung.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5 text-slate-700">Người phụ trách (Kỹ sư)</label>
+                  <select
+                    {...register('reworkAssigneeId')}
+                    className="w-full text-sm px-3.5 py-2.5 rounded-md border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                  >
+                    <option value="">-- Chưa phân công --</option>
+                    {members.map(e => {
+                      let displayRole = e.userRole;
+                      if (e.isLeader) displayRole = 'Trưởng dự án';
+                      else if (e.userRole === 'TechnicalManager' || e.userRole === 'Technical Manager') displayRole = 'Trưởng phòng kỹ thuật';
+                      else if (e.userRole === 'SiteEngineer' || e.userRole === 'Site Engineer' || e.userRole?.toLowerCase() === 'siteengineer') displayRole = 'Nhân viên kỹ thuật';
+
+                      return (
+                        <option key={e.userId} value={e.userId}>
+                          {e.userName} {displayRole ? `- ${displayRole}` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <p className="text-[11px] text-slate-400 mt-1.5">Chọn kỹ sư trong dự án phụ trách giám sát công việc khắc phục này.</p>
+                </div>
+              </div>
+
+              {isExceedingReserve && (
+                <div className="animate-fade-in flex gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
+                  <AlertCircle size={20} className="shrink-0 text-red-600 mt-0.5" />
+                  <div>
+                    <strong className="block text-sm font-semibold mb-1 text-red-800">CẢNH BÁO: VỠ KẾ HOẠCH TIẾN ĐỘ!</strong>
+                    <p className="m-0 leading-relaxed text-red-700">
+                      Hạn hoàn thành công việc mới đã vượt quá hạn chót của Giai đoạn ({phase?.deadline || phase?.endDate}). Vui lòng cân nhắc điều chỉnh thời gian.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-slate-500 italic mt-1">
+                * Ghi chú: Khi tạo công việc khắc phục mới, công việc cũ bị sự cố sẽ tự động chuyển sang trạng thái Khóa.
+              </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -347,9 +450,8 @@ export const ResolveIncidentModal: React.FC<ResolveIncidentModalProps> = (props)
   if (!props.isOpen) return null;
 
   return (
-    <Modal isOpen={props.isOpen} onClose={props.onClose} title="Phê duyệt Sự cố">
+    <Modal isOpen={props.isOpen} onClose={props.onClose} title="Phê duyệt Sự cố" width="xl" maxWidth="850px">
       <ResolveIncidentForm {...props} />
     </Modal>
   );
 };
-

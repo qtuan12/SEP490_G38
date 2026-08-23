@@ -67,8 +67,8 @@ public class CompleteProjectCommandHandler : IRequestHandler<CompleteProjectComm
                          i.Status == "WaitingStopApproval" ||
                          i.Status == "WaitingRecoveryPlan" ||
                          i.Status == "WaitingDirectorApproval" ||
-                         i.Status == "WaitingAccountant" ||
-                         i.Status == "WaitingDirector" ||
+                         i.Status == IncidentStatus.WaitingAccountant ||
+                         i.Status == IncidentStatus.UnderResolution ||
                          i.Status == "Assessing"))
             .ToListAsync(cancellationToken);
 

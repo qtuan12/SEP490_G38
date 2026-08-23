@@ -246,9 +246,9 @@ public class ConfirmIncidentCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID10_Handle_InventoryWaitingDirector_ShouldRequireAdjustmentApproval()
+    public async Task UTCID10_Handle_InventoryUnderResolution_ShouldRequireAdjustmentApproval()
     {
-        var incident = ConstructionIncident("WaitingDirector");
+        var incident = ConstructionIncident(IncidentStatus.UnderResolution);
         incident.IncidentType = "InventoryLoss";
         incident.TaskId = null;
         incident.Task = null;
