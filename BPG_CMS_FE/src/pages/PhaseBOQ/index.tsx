@@ -297,7 +297,6 @@ export const PhaseBOQ: React.FC = () => {
         return {
           materialCode: material?.code ?? '',
           materialName: material?.name ?? '',
-          specification: material?.specification,
           quantity: item.quantity,
           unitCode: unit?.unitCode ?? '',
           unitName: unit?.unitName ?? String(item.unit ?? ''),
@@ -497,7 +496,7 @@ export const PhaseBOQ: React.FC = () => {
                 <thead>
                   <tr className="border-b border-[hsl(var(--border))] text-[hsl(var(--text-secondary))] font-semibold">
                     <th className="pb-3 pl-3 w-[60px] text-center">STT</th>
-                    <th className="pb-3 min-w-[300px]">Tên vật tư kỹ thuật / Quy cách</th>
+                    <th className="pb-3 min-w-[300px]">Tên vật tư</th>
                     <th className="pb-3 w-[200px] text-center">Số lượng định mức</th>
                     <th className="pb-3 w-[220px]">Đơn vị tính (ĐVT)</th>
                     {!isReadOnly && <th className="pb-3 pr-3 text-center w-[70px]">Xóa</th>}
@@ -515,9 +514,8 @@ export const PhaseBOQ: React.FC = () => {
                       <td className="py-2.5 pr-4">
                         <SearchSelect
                           options={materialList.map(m => ({
-                            label: m.name + (m.specification ? ` (${m.specification})` : ''),
-                            value: m.materialId.toString(),
-                            sublabel: m.code ? `Mã: ${m.code}` : undefined
+                            label: m.name,
+                            value: m.materialId.toString()
                           }))}
                           value={watchedMaterials[idx]?.materialId?.toString() || '0'}
                           disabled={isReadOnly}

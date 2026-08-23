@@ -154,7 +154,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "Yêu cầu tạm dừng dự án đã được phê duyệt",
                     $"Yêu cầu tạm dừng dự án {incident.Project.Name} do sự cố khẩn cấp đã được duyệt. Dự án đã chuyển sang trạng thái Tạm dừng thi công.",
                     "IncidentAssessed",
-                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                    $"/projects/{incident.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
@@ -162,7 +164,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "Cần lập kế hoạch khắc phục sự cố",
                     $"Dự án {incident.Project.Name} đang tạm dừng thi công. Vui lòng lập báo cáo kế hoạch khắc phục.",
                     "IncidentAssessed",
-                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{incident.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
@@ -170,7 +175,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "Dự án đã tạm dừng thi công",
                     $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp. Đang chờ TPKT nộp phương án khắc phục.",
                     "IncidentAssessed",
-                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{incident.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 await _notificationService.SendNotificationToRoleAsync(
@@ -178,7 +186,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "Dự án đã tạm dừng thi công",
                     $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp.",
                     "IncidentAssessed",
-                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{incident.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
 
                 // Notify all project members
@@ -196,7 +207,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             "Dự án tạm dừng thi công",
                             $"Dự án {incident.Project.Name} đã chính thức tạm dừng thi công do sự cố khẩn cấp.",
                             "IncidentAssessed",
-                            $"/projects/{incident.ProjectId}/workspace/incidents"
+                            $"/projects/{incident.ProjectId}/workspace/incidents",
+                            incident.IncidentId,
+                            cancellationToken
                         );
                     }
                 }
@@ -224,7 +237,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "Kế hoạch khắc phục sự cố cần phê duyệt",
                     $"TP Kỹ thuật đã nộp báo cáo và kế hoạch khắc phục cho dự án {incident.Project.Name}. Vui lòng phê duyệt.",
                     "IncidentAssessed",
-                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                    currentUserId,
+                    $"/projects/{incident.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
             }
             else if (incident.Status == "WaitingDirectorApproval")
@@ -244,7 +260,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         "Yêu cầu làm lại báo cáo kế hoạch khắc phục",
                         $"Giám đốc yêu cầu chỉnh sửa lại báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name}.",
                         "IncidentRejected",
-                        $"/projects/{incident.ProjectId}/workspace/incidents"
+                        currentUserId,
+                        $"/projects/{incident.ProjectId}/workspace/incidents",
+                        incident.IncidentId,
+                        cancellationToken
                     );
                 }
                 else
@@ -364,7 +383,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         "Kế hoạch khắc phục sự cố đã được phê duyệt",
                         $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được phê duyệt. Vui lòng thiết lập Phase/Task khắc phục tại Kế hoạch thi công.",
                         "IncidentApproved",
-                        $"/projects/{incident.ProjectId}/workspace/incidents"
+                        $"/projects/{incident.ProjectId}/workspace/incidents",
+                        incident.IncidentId,
+                        cancellationToken
                     );
 
                     await _notificationService.SendNotificationToRoleAsync(
@@ -372,7 +393,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         "Kế hoạch khắc phục sự cố đã được phê duyệt",
                         $"Báo cáo kế hoạch khắc phục sự cố tại dự án {incident.Project.Name} đã được Giám đốc phê duyệt. Vui lòng thiết lập Phase/Task khắc phục tại Kế hoạch thi công và kích hoạt lại dự án.",
                         "IncidentApproved",
-                        $"/projects/{incident.ProjectId}/workspace/incidents"
+                        currentUserId,
+                        $"/projects/{incident.ProjectId}/workspace/incidents",
+                        incident.IncidentId,
+                        cancellationToken
                     );
                 }
             }
@@ -469,8 +493,8 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             {
                 if (incident.Status == "Reported")
                 {
-                    // Allow the reporter (PL) or Admin to push to Accountant
-                    if (incident.ReportedBy != currentUserId && !_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin))
+                    // Allow only the reporter (PL) to push to Accountant
+                    if (incident.ReportedBy != currentUserId)
                         throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền chuyển báo cáo này.");
 
                     incident.Status = "WaitingAccountant";
@@ -486,7 +510,10 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         "Báo cáo sự cố mới",
                         $"Có một sự cố vật tư mới tại dự án đang chờ kế toán xác minh.",
                         "IncidentReported",
-                        $"/projects/{incident.ProjectId}/workspace/incidents"
+                        currentUserId,
+                        $"/projects/{incident.ProjectId}/workspace/incidents",
+                        incident.IncidentId,
+                        cancellationToken
                     );
                 }
                 else if (incident.Status == "WaitingAccountant")
@@ -508,7 +535,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             }
             else
             {
-                if (!_currentUserService.IsInAnyRole(BPG.Domain.Constants.UserRole.Admin, BPG.Domain.Constants.UserRole.TechnicalManager))
+                if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
                     throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố thi công.");
 
                 incident.Status = "Approved";
@@ -525,7 +552,9 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     "Báo cáo sự cố đã được phê duyệt",
                     $"Sự cố thi công bạn báo cáo đã được TPKT phê duyệt.",
                     "IncidentApproved",
-                    $"/projects/{incident.ProjectId}/workspace/incidents"
+                    $"/projects/{incident.ProjectId}/workspace/incidents",
+                    incident.IncidentId,
+                    cancellationToken
                 );
             }
         }
@@ -691,8 +720,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
 
             var isAllowed = incident.Status switch
             {
-                "Reported" => incident.ReportedBy == Convert.ToInt64(_currentUserService.UserId)
-                    || _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin),
+                "Reported" => incident.ReportedBy == Convert.ToInt64(_currentUserService.UserId),
                 "WaitingAccountant" => throw new BusinessException(
                     "ERR_USE_ADJUSTMENT_CREATION",
                     "Hãy tạo phiếu giảm tồn liên kết để xác minh sự cố vật tư."),
@@ -711,9 +739,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         if (incident.IncidentType != "Construction" || incident.Status != "WaitingReview")
             throw new BusinessException("ERR_INVALID_STATUS", "Sự cố thi công không ở trạng thái có thể duyệt.");
 
-        if (!_currentUserService.IsInAnyRole(
-                BPG.Domain.Constants.UserRole.Admin,
-                BPG.Domain.Constants.UserRole.TechnicalManager))
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
             throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền phê duyệt sự cố thi công.");
     }
 

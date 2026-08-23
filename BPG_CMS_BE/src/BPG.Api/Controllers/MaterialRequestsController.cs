@@ -95,9 +95,9 @@ namespace BPG.Api.Controllers
             [FromBody] ProcessMaterialRequestRequest request,
             CancellationToken ct)
         {
-            var command = new ProcessMaterialRequestByAccountantCommand(id, request.Note);
+            var command = new ProcessMaterialRequestByAccountantCommand(id, request.Decision, request.Note);
             var result = await Mediator.Send(command, ct);
-            return Ok(result);
+            return ApiOk(result);
         }
 
         [HttpPost("{id:long}/director-approve")]
@@ -141,7 +141,7 @@ namespace BPG.Api.Controllers
     }
 
     public record CancelMaterialRequestRequest(string Reason);
-    public record ProcessMaterialRequestRequest(string? Note);
+    public record ProcessMaterialRequestRequest(string Decision, string Note);
     public record ApproveMaterialRequestRequest(string? Note);
     public record RejectMaterialRequestRequest(string Reason);
     public record ResubmitMaterialRequestRequest(

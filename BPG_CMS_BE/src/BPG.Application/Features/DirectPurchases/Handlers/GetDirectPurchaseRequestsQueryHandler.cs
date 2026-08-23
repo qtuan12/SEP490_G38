@@ -73,10 +73,20 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
             if (!string.IsNullOrEmpty(request.SearchTerm))
             {
-                var term = request.SearchTerm.ToLower();
+                var term = request.SearchTerm.Trim().ToLower();
+                // "SỐ PHIẾU" hiển thị cho người dùng có định dạng "DP-000003",
+                // nhưng DirectPurchaseId lưu ở DB là số thô (vd 3) nên cần chuẩn hoá
+                // term nhập vào (bỏ prefix "dp-" và các số 0 đứng đầu) trước khi so khớp.
+                var normalizedTerm = term.StartsWith("dp-") ? term.Substring(3) : term;
+                normalizedTerm = normalizedTerm.TrimStart('0');
+                if (string.IsNullOrEmpty(normalizedTerm))
+                    normalizedTerm = "0";
+
                 query = query.Where(r =>
                     r.Reason.ToLower().Contains(term) ||
-                    r.DirectPurchaseId.ToString().Contains(term));
+                    r.Phase.Name.ToLower().Contains(term) ||
+                    r.Requester.FullName.ToLower().Contains(term) ||
+                    r.DirectPurchaseId.ToString().Contains(normalizedTerm));
             }
 
             var totalCount = await query.CountAsync(ct);

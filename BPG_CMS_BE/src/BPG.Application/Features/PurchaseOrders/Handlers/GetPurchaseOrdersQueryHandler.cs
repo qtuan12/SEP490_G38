@@ -77,6 +77,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     || (po.SupplierId.HasValue && matchingSupplierIds.Contains(po.SupplierId.Value)));
             }
 
+            if (!string.IsNullOrEmpty(request.SourceType))
+            {
+                if (request.SourceType == "direct")
+                    query = query.Where(po => !po.SupplierId.HasValue);
+                else if (request.SourceType == "normal")
+                    query = query.Where(po => po.SupplierId.HasValue);
+            }
+
             if (request.OrderDateFrom.HasValue)
             {
                 var from = request.OrderDateFrom.Value.ToDateTime(TimeOnly.MinValue);

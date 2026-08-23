@@ -5,7 +5,7 @@ import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
 import { TableLoader } from '../../../components/ui';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle, Copy } from 'lucide-react';
+import { Search, Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle, Copy } from 'lucide-react';
 
 const getProgressColor = (progress: number) => {
   if (progress === 100) return 'hsl(var(--success))';
@@ -43,7 +43,8 @@ export const WBSTree = () => {
     setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
     setIsReportIncidentOpen,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase,
-    handleCloneTask, handleClonePhase, projectId
+    handleCloneTask, handleClonePhase, projectId,
+    searchTerm, setSearchTerm, setFilterAssignee, setFilterWeight, filterWeight, members
   } = useWBS();
 
   const navigate = useNavigate();
@@ -78,9 +79,54 @@ export const WBSTree = () => {
     <>
       {/* ─── Left: WBS Tree ─────────────────────────────── */}
       <div className="card" style={{ padding: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: '14px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
-          Sơ đồ hình cây Giai đoạn → Công việc
-        </h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', margin: 0 }}>
+              Sơ đồ hình cây Giai đoạn → Công việc
+            </h4>
+            
+            <div className="flex gap-2 flex-wrap items-center w-full md:w-auto">
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Tìm giai đoạn, công việc..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
+                />
+              </div>
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <select
+                  value={filterAssignee}
+                  onChange={(e) => setFilterAssignee(e.target.value)}
+                  className="px-3 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[180px]"
+                >
+                  <option value="">Tất cả người phụ trách</option>
+                  {members.map(member => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.userName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <select
+                  value={filterWeight}
+                  onChange={(e) => setFilterWeight(e.target.value)}
+                  className="px-3 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[140px]"
+                >
+                  <option value="">Tất cả mức độ</option>
+                  {[1, 2, 3, 4].map(w => (
+                    <option key={w} value={w.toString()}>
+                      {w === 1 ? '1 - Bình thường' : w === 2 ? '2 - Cao' : w === 3 ? '3 - Quan trọng' : w === 4 ? '4 - Rất quan trọng' : `Mức độ ${w}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
           <TableLoader isTable={false} message="Đang tải sơ đồ WBS..." minHeight="300px" />
@@ -98,7 +144,12 @@ export const WBSTree = () => {
               const topLevelTasks = tasks
                 .filter(t => t.phaseId === ph.id && !t.parentTaskId)
                 .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
-                .sort((a, b) => a.sortOrder - b.sortOrder);
+                .sort((a, b) => {
+                  const wA = a.weight ?? 0;
+                  const wB = b.weight ?? 0;
+                  if (wA !== wB) return wB - wA;
+                  return a.sortOrder - b.sortOrder;
+                });
 
               const validTopLevelTasks = topLevelTasks.filter(t => t.status !== 'obsolete');
               const phaseProgress = validTopLevelTasks.length > 0
@@ -112,7 +163,12 @@ export const WBSTree = () => {
                 const children = allPhaseTasks
                   .filter(t => t.parentTaskId === parent.id)
                   .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
-                  .sort((a, b) => a.sortOrder - b.sortOrder);
+                  .sort((a, b) => {
+                    const wA = a.weight ?? 0;
+                    const wB = b.weight ?? 0;
+                    if (wA !== wB) return wB - wA;
+                    return a.sortOrder - b.sortOrder;
+                  });
                 phaseTasks.push(...children);
               });
               const isExpanded = expandedPhases[ph.id];
@@ -367,7 +423,7 @@ export const WBSTree = () => {
 
                             {project?.status !== 'draft' && (
                               <>
-                                {!isFrozen && canEdit && isPL && (
+                                {!isFrozen && canEdit && isTPKTOrPL && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -580,6 +636,36 @@ export const WBSTree = () => {
                                 )}
                               </div>
                             )}
+
+                            {t.weight !== undefined && t.weight !== null && (() => {
+                              let color = 'hsl(var(--slate-500))';
+                              let bgColor = 'hsl(var(--slate-500) / 0.1)';
+                              let borderColor = 'hsl(var(--slate-500) / 0.2)';
+                              
+                              if (t.weight === 1) {
+                                color = '#64748b'; // slate-500
+                                bgColor = 'rgba(100, 116, 139, 0.1)';
+                                borderColor = 'rgba(100, 116, 139, 0.2)';
+                              } else if (t.weight === 2) {
+                                color = '#3b82f6'; // blue-500
+                                bgColor = 'rgba(59, 130, 246, 0.1)';
+                                borderColor = 'rgba(59, 130, 246, 0.2)';
+                              } else if (t.weight === 3) {
+                                color = '#f59e0b'; // amber-500
+                                bgColor = 'rgba(245, 158, 11, 0.1)';
+                                borderColor = 'rgba(245, 158, 11, 0.2)';
+                              } else if (t.weight === 4) {
+                                color = '#ef4444'; // red-500
+                                bgColor = 'rgba(239, 68, 68, 0.1)';
+                                borderColor = 'rgba(239, 68, 68, 0.2)';
+                              }
+
+                              return (
+                                <span style={{ padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: bgColor, color: color, borderRadius: '4px', border: `1px solid ${borderColor}`, whiteSpace: 'nowrap', marginRight: '4px' }} title="Mức độ quan trọng">
+                                  Mức độ: {t.weight === 1 ? 'Bình thường' : t.weight === 2 ? 'Cao' : t.weight === 3 ? 'Quan trọng' : t.weight === 4 ? 'Rất quan trọng' : t.weight}
+                                </span>
+                              );
+                            })()}
 
                             {t.assignedTo && t.assignedName && (
                               <div style={{ display: 'flex', alignItems: 'center', marginRight: '8px', flexShrink: 0 }}>

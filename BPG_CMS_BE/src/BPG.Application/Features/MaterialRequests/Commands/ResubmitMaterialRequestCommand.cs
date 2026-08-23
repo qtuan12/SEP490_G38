@@ -178,6 +178,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             mr.ApprovedBy = null;
             mr.AccountantNote = null;
             mr.ApprovalNote = null;
+            mr.ProcurementDecision = null;
             mr.UpdatedAt = DateTime.UtcNow;
             mr.UpdatedBy = currentUserId;
 

@@ -2,7 +2,7 @@ import { formatNumber } from '../../utils/formatNumber';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
-import type { MaterialRequest } from '../../types/common';
+import type { MaterialRequest, MaterialRequestProcurementDecision } from '../../types/common';
 import { RoleGroup } from '../../auth/roles';
 import { MaterialRequestTable } from '../Dashboard/components/MaterialRequestTable';
 import { Modal } from '../../components/ui/Modal';
@@ -15,6 +15,7 @@ import {
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
 } from '../../constants/realtimeEntities';
+import { canProcessMaterialRequestByAccountant } from '../MaterialRequests/materialRequestDecision';
 
 export const MaterialControl: React.FC = () => {
   const { user, hasAnyRole } = useAuth();
@@ -35,7 +36,7 @@ export const MaterialControl: React.FC = () => {
 
   // States for custom request processing modal
   const [actionModalOpen, setActionModalOpen] = useState(false);
-  const [actionType, setActionType] = useState<'verify' | 'disburse' | 'approve' | 'reject' | null>(null);
+  const [actionType, setActionType] = useState<'disburse' | 'approve' | 'reject' | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
   const [actionNote, setActionNote] = useState('');
   const [actionNoteError, setActionNoteError] = useState('');
@@ -107,7 +108,7 @@ export const MaterialControl: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, projectFilter]);
 
-  const openActionModal = (type: 'verify' | 'disburse' | 'approve' | 'reject', reqId: string) => {
+  const openActionModal = (type: 'disburse' | 'approve' | 'reject', reqId: string) => {
     setActionType(type);
     setActionRequestId(reqId);
     setActionNote('');
@@ -115,18 +116,19 @@ export const MaterialControl: React.FC = () => {
     setActionModalOpen(true);
   };
 
-  const handleVerifyRequestByAccountant = async (reqId: string, note?: string) => {
+  const handleVerifyRequestByAccountant = async (
+    reqId: string,
+    decision: MaterialRequestProcurementDecision,
+    note: string,
+  ): Promise<boolean> => {
     try {
-      const req = materialRequests.find(r => r.id === reqId);
-      const updated = await projectService.processMaterialRequestByAccountant(reqId, note);
-      if (req?.isOverBOQ) {
-        console.log((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
-      } else {
-        console.log((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
-      }
-      fetchMaterialRequests();
+      const updated = await projectService.processMaterialRequestByAccountant(reqId, decision, note);
+      toast.success(updated.__message || 'Đã lưu kết quả thẩm định yêu cầu vật tư.');
+      await fetchMaterialRequests(false);
+      return true;
     } catch (err: any) {
       toast.error(err.message || 'Không thể soát xét yêu cầu vật tư.');
+      return false;
     }
   };
 
@@ -170,9 +172,7 @@ export const MaterialControl: React.FC = () => {
 
     setIsSubmittingAction(true);
     try {
-      if (actionType === 'verify') {
-        await handleVerifyRequestByAccountant(actionRequestId, actionNote);
-      } else if (actionType === 'disburse') {
+      if (actionType === 'disburse') {
         await handleDisburseRequestByAccountant(actionRequestId, actionNote);
       } else if (actionType === 'approve') {
         await handleApproveRequestByDirector(actionRequestId, actionNote);
@@ -249,9 +249,9 @@ export const MaterialControl: React.FC = () => {
             options={[
               { label: 'Tất cả Trạng thái', value: '' },
               { label: 'Chờ phê duyệt', value: 'pending_accountant' },
-              { label: 'Chờ duyệt vượt định mức', value: 'pending_director' },
+              { label: 'Chờ phê duyệt vượt định mức', value: 'pending_director' },
               { label: 'Đã phê duyệt', value: 'approved' },
-              { label: 'Bị từ chối', value: 'rejected' },
+              { label: 'Đã kết thúc thẩm định', value: 'rejected' },
             ]}
           />
         </div>
@@ -262,9 +262,11 @@ export const MaterialControl: React.FC = () => {
         <MaterialRequestTable
           materialRequests={paginatedRequests}
           loadingRequests={loadingRequests}
-          canAccountForRequest={() => hasAnyRole(RoleGroup.Accounting)}
+          canAccountForRequest={() => canProcessMaterialRequestByAccountant(
+            user?.roles?.length ? user.roles : user ? [user.role] : undefined,
+          )}
           canApproveRequest={() => hasAnyRole(RoleGroup.Approval)}
-          handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
+          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}
           handleApproveRequestByDirector={(id) => openActionModal('approve', id)}
           handleRejectRequest={(id) => openActionModal('reject', id)}
@@ -288,8 +290,7 @@ export const MaterialControl: React.FC = () => {
           isOpen={actionModalOpen}
           onClose={() => setActionModalOpen(false)}
           title={
-            actionType === 'verify' ? 'Kiểm tra yêu cầu vật tư' :
-              actionType === 'disburse' ? 'Giải ngân yêu cầu vật tư khẩn cấp' :
+            actionType === 'disburse' ? 'Giải ngân yêu cầu vật tư khẩn cấp' :
                 actionType === 'approve' ? 'Phê duyệt yêu cầu vượt định mức' :
                   'Từ chối yêu cầu vật tư'
           }
@@ -297,8 +298,7 @@ export const MaterialControl: React.FC = () => {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
-              {actionType === 'verify' ? 'Xác nhận yêu cầu vật tư này. Nếu vật tư vượt định mức, hệ thống sẽ tự động trình lên Giám đốc.' :
-                actionType === 'disburse' ? 'Xác nhận giải ngân chi phí mua ngoài khẩn cấp cho dự án.' :
+              {actionType === 'disburse' ? 'Xác nhận giải ngân chi phí mua ngoài khẩn cấp cho dự án.' :
                   actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt định mức.' :
                     'Vui lòng nhập lý do từ chối yêu cầu vật tư này.'}
             </p>
@@ -355,8 +355,7 @@ export const MaterialControl: React.FC = () => {
                 disabled={isSubmittingAction}
               >
                 {isSubmittingAction ? 'Đang xử lý...' :
-                  actionType === 'verify' ? 'Xác nhận' :
-                    actionType === 'disburse' ? 'Xác nhận giải ngân' :
+                  actionType === 'disburse' ? 'Xác nhận giải ngân' :
                       actionType === 'approve' ? 'Xác nhận duyệt' :
                         'Xác nhận từ chối'}
               </button>

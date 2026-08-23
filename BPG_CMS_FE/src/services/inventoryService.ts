@@ -333,6 +333,7 @@ export const inventoryService = {
     search?: string;
     status?: string;
     projectId?: number;
+    sourceType?: string;
     orderDateFrom?: string;
     orderDateTo?: string;
     pageNumber?: number;
@@ -344,6 +345,7 @@ export const inventoryService = {
     };
     if (params.search) q.search = params.search;
     if (params.status) q.status = params.status;
+    if (params.sourceType) q.sourceType = params.sourceType;
     if (params.orderDateFrom) q.orderDateFrom = params.orderDateFrom;
     if (params.orderDateTo) q.orderDateTo = params.orderDateTo;
     const endpoint = params.projectId

@@ -10,7 +10,7 @@ import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { FileText, BarChart2, Search } from 'lucide-react';
+import { FileText, BarChart2 } from 'lucide-react';
 import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
@@ -71,23 +71,25 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const allTasks = wbsData?.tasks || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
+  const [filterWeight, setFilterWeight] = useState('');
 
   let phases = allPhases;
   let tasks = allTasks;
 
-  if (searchTerm.trim() || filterAssignee) {
+  if (searchTerm.trim() || filterAssignee || filterWeight) {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const matchingPhaseIds = new Set<string>();
     const matchingTaskIds = new Set<string>();
 
     allPhases.forEach(p => {
-      if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
+      if (!filterAssignee && !filterWeight && p.name.toLowerCase().includes(normalizedSearch)) matchingPhaseIds.add(p.id);
     });
     
     allTasks.forEach(t => {
       const matchesSearch = !normalizedSearch || t.name.toLowerCase().includes(normalizedSearch);
       const matchesAssignee = !filterAssignee || (t.assignedTo && t.assignedTo.toString() === filterAssignee.toString());
-      if (matchesSearch && matchesAssignee) matchingTaskIds.add(t.id);
+      const matchesWeight = !filterWeight || (t.weight?.toString() === filterWeight);
+      if (matchesSearch && matchesAssignee && matchesWeight) matchingTaskIds.add(t.id);
     });
 
     let addedNew = true;
@@ -108,7 +110,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
     allPhases.forEach(p => {
       if (matchingPhaseIds.has(p.id)) {
-         if (!filterAssignee && p.name.toLowerCase().includes(normalizedSearch)) {
+         if (!filterAssignee && !filterWeight && p.name.toLowerCase().includes(normalizedSearch)) {
             allTasks.filter(t => t.phaseId === p.id).forEach(t => matchingTaskIds.add(t.id));
          }
       }
@@ -196,6 +198,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
   const [cloneTarget, setCloneTarget] = useState<CloneTarget | null>(null);
 
+  // ── IMPORT WBS state ──────────────────────────────────
+  const [isImportWbsOpen, setIsImportWbsOpen] = useState(false);
+
   // ── Hover state ──────────────────────────────────────
   const [hoveredPhaseId, setHoveredPhaseId] = useState<string | null>(null);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | null>(null);
@@ -218,16 +223,24 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   // Support opening task detail from URL
   useEffect(() => {
     const queryTaskId = searchParams.get('taskId');
-    if (queryTaskId && tasks.length > 0) {
-      const taskExists = tasks.some(t => t.id === queryTaskId);
-      if (taskExists) {
-        setSelectedTaskId(queryTaskId);
+    if (queryTaskId && allTasks.length > 0) {
+      const cleanId = String(queryTaskId).replace('t-', '');
+      const matched = allTasks.find(t => 
+        t.id === queryTaskId || 
+        t.id === `t-${cleanId}` || 
+        t.id.replace('t-', '') === cleanId
+      );
+      if (matched) {
+        setSelectedTaskId(matched.id);
         setIsDetailOpen(true);
+        if (matched.phaseId) {
+          setExpandedPhases(prev => ({ ...prev, [matched.phaseId]: true }));
+        }
         searchParams.delete('taskId');
         setSearchParams(searchParams, { replace: true });
       }
     }
-  }, [searchParams, tasks, setSearchParams]);
+  }, [searchParams, allTasks, setSearchParams]);
 
   const loadWBSData = async () => {
     await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
@@ -398,7 +411,9 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
 
 
   const contextValue = {
-    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isProjectMember, isTPKT, canEdit, materialRequests, filterAssignee,
+    projectId, project, phases, tasks, members, user, isTPKTOrPL, isPL, isProjectMember, isTPKT, canEdit, materialRequests,
+    filterAssignee, setFilterAssignee, filterWeight, setFilterWeight,
+    searchTerm, setSearchTerm,
     expandedPhases, togglePhase,
     hoveredPhaseId, setHoveredPhaseId, hoveredTaskId, setHoveredTaskId,
     phaseMenuId, setPhaseMenuId, taskMenuId, setTaskMenuId,
@@ -429,6 +444,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     isAdjustProgressOpen, setIsAdjustProgressOpen,
     isReportInventoryIncidentOpen, setIsReportInventoryIncidentOpen,
     selectedPhaseForInventoryIncident, setSelectedPhaseForInventoryIncident,
+    isImportWbsOpen, setIsImportWbsOpen,
     isReportIncidentOpen, setIsReportIncidentOpen,
     handleApproveByLeader, handleApproveByTPKT,
     handleRejectMatReq, handleCancelMatReq, handleConfirmReceived,
@@ -450,53 +466,40 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-[1.15rem] font-semibold m-0">Cấu trúc công việc</h3>
-          </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            <div className="relative shrink-0 w-full sm:w-auto">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm giai đoạn, công việc..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
-              />
+        <div className="flex flex-col gap-4">
+          {/* Hàng trên: Tiêu đề và Các nút chức năng */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-[1.15rem] font-semibold m-0 whitespace-nowrap">Cấu trúc công việc</h3>
             </div>
-            <div className="relative shrink-0 w-full sm:w-auto">
-              <select
-                value={filterAssignee}
-                onChange={(e) => setFilterAssignee(e.target.value)}
-                className="px-3 py-1.5 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[180px]"
+            <div className="flex gap-2 flex-wrap items-center w-full sm:w-auto justify-start sm:justify-end">
+              {isTPKTOrPL && canEdit && (
+                <button
+                  onClick={() => setIsImportWbsOpen(true)}
+                  className="flex items-center gap-2 py-2 px-3 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer bg-white border border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.05)]"
+                >
+                  <FileText size={15} />
+                  <span className="hidden sm:inline">Nhập từ Excel</span>
+                </button>
+              )}
+              <button
+                onClick={() => navigate(`/projects/${projectId}/drawing`)}
+                className={`flex items-center gap-2 py-2 px-3 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${project?.drawingUrl
+                  ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]'
+                  : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
+                  }`}
               >
-                <option value="">Tất cả người phụ trách</option>
-                {members.map(member => (
-                  <option key={member.userId} value={member.userId}>
-                    {member.userName}
-                  </option>
-                ))}
-              </select>
+                <FileText size={15} />
+                <span className="hidden sm:inline">Xem Bản vẽ </span>
+              </button>
+              <button
+                onClick={() => navigate(`/projects/${projectId}/gantt`)}
+                className="flex items-center gap-2 py-2 px-3 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
+              >
+                <BarChart2 size={15} />
+                <span className="hidden sm:inline">Xem Biểu đồ công việc</span>
+              </button>
             </div>
-            <button
-              onClick={() => navigate(`/projects/${projectId}/drawing`)}
-              className={`flex items-center gap-2 py-2 px-4 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer ${project?.drawingUrl
-                ? 'border border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--border-light))]'
-                : 'border border-dashed border-[#d97706] bg-[#fef3c7] text-[#b45309] hover:bg-[#fde68a]'
-                }`}
-            >
-              <FileText size={15} />
-              <span>Xem Bản vẽ </span>
-            </button>
-            <button
-              onClick={() => navigate(`/projects/${projectId}/gantt`)}
-              className="flex items-center gap-2 py-2 px-4 shrink-0 border border-[hsl(var(--primary)/0.4)] rounded-sm bg-[hsl(var(--primary-glow))] text-[hsl(var(--primary))] cursor-pointer text-[0.85rem] font-semibold transition-all duration-150 hover:bg-[hsl(var(--primary))] hover:text-white"
-            >
-              <BarChart2 size={15} />
-              <span>Xem Biểu đồ công việc</span>
-            </button>
-
           </div>
         </div>
 

@@ -235,12 +235,29 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 && (!toDt.HasValue || i.CreatedAt <= toDt.Value))
             .CountAsync(cancellationToken);
 
+        // Submitted emergency purchases create FullyReceived technical POs before
+        // payment approval. Exclude every such PO from normal PO totals and add back
+        // only source Direct Purchases that have actually been Approved.
+        var autoPoQuery = _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(dp => dp.AutoPOId.HasValue);
+        autoPoQuery = request.ProjectId > 0
+            ? autoPoQuery.Where(dp => dp.ProjectId == request.ProjectId)
+            : autoPoQuery.Where(dp => accessibleIds.Contains(dp.ProjectId));
+        var autoPoIds = await autoPoQuery
+            .Select(dp => dp.AutoPOId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         decimal prevPoCost = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Where(po => po.Status != PurchaseOrderStatus.Draft
                       && po.Status != PurchaseOrderStatus.PendingApproval
                       && po.Status != PurchaseOrderStatus.Rejected
-                      && po.Status != PurchaseOrderStatus.Cancelled)
+                      && po.Status != PurchaseOrderStatus.Cancelled
+                      && !autoPoIds.Contains(po.POId))
             .Where(po => (request.ProjectId > 0
                     ? po.ProjectId == request.ProjectId
                     : accessibleIds.Contains(po.ProjectId))
@@ -248,18 +265,45 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
                 && po.OrderDate <= prevEnd)
             .SumAsync(po => (decimal?)po.TotalAmount, cancellationToken) ?? 0m;
 
+        var approvedDirectPurchaseCostQuery = _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .Where(dp => dp.Status == DirectPurchaseStatus.Approved)
+            .Where(dp => request.ProjectId > 0
+                ? dp.ProjectId == request.ProjectId
+                : accessibleIds.Contains(dp.ProjectId));
+        var prevDirectPurchaseAmounts = await approvedDirectPurchaseCostQuery
+            .Where(dp => dp.PurchaseDate >= prevStart && dp.PurchaseDate <= prevEnd)
+            .Select(dp => dp.TotalAmount > 0
+                ? dp.TotalAmount
+                : dp.Items.Sum(item => item.Quantity * item.UnitPrice))
+            .ToListAsync(cancellationToken);
+        decimal prevDirectPurchaseCost = prevDirectPurchaseAmounts.Sum();
+
         decimal curPoCost = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
             .Where(po => po.Status != PurchaseOrderStatus.Draft
                       && po.Status != PurchaseOrderStatus.PendingApproval
                       && po.Status != PurchaseOrderStatus.Rejected
-                      && po.Status != PurchaseOrderStatus.Cancelled)
+                      && po.Status != PurchaseOrderStatus.Cancelled
+                      && !autoPoIds.Contains(po.POId))
             .Where(po => (request.ProjectId > 0
                     ? po.ProjectId == request.ProjectId
                     : accessibleIds.Contains(po.ProjectId))
                 && (!fromDt.HasValue || po.OrderDate >= fromDt.Value)
                 && (!toDt.HasValue || po.OrderDate <= toDt.Value))
             .SumAsync(po => (decimal?)po.TotalAmount, cancellationToken) ?? 0m;
+
+        var curDirectPurchaseAmounts = await approvedDirectPurchaseCostQuery
+            .Where(dp => (!fromDt.HasValue || dp.PurchaseDate >= fromDt.Value)
+                && (!toDt.HasValue || dp.PurchaseDate <= toDt.Value))
+            .Select(dp => dp.TotalAmount > 0
+                ? dp.TotalAmount
+                : dp.Items.Sum(item => item.Quantity * item.UnitPrice))
+            .ToListAsync(cancellationToken);
+        decimal curDirectPurchaseCost = curDirectPurchaseAmounts.Sum();
+
+        decimal prevProcurementCost = prevPoCost + prevDirectPurchaseCost;
+        decimal curProcurementCost = curPoCost + curDirectPurchaseCost;
 
         int prevOverBoqMRs = await _unitOfWork.Repository<MaterialRequest>()
             .Query()
@@ -273,7 +317,9 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
 
         decimal completedDelta = prevCompletedTasks > 0 ? Math.Round(((decimal)(curCompletedTasks - prevCompletedTasks) / prevCompletedTasks) * 100, 1) : (curCompletedTasks > 0 ? 100m : 0m);
         decimal incidentsDelta = prevIncidentsCount > 0 ? Math.Round(((decimal)(curIncidentsCount - prevIncidentsCount) / prevIncidentsCount) * 100, 1) : (curIncidentsCount > 0 ? 100m : 0m);
-        decimal costDelta = prevPoCost > 0 ? Math.Round(((curPoCost - prevPoCost) / prevPoCost) * 100, 1) : (curPoCost > 0 ? 100m : 0m);
+        decimal costDelta = prevProcurementCost > 0
+            ? Math.Round(((curProcurementCost - prevProcurementCost) / prevProcurementCost) * 100, 1)
+            : (curProcurementCost > 0 ? 100m : 0m);
 
         var periodComparison = new PeriodComparisonMetricsDto
         {
@@ -283,8 +329,8 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
             CurrentIncidents = curIncidentsCount,
             PreviousIncidents = prevIncidentsCount,
             IncidentsDeltaPercent = incidentsDelta,
-            CurrentProcurementCost = curPoCost,
-            PreviousProcurementCost = prevPoCost,
+            CurrentProcurementCost = curProcurementCost,
+            PreviousProcurementCost = prevProcurementCost,
             ProcurementCostDeltaPercent = costDelta,
             CurrentOverBoqMRs = overBoqMRs,
             PreviousOverBoqMRs = prevOverBoqMRs

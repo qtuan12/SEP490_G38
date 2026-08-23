@@ -100,9 +100,9 @@ export const CreateTransferModal: React.FC<CreateTransferModalProps> = ({
           <span className="font-semibold text-slate-700">{item.materialName}</span>
           <span className="text-slate-500 ml-2">({item.materialCode})</span>
           <p className="text-slate-500 mt-1">
-            Còn lại trong đợt: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
+            Còn lại trong đợt: <strong className="text-orange-600">{remaining.toLocaleString('vi-VN')} {item.unitName}</strong>
             <span className="mx-2">•</span>
-            Có thể chuyển: <strong className="text-blue-600">{maxTransferQuantity} {item.unitName}</strong>
+            Có thể chuyển: <strong className="text-blue-600">{maxTransferQuantity.toLocaleString('vi-VN')} {item.unitName}</strong>
           </p>
         </div>
 

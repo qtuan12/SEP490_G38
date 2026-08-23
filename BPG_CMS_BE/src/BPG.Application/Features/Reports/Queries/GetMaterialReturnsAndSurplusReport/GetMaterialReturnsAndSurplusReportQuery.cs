@@ -58,6 +58,22 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             }
         }
 
+        // A Direct Purchase technical PO is FullyReceived before the payment decision.
+        // Pending/rejected emergency purchases are not a company expense and therefore
+        // must not affect the monetary valuation of returns and surplus materials.
+        var nonApprovedAutoPoQuery = _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(d => d.AutoPOId.HasValue && d.Status != DirectPurchaseStatus.Approved);
+        nonApprovedAutoPoQuery = request.ProjectId > 0
+            ? nonApprovedAutoPoQuery.Where(d => d.ProjectId == request.ProjectId)
+            : nonApprovedAutoPoQuery.Where(d => accessibleIds.Contains(d.ProjectId));
+        var nonApprovedAutoPoIds = await nonApprovedAutoPoQuery
+            .Select(d => d.AutoPOId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         // 2. Load a quantity-weighted historical price in each material's base unit.
         // Restrict the price pool to the same accessible project scope and report cut-off.
         var poPriceQuery = _unitOfWork.Repository<PurchaseOrderItem>().Query()
@@ -67,6 +83,7 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
                 && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.PendingApproval
                 && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.Rejected
                 && poi.PurchaseOrder.Status != BPG.Domain.Constants.PurchaseOrderStatus.Cancelled
+                && !nonApprovedAutoPoIds.Contains(poi.POId)
                 && (request.ProjectId > 0
                     ? poi.PurchaseOrder.ProjectId == request.ProjectId
                     : accessibleIds.Contains(poi.PurchaseOrder.ProjectId)));

@@ -225,7 +225,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
               <Wrench size={20} />
             </div>
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Có Rework Task</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Có việc khắc phục</div>
               <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{data.incidentsWithRework}</div>
             </div>
           </div>
@@ -356,7 +356,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                 <th className="px-4 py-3 w-48">Sự cố & Ngày lập</th>
                 <th className="px-4 py-3">Nội dung sự cố & Người báo cáo</th>
                 <th className="px-4 py-3 w-56">Hạng mục / Công việc</th>
-                <th className="px-4 py-3 text-center w-36">Trạng thái Workflow</th>
+                <th className="px-4 py-3 text-center w-36">Trạng thái xử lý</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -411,16 +411,16 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-bold text-[10px] hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
-                              title="Chuyển đến task sửa chữa (Rework Task)"
+                              title="Chuyển đến công việc sửa chữa (Rework Task)"
                             >
                               <Construction size={11} />
-                              Rework: {i.reworkTaskName || 'Xem nhiệm vụ sửa chữa'}
+                              Khắc phục: {i.reworkTaskName || 'Xem nhiệm vụ sửa chữa'}
                               <ExternalLink size={10} />
                             </Link>
                           ) : (
                             <span className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded font-bold text-[10px]">
                               <Construction size={11} />
-                              Rework: {i.reworkTaskName || 'Có rework task'}
+                              Khắc phục: {i.reworkTaskName || 'Có việc cần khắc phục'}
                             </span>
                           )
                         )}

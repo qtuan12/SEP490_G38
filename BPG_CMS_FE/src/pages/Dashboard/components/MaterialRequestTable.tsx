@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { Boxes, CheckCircle, XCircle, FileCheck2 } from 'lucide-react';
-import type { MaterialRequest } from '../../../types/common';
+import { Boxes, CheckCircle, FileCheck2 } from 'lucide-react';
+import type { MaterialRequest, MaterialRequestProcurementDecision } from '../../../types/common';
 import { Badge, Button } from '../../../components/ui';
 import { MaterialRequestDetailModal } from '../../MaterialRequests/modals/MaterialRequestDetailModal';
 import { formatDate } from '../../../utils/dateHelpers';
+import {
+  getMaterialRequestBusinessStatus,
+  getMaterialRequestBusinessStatusVariant,
+} from '../../MaterialRequests/materialRequestDecision';
 
 interface MaterialRequestTableProps {
   materialRequests: MaterialRequest[];
   loadingRequests: boolean;
   canAccountForRequest: (request: MaterialRequest) => boolean;
   canApproveRequest: (request: MaterialRequest) => boolean;
-  handleVerifyRequestByAccountant: (id: string) => void;
+  handleVerifyRequestByAccountant: (
+    id: string,
+    decision: MaterialRequestProcurementDecision,
+    note: string,
+  ) => Promise<boolean>;
   handleDisburseRequestByAccountant: (id: string) => void;
   handleApproveRequestByDirector: (id: string) => void;
   handleRejectRequest: (id: string) => void;
@@ -29,20 +37,20 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<MaterialRequest | null>(null);
 
-  const getStatusBadgeMR = (status: MaterialRequest['status']) => {
-    switch (status) {
+  const getStatusBadgeMR = (request: MaterialRequest) => {
+    switch (request.status) {
       case 'pending_accountant':
-        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 normal-case">Chờ phê duyệt</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 normal-case">{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'pending_director':
-        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ duyệt vượt định mức</Badge>;
+        return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'pending_disbursement':
         return <Badge variant="warning" className="text-[0.72rem] py-0.5 px-2 bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] normal-case">Chờ tạm ứng</Badge>;
       case 'disbursed':
         return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã tạm ứng</Badge>;
       case 'approved':
-        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">Đã phê duyệt</Badge>;
+        return <Badge variant="success" className="text-[0.72rem] py-0.5 px-2 normal-case">{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'rejected':
-        return <Badge variant="danger" className="text-[0.72rem] py-0.5 px-2 normal-case">Bị từ chối</Badge>;
+        return <Badge variant={getMaterialRequestBusinessStatusVariant(request)} className="text-[0.72rem] py-0.5 px-2 normal-case">{getMaterialRequestBusinessStatus(request)}</Badge>;
       default:
         return null;
     }
@@ -116,25 +124,21 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.65rem]">Trong định mức</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap">{getStatusBadgeMR(req.status)}</td>
+                      <td className="whitespace-nowrap">{getStatusBadgeMR(req)}</td>
                       <td className="text-center align-middle">
                         {req.status === 'pending_accountant' && (
                           canAccountForRequest(req) ? (
                             <div className="flex gap-1.5 justify-center flex-wrap">
                               <Button
                                 variant="secondary"
-                                onClick={() => handleVerifyRequestByAccountant(req.id)}
+                                onClick={() => {
+                                  setSelectedRequest(req);
+                                  setDetailModalOpen(true);
+                                }}
                                 className="py-1 px-2 text-[0.75rem] h-auto flex items-center gap-1 border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
                               >
                                 <FileCheck2 size={13} />
-                                <span>{req.isOverBOQ ? 'Trình Giám đốc' : 'Duyệt'}</span>
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                onClick={() => handleRejectRequest(req.id)}
-                                className="py-1 px-2 text-[0.75rem] h-auto bg-[hsl(var(--danger-glow))] text-[hsl(var(--danger))] border-[hsl(var(--danger)/0.3)] hover:bg-[hsl(var(--danger)/0.15)]"
-                              >
-                                Từ chối
+                                <span>Thẩm định</span>
                               </Button>
                             </div>
                           ) : (
@@ -199,17 +203,17 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                         )}
 
                         {req.status === 'rejected' && (
-                          <div className="text-[0.78rem] text-[hsl(var(--danger))] flex flex-col gap-0.5 items-center font-medium">
+                          <div className="text-[0.78rem] text-[hsl(var(--text-secondary))] flex flex-col gap-0.5 items-center font-medium">
                             <div className="flex items-center gap-1">
-                              <XCircle size={13} />
-                              <span>Đã từ chối</span>
+                              <FileCheck2 size={13} />
+                              <span>{getMaterialRequestBusinessStatus(req)}</span>
                             </div>
                             {req.rejectionReason && (
                               <span
                                 className="text-[0.68rem] text-[hsl(var(--text-muted))] max-w-[140px] inline-block overflow-hidden text-ellipsis whitespace-nowrap font-normal"
                                 title={req.rejectionReason}
                               >
-                                Lý do: {req.rejectionReason}
+                                Ý kiến: {req.rejectionReason}
                               </span>
                             )}
                           </div>

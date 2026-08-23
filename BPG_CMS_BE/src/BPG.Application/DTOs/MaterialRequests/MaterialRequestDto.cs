@@ -17,6 +17,7 @@ namespace BPG.Application.DTOs.MaterialRequests
         public string Reason { get; set; } = string.Empty;
         public string? AccountantNote { get; set; }
         public string? ApprovalNote { get; set; }
+        public string? ProcurementDecision { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public long? CreatedBy { get; set; }
