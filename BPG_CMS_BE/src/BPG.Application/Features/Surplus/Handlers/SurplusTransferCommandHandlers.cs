@@ -450,6 +450,41 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
 
             await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
             await _uow.SaveChangesAsync(ct);
+
+            // Thông báo xác nhận đã nhận
+            var receiveTitle = "Bên nhận đã xác nhận hàng";
+            var receiveMsg = string.Format(NotificationTemplates.SurplusTransferReceived, transfer.SurplusTransferId);
+
+            // 1. Thông báo đến người đã dispatch (trừ người đang receive)
+            var dispatchedBy = transfer.DispatchedBy;
+            if (dispatchedBy.HasValue && dispatchedBy.Value != userId)
+            {
+                await _notificationService.SendNotificationAsync(
+                    dispatchedBy.Value, receiveTitle, receiveMsg,
+                    NotificationType.Procurement, NotificationLink.ProjectSurplus(transfer.FromProjectId),
+                    transfer.SurplusRequestItem.SurplusRequestId, ct);
+            }
+
+            // 2. Thông báo đến Trưởng phòng kỹ thuật (trừ người receive)
+            await _notificationService.SendNotificationToRoleAsync(
+                Domain.Constants.UserRole.TechnicalManager,
+                receiveTitle, receiveMsg,
+                NotificationType.Procurement,
+                excludeUserId: userId,
+                NotificationLink.ProjectSurplus(transfer.FromProjectId),
+                transfer.SurplusRequestItem.SurplusRequestId,
+                ct);
+
+            // 3. Thông báo đến Kế toán (trừ người receive)
+            await _notificationService.SendNotificationToRoleAsync(
+                Domain.Constants.UserRole.Accountant,
+                receiveTitle, receiveMsg,
+                NotificationType.Procurement,
+                excludeUserId: userId,
+                NotificationLink.ProjectSurplus(transfer.FromProjectId),
+                transfer.SurplusRequestItem.SurplusRequestId,
+                ct);
+
             await _uow.CommitTransactionAsync(ct);
         }
         catch
@@ -457,40 +492,6 @@ public class ReceiveSurplusTransferCommandHandler : IRequestHandler<ReceiveSurpl
             await _uow.RollbackTransactionAsync(CancellationToken.None);
             throw;
         }
-
-        // Thông báo xác nhận đã nhận
-        var receiveTitle = "Bên nhận đã xác nhận hàng";
-        var receiveMsg = string.Format(NotificationTemplates.SurplusTransferReceived, transfer.SurplusTransferId);
-
-        // 1. Thông báo đến người đã dispatch (trừ người đang receive)
-        var dispatchedBy = transfer.DispatchedBy;
-        if (dispatchedBy.HasValue && dispatchedBy.Value != userId)
-        {
-            await _notificationService.SendNotificationAsync(
-                dispatchedBy.Value, receiveTitle, receiveMsg,
-                NotificationType.Procurement, NotificationLink.ProjectSurplus(transfer.FromProjectId),
-                transfer.SurplusRequestItem.SurplusRequestId, ct);
-        }
-
-        // 2. Thông báo đến Trưởng phòng kỹ thuật (trừ người receive)
-        await _notificationService.SendNotificationToRoleAsync(
-            Domain.Constants.UserRole.TechnicalManager,
-            receiveTitle, receiveMsg,
-            NotificationType.Procurement,
-            excludeUserId: userId,
-            NotificationLink.ProjectSurplus(transfer.FromProjectId),
-            transfer.SurplusRequestItem.SurplusRequestId,
-            ct);
-
-        // 3. Thông báo đến Kế toán (trừ người receive)
-        await _notificationService.SendNotificationToRoleAsync(
-            Domain.Constants.UserRole.Accountant,
-            receiveTitle, receiveMsg,
-            NotificationType.Procurement,
-            excludeUserId: userId,
-            NotificationLink.ProjectSurplus(transfer.FromProjectId),
-            transfer.SurplusRequestItem.SurplusRequestId,
-            ct);
 
         return ApiResponse.SuccessResult(ResponseMessages.UpdateSuccess);
     }
