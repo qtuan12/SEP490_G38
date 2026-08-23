@@ -104,7 +104,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-indigo-50/50 dark:from-slate-900 dark:to-indigo-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-emerald-500" />
           <div className="flex justify-between items-start">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tiến độ Tasks</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tiến độ công việc</span>
             <div className="p-2.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
               <CheckCircle size={20} />
             </div>
@@ -259,7 +259,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
           <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
             <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
-              <ShieldAlert size={18} className="text-red-500" /> Danh sách Task cần chú ý ({filteredTasks.length})
+              <ShieldAlert size={18} className="text-red-500" /> Danh sách công việc cần chú ý ({filteredTasks.length})
             </h4>
             <div className="flex flex-wrap items-center gap-3">
               <select
@@ -276,7 +276,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
                 value={filterPhase}
                 onChange={e => setFilterPhase(e.target.value)}
               >
-                <option value="All">Tất cả Phase</option>
+                <option value="All">Tất cả giai đoạn</option>
                 {uniquePhases.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
@@ -290,8 +290,8 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                   <tr>
                     <th className="px-4 py-3">Mức độ</th>
-                    <th className="px-4 py-3">Tên Task</th>
-                    <th className="px-4 py-3">Phase</th>
+                    <th className="px-4 py-3">Tên công việc</th>
+                    <th className="px-4 py-3">Giai đoạn</th>
                     <th className="px-4 py-3 text-right">Tiến độ</th>
                     <th className="px-4 py-3">Hạn chót</th>
                     <th className="px-4 py-3">Người phụ trách</th>

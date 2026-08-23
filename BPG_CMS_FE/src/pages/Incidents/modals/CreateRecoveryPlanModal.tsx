@@ -9,7 +9,7 @@ import { toast } from 'react-hot-toast';
 import type { IncidentReport } from '../../../types/common';
 
 const MAX_RECOVERY_PLAN_FILES = 5;
-const MAX_RECOVERY_PLAN_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_RECOVERY_PLAN_FILE_SIZE = 20 * 1024 * 1024;
 
 export interface CreateRecoveryPlanFormProps {
   incident: IncidentReport;
@@ -219,7 +219,7 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
       }
 
       if (file.size > MAX_RECOVERY_PLAN_FILE_SIZE) {
-        toast.error(`Tệp ${file.name} vượt quá giới hạn 10 MB.`);
+        toast.error(`Tệp ${file.name} vượt quá giới hạn 20 MB.`);
         continue;
       }
 
@@ -256,7 +256,7 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
         throw new Error(`Chỉ được đính kèm tối đa ${MAX_RECOVERY_PLAN_FILES} tệp.`);
       }
       if (selectedFiles.some(file => file.size > MAX_RECOVERY_PLAN_FILE_SIZE)) {
-        throw new Error('Mỗi tệp kế hoạch khắc phục không được vượt quá 10 MB.');
+        throw new Error('Mỗi tệp kế hoạch khắc phục không được vượt quá 20 MB.');
       }
       
       const uploadedUrls = await projectService.uploadFiles(selectedFiles, 'incidents');
@@ -342,13 +342,17 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
             style={{
               border: dragging ? '2px dashed hsl(var(--primary))' : '2px dashed hsl(var(--border))',
               borderRadius: '8px',
-              padding: '24px 16px',
+              padding: selectedFiles.length > 0 ? '14px 16px' : '24px 16px',
               textAlign: 'center',
               backgroundColor: dragging ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-muted)/0.3)',
-              cursor: 'pointer',
+              cursor: selectedFiles.length >= MAX_RECOVERY_PLAN_FILES ? 'default' : 'pointer',
               transition: 'all 0.2s ease',
             }}
-            onClick={() => document.getElementById('file-upload-recovery')?.click()}
+            onClick={() => {
+              if (selectedFiles.length < MAX_RECOVERY_PLAN_FILES) {
+                document.getElementById('file-upload-recovery')?.click();
+              }
+            }}
           >
             <input
               type="file"
@@ -360,48 +364,83 @@ export const CreateRecoveryPlanForm: React.FC<CreateRecoveryPlanFormProps> = ({
               disabled={selectedFiles.length >= MAX_RECOVERY_PLAN_FILES}
             />
             
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <UploadCloud size={32} style={{ color: 'hsl(var(--text-muted))' }} />
-              <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'hsl(var(--text-primary))' }}>
-                Kéo thả hoặc Click để chọn nhiều tệp
-              </span>
-              <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
-                Hỗ trợ: Word, Excel, PDF, tệp nén hoặc ảnh — tối đa 5 tệp, 10 MB/tệp
-              </span>
-            </div>
-          </div>
-
-          {selectedFiles.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>
-                Danh sách tệp tin đã chọn ({selectedFiles.length}):
-              </span>
-              {selectedFiles.map((file, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'hsl(var(--bg-main))', border: '1px solid hsl(var(--border))', borderRadius: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                    <FileText size={18} style={{ color: '#2b6cb0', flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-primary))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {file.name}
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', flexShrink: 0 }}>
-                      ({(file.size / 1024).toFixed(1)} KB)
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
-                    }}
-                    style={{ color: 'red', display: 'flex', padding: '4px', borderRadius: '4px' }}
-                    className="hover:bg-red-50"
-                  >
-                    <X size={14} />
-                  </button>
+            {selectedFiles.length === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <UploadCloud size={32} style={{ color: 'hsl(var(--text-muted))' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'hsl(var(--text-primary))' }}>
+                  Kéo thả hoặc Click để chọn nhiều tệp
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>
+                  Hỗ trợ: Word, Excel, PDF, tệp nén hoặc ảnh — tối đa 5 tệp, 20 MB/tệp
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase' }}>
+                    Danh sách tệp tin đã chọn ({selectedFiles.length}/{MAX_RECOVERY_PLAN_FILES}):
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {selectedFiles.map((file, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'hsl(var(--bg-main))', border: '1px solid hsl(var(--border))', borderRadius: '6px', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                        <FileText size={18} style={{ color: '#2b6cb0', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'hsl(var(--text-primary))', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {file.name}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))', flexShrink: 0 }}>
+                          ({(file.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFiles(prev => prev.filter((_, i) => i !== idx));
+                        }}
+                        style={{ color: 'hsl(var(--danger))', display: 'flex', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}
+                        className="hover:bg-red-50"
+                        title="Xóa tệp"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedFiles.length < MAX_RECOVERY_PLAN_FILES ? (
+                  <div
+                    onClick={() => document.getElementById('file-upload-recovery')?.click()}
+                    style={{
+                      marginTop: '4px',
+                      padding: '8px',
+                      borderRadius: '6px',
+                      border: '1px dashed hsl(var(--primary)/0.5)',
+                      backgroundColor: 'hsl(var(--primary-glow))',
+                      color: 'hsl(var(--primary))',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                    className="hover:opacity-90"
+                  >
+                    <UploadCloud size={14} />
+                    <span>+ Thêm tệp khác (Đã chọn {selectedFiles.length}/{MAX_RECOVERY_PLAN_FILES} tệp)</span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))', textAlign: 'center', marginTop: '4px' }}>
+                    Đã đạt giới hạn tối đa {MAX_RECOVERY_PLAN_FILES} tệp
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </FormItem>
 
       </div>

@@ -26,7 +26,7 @@ interface QuotationFileState {
 const QUOTATION_FOLDER = 'purchase-orders/quotations';
 /** Trùng UploadFilePolicy.MaxFilesPerRequest và MaxFileSizeBytes của backend. */
 const MAX_QUOTATION_FILES = 5;
-const MAX_QUOTATION_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_QUOTATION_SIZE_BYTES = 20 * 1024 * 1024;
 
 interface POItem {
   materialId: number;

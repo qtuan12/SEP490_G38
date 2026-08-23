@@ -11,6 +11,7 @@ namespace BPG.Application.Common.Files;
 public static class UploadFilePolicy
 {
     public const long MaxFileSizeBytes = 10 * 1024 * 1024;
+    public const long MaxIncidentFileSizeBytes = 20 * 1024 * 1024;
     public const long MaxProjectDesignFileSizeBytes = 50 * 1024 * 1024;
     public const long MultipartOverheadBytesPerFile = 1024 * 1024;
     public const int MaxFilesPerRequest = 5;
@@ -216,7 +217,8 @@ public static class UploadFilePolicy
             new UploadDestination(
                 "incidents",
                 IncidentFiles,
-                new[] { UserRole.TechnicalManager, UserRole.SiteEngineer }),
+                new[] { UserRole.TechnicalManager, UserRole.SiteEngineer },
+                MaxIncidentFileSizeBytes),
             "incidents",
             StorageFolders.IncidentPhotos);
 

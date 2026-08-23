@@ -44,6 +44,7 @@ public static class RolePolicies
     public const string Reports =
         UserRole.Director + "," +
         UserRole.TechnicalManager + "," +
+        UserRole.SiteEngineer + "," +
         UserRole.Accountant;
     public const string MasterData = UserRole.TechnicalManager + "," + UserRole.Accountant;
 }
@@ -163,6 +164,9 @@ public static class NotificationLink
 
     public static string ProjectSurplus(long projectId) =>
         $"/projects/{projectId}/workspace/surplus";
+
+    public static string ProjectIncidents(long projectId) =>
+        $"/projects/{projectId}/workspace/incidents";
 }
 
 public static class EntityType

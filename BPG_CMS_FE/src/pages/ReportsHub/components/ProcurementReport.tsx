@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp, ExternalLink } from 'lucide-react';
+import { ShoppingCart, AlertCircle, DollarSign, Package, TrendingUp, ExternalLink, Search, X } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ProcurementReportDto } from '../../../services/reportService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -48,6 +48,13 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
   const [activeTab, setActiveTab] = useState<'po' | 'dp'>('po');
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+
+  // Search & Filter State
+  const [poSearchTerm, setPoSearchTerm] = useState('');
+  const [poStatusFilter, setPoStatusFilter] = useState('all');
+  const [dpSearchTerm, setDpSearchTerm] = useState('');
+  const [dpStatusFilter, setDpStatusFilter] = useState('all');
+
   const requestIdRef = useRef(0);
   const isCurrentResult = loadState?.requestIdentity === requestIdentity;
   const data = isCurrentResult ? loadState.data : null;
@@ -299,109 +306,313 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       </div>
 
       {/* PO Table */}
-      {activeTab === 'po' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
-            <table className="w-full text-xs text-left relative">
-              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
-                <tr>
-                  <th className="px-4 py-3 text-center w-12">STT</th>
-                  <th className="px-4 py-3">Mã Dơn Hàng</th>
-                  <th className="px-4 py-3">Nhà cung cấp</th>
-                  <th className="px-4 py-3 text-right">Tổng giá trị</th>
-                  <th className="px-4 py-3">Ngày đặt</th>
-                  <th className="px-4 py-3">Giao hàng dự kiến</th>
-                  <th className="px-4 py-3 text-center">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.purchaseOrders.map((po, index) => {
-                  const statusInfo = PO_STATUS_LABELS[po.status] || { label: po.status, colorClass: 'bg-slate-100 text-slate-600' };
-                  return (
-                    <tr key={po.poId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+      {activeTab === 'po' && (() => {
+        const filteredPOs = data.purchaseOrders.filter(po => {
+          if (poSearchTerm.trim()) {
+            const q = poSearchTerm.toLowerCase().trim();
+            const matchNumber = (po.poNumber || '').toLowerCase().includes(q);
+            const matchSupplier = (getPOSupplierDisplayName(po.supplierName, po.poNumber) || '').toLowerCase().includes(q);
+            if (!matchNumber && !matchSupplier) return false;
+          }
+          if (poStatusFilter !== 'all') {
+            if (poStatusFilter === 'FullyReceived') {
+              if (po.status !== 'FullyReceived' && po.status !== 'Closed' && po.status !== 'AutoClosed') return false;
+            } else if (poStatusFilter === 'Rejected') {
+              if (po.status !== 'Rejected' && po.status !== 'Cancelled') return false;
+            } else if (po.status !== poStatusFilter) {
+              return false;
+            }
+          }
+          return true;
+        });
+
+        const isPoFiltering = !!poSearchTerm || poStatusFilter !== 'all';
+
+        return (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            {/* Toolbar */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-slate-900 dark:text-white">
+                  Danh sách đơn hàng PO
+                </span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  Hiển thị {filteredPOs.length} / {data.purchaseOrders.length} đơn hàng
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search PO */}
+                <div className="relative min-w-[200px] max-w-[280px]">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={poSearchTerm}
+                    onChange={(e) => setPoSearchTerm(e.target.value)}
+                    placeholder="Tìm theo số PO, nhà cung cấp..."
+                    className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  {poSearchTerm && (
+                    <button
+                      onClick={() => setPoSearchTerm('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Status Filter */}
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={poStatusFilter}
+                    onChange={(e) => setPoStatusFilter(e.target.value)}
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="Sent">Đã gửi NCC</option>
+                    <option value="PartiallyReceived">Nhận 1 phần</option>
+                    <option value="FullyReceived">Đã nhận đủ</option>
+                    <option value="PendingApproval">Chờ GĐ duyệt</option>
+                    <option value="Rejected">Bị từ chối / Đã hủy</option>
+                  </select>
+                </div>
+
+                {/* Reset */}
+                {isPoFiltering && (
+                  <button
+                    onClick={() => {
+                      setPoSearchTerm('');
+                      setPoStatusFilter('all');
+                    }}
+                    className="px-2.5 py-1.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-colors flex items-center gap-1"
+                    title="Xóa bộ lọc"
+                  >
+                    <X size={12} /> Đặt lại
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="min-h-[440px] max-h-[440px] overflow-y-auto overflow-x-auto custom-scrollbar">
+              <table className="w-full text-xs text-left relative">
+                <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
+                  <tr>
+                    <th className="px-4 py-3 text-center w-12 shrink-0">STT</th>
+                    <th className="px-4 py-3 w-36 min-w-[130px]">Mã Đơn Hàng</th>
+                    <th className="px-4 py-3 min-w-[200px]">Nhà cung cấp</th>
+                    <th className="px-4 py-3 text-right w-36 min-w-[120px]">Tổng giá trị</th>
+                    <th className="px-4 py-3 w-28 min-w-[90px]">Ngày đặt</th>
+                    <th className="px-4 py-3 w-32 min-w-[100px]">Giao hàng dự kiến</th>
+                    <th className="px-4 py-3 text-center w-36 min-w-[130px]">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredPOs.map((po, index) => {
+                    const statusInfo = PO_STATUS_LABELS[po.status] || { label: po.status, colorClass: 'bg-slate-100 text-slate-600' };
+                    return (
+                      <tr key={po.poId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-4 py-3 text-center font-medium text-slate-500">{index + 1}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <Link
+                            to={`/purchase-orders/${po.poId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                            title="Xem chi tiết đơn hàng PO"
+                          >
+                            {po.poNumber}
+                            <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
+                          </Link>
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.poNumber) || '—'}</td>
+                        <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(po.totalAmount)} VNĐ</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusInfo.colorClass}`}>
+                            {statusInfo.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filteredPOs.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-28 text-center text-slate-400">
+                        {isPoFiltering ? (
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <span className="font-medium">Không tìm thấy đơn PO nào phù hợp với bộ lọc.</span>
+                            <button
+                              onClick={() => {
+                                setPoSearchTerm('');
+                                setPoStatusFilter('all');
+                              }}
+                              className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
+                            >
+                              Xóa bộ lọc để xem tất cả ({data.purchaseOrders.length} đơn hàng)
+                            </button>
+                          </div>
+                        ) : (
+                          'Chưa có PO nào.'
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Direct Purchase Table */}
+      {activeTab === 'dp' && (() => {
+        const filteredDPs = data.directPurchases.filter(dp => {
+          if (dpSearchTerm.trim()) {
+            const q = dpSearchTerm.toLowerCase().trim();
+            const matchId = String(dp.directPurchaseId).includes(q) || `#${dp.directPurchaseId}`.includes(q);
+            const matchName = (dp.requestedByName || '').toLowerCase().includes(q);
+            if (!matchId && !matchName) return false;
+          }
+          if (dpStatusFilter !== 'all' && dp.status !== dpStatusFilter) {
+            return false;
+          }
+          return true;
+        });
+
+        const isDpFiltering = !!dpSearchTerm || dpStatusFilter !== 'all';
+
+        return (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            {/* Toolbar */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-slate-900 dark:text-white">
+                  Danh sách mua ngoài khẩn cấp
+                </span>
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  Hiển thị {filteredDPs.length} / {data.directPurchases.length} phiếu
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search DP */}
+                <div className="relative min-w-[200px] max-w-[280px]">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={dpSearchTerm}
+                    onChange={(e) => setDpSearchTerm(e.target.value)}
+                    placeholder="Tìm theo mã phiếu, người yêu cầu..."
+                    className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  {dpSearchTerm && (
+                    <button
+                      onClick={() => setDpSearchTerm('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Status Filter */}
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={dpStatusFilter}
+                    onChange={(e) => setDpStatusFilter(e.target.value)}
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="Approved">Đã duyệt</option>
+                    <option value="Pending">Chờ duyệt</option>
+                    <option value="Rejected">Từ chối</option>
+                  </select>
+                </div>
+
+                {/* Reset */}
+                {isDpFiltering && (
+                  <button
+                    onClick={() => {
+                      setDpSearchTerm('');
+                      setDpStatusFilter('all');
+                    }}
+                    className="px-2.5 py-1.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-colors flex items-center gap-1"
+                    title="Xóa bộ lọc"
+                  >
+                    <X size={12} /> Đặt lại
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="min-h-[440px] max-h-[440px] overflow-y-auto overflow-x-auto custom-scrollbar">
+              <table className="w-full text-xs text-left relative">
+                <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
+                  <tr>
+                    <th className="px-4 py-3 text-center w-12 shrink-0">STT</th>
+                    <th className="px-4 py-3 w-36 min-w-[130px]">Mã phiếu</th>
+                    <th className="px-4 py-3 min-w-[200px]">Người yêu cầu</th>
+                    <th className="px-4 py-3 text-right w-36 min-w-[120px]">Tổng giá trị</th>
+                    <th className="px-4 py-3 w-36 min-w-[120px]">Ngày tạo</th>
+                    <th className="px-4 py-3 text-center w-36 min-w-[130px]">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredDPs.map((dp, index) => (
+                    <tr key={dp.directPurchaseId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-3 text-center font-medium text-slate-500">{index + 1}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <Link
-                          to={`/purchase-orders/${po.poId}`}
+                          to={`/direct-purchases?directPurchaseId=${dp.directPurchaseId}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
-                          title="Xem chi tiết đơn hàng PO"
+                          title="Xem mua ngoài khẩn cấp"
                         >
-                          {po.poNumber}
+                          #{dp.directPurchaseId}
                           <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
                         </Link>
                       </td>
-                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.poNumber) || '—'}</td>
-                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(po.totalAmount)} VNĐ</td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>
+                      <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{dp.requestedByName}</td>
+                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(dp.totalAmount)} VNĐ</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatTimestamp(dp.createdAt)}</td>
                       <td className="px-4 py-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusInfo.colorClass}`}>
-                          {statusInfo.label}
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                          {DP_STATUS_LABELS[dp.status] || dp.status}
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
-                {data.purchaseOrders.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Chưa có PO nào.</td></tr>
-                )}
-              </tbody>
-            </table>
+                  ))}
+                  {filteredDPs.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-28 text-center text-slate-400">
+                        {isDpFiltering ? (
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <span className="font-medium">Không tìm thấy phiếu mua ngoài nào phù hợp với bộ lọc.</span>
+                            <button
+                              onClick={() => {
+                                setDpSearchTerm('');
+                                setDpStatusFilter('all');
+                              }}
+                              className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
+                            >
+                              Xóa bộ lọc để xem tất cả ({data.directPurchases.length} phiếu)
+                            </button>
+                          </div>
+                        ) : (
+                          'Chưa có mua ngoài khẩn cấp nào.'
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Direct Purchase Table */}
-      {activeTab === 'dp' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="max-h-[420px] overflow-y-auto overflow-x-auto custom-scrollbar">
-            <table className="w-full text-xs text-left relative">
-              <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
-                <tr>
-                  <th className="px-4 py-3 text-center w-12">STT</th>
-                  <th className="px-4 py-3">Mã phiếu</th>
-                  <th className="px-4 py-3">Người yêu cầu</th>
-                  <th className="px-4 py-3 text-right">Tổng giá trị</th>
-                  <th className="px-4 py-3">Ngày tạo</th>
-                  <th className="px-4 py-3 text-center">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.directPurchases.map((dp, index) => (
-                  <tr key={dp.directPurchaseId} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3 text-center font-medium text-slate-500">{index + 1}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Link
-                        to={`/direct-purchases?directPurchaseId=${dp.directPurchaseId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
-                        title="Xem mua ngoài khẩn cấp"
-                      >
-                        #{dp.directPurchaseId}
-                        <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{dp.requestedByName}</td>
-                    <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(dp.totalAmount)} VNĐ</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatTimestamp(dp.createdAt)}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                        {DP_STATUS_LABELS[dp.status] || dp.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-                {data.directPurchases.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Chưa có mua ngoài khẩn cấp nào.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

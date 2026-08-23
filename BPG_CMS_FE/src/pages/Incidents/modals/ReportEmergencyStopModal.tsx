@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, FormItem } from '../../../components/ui';
 import { incidentService } from '../../../services/incidentService';
-import { UploadCloud, X, Loader2, AlertCircle } from 'lucide-react';
+import { UploadCloud, X, Loader2, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile, type UploadedFileState } from '../../../utils/uploadHelper';
 import { LazyImage } from '../../../utils/imageOptimizer';
@@ -424,7 +424,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
                   ? 'border-red-500 bg-red-50'
                   : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100/80'
               } ${uploadedFiles.length >= 5 ? 'cursor-not-allowed opacity-90' : ''}`}
-              style={{ padding: uploadedFiles.length > 0 ? '16px' : '24px' }}
+              style={{ padding: uploadedFiles.length > 0 ? '16px' : '24px', minHeight: '110px' }}
             >
               <input
                 type="file"

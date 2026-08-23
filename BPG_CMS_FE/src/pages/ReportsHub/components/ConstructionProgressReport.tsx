@@ -158,7 +158,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
             <div className="mt-3 flex items-baseline justify-between">
               <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{data.overallProgressPercent}%</div>
               <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${varianceBadgeClass}`}>
-                {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}%` : `${variancePercent.toFixed(1)}%`} vs Baseline
+                {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}%` : `${variancePercent.toFixed(1)}%`} so với Kế hoạch
               </span>
             </div>
           </div>
@@ -335,9 +335,9 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
               <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
                 <tr>
                   <th className="px-4 py-3">Người Phụ trách</th>
-                  <th className="px-4 py-3 text-center">Tổng Task</th>
+                  <th className="px-4 py-3 text-center">Tổng công việc</th>
                   <th className="px-4 py-3 text-center">Đã Hoàn thành</th>
-                  <th className="px-4 py-3 text-center">Task Trễ</th>
+                  <th className="px-4 py-3 text-center">Công việc trễ</th>
                   <th className="px-4 py-3 text-right">Tỷ lệ Đúng hạn (%)</th>
                 </tr>
               </thead>
@@ -366,10 +366,10 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
           <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider m-0 flex items-center gap-2">
-            <HardHat size={16} className="text-indigo-500" /> Chi tiết Tiến độ Phase & Công việc Thi công
+            <HardHat size={16} className="text-indigo-500" /> Chi tiết Tiến độ Giai đoạn & Công việc Thi công
           </h4>
           <span className="text-[11px] font-semibold text-slate-500">
-            {data.phases.length} Phase • {data.acceptances.length} Nghiệm thu
+            {data.phases.length} Giai đoạn • {data.acceptances.length} Nghiệm thu
           </span>
         </div>
 
@@ -377,7 +377,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 dark:divide-slate-800">
           {/* Left Sidebar: Compact Phase List Selector & Acceptances Tab (4 cols) */}
           <div className="lg:col-span-4 p-3 bg-slate-50/30 dark:bg-slate-900/30 flex flex-col gap-1.5 max-h-[380px] overflow-y-auto custom-scrollbar">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1">Chọn Phase xem chi tiết</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 py-1">Chọn Giai đoạn xem chi tiết</div>
             {data.phases.map((phase) => {
               const isActive = activePhaseId === phase.phaseId;
               const hasDelay = phase.delayedTasks.length > 0;
@@ -399,7 +399,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                       }`} />
                     <div className="truncate">
                       <div className="font-bold text-xs text-slate-900 dark:text-white truncate">{phase.phaseName}</div>
-                      <div className="text-[10px] text-slate-500">{phase.completedTasks}/{phase.totalTasks} tasks</div>
+                      <div className="text-[10px] text-slate-500">{phase.completedTasks}/{phase.totalTasks} công việc</div>
                     </div>
                   </div>
 
