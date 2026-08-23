@@ -632,7 +632,14 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId, o
         </div>
       )}
 
-      <Modal isOpen={!!zoomImage} onClose={() => setZoomImage(null)} title="Ảnh hiện trường thực tế" mobileFullScreen>
+      <Modal 
+        isOpen={!!zoomImage} 
+        onClose={() => setZoomImage(null)} 
+        title="Ảnh hiện trường thực tế" 
+        width="full"
+        maxWidth="1200px"
+        mobileFullScreen
+      >
         <div className="flex justify-center items-center overflow-hidden">
           {zoomImage && (
             <img

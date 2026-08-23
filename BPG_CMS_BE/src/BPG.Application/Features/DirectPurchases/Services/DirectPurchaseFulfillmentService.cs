@@ -87,10 +87,11 @@ namespace BPG.Application.Features.DirectPurchases.Services
                         ?? throw new NotFoundException(nameof(Domain.Entities.Unit), unitId);
                 }
 
-                if (unit.IsDiscrete && item.Quantity % 1 != 0)
+                decimal requiredBaseQty = item.Quantity / conversionRate;
+                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && requiredBaseQty % 1 != 0)
                 {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
-                        $"Đơn vị tính '{unit.UnitName}' yêu cầu số lượng phải là số nguyên.");
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Vật tư '{material.Name}' được quản lý bằng đơn vị gốc '{material.BaseUnit.UnitName}' (số nguyên). Việc quy đổi {item.Quantity} {unit.UnitName} sẽ dẫn đến số lượng lẻ ({requiredBaseQty} {material.BaseUnit.UnitName}), hệ thống không cho phép.");
                 }
 
                 result.Add(new ResolvedDirectPurchaseItem

@@ -232,7 +232,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     const boq = item.boqQuantity || 0;
     const used = item.usedQuantity || 0;
 
-    if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
+    if ((boq > 0 && used > boq) || (boq === 0 && used > 0)) {
       return 'over_boq';
     }
     if (boq > 0 && used >= 0.8 * boq && used < boq) {
