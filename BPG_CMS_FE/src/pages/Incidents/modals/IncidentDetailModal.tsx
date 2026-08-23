@@ -2029,6 +2029,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
       onClose={onClose}
       width={(isResolving || isPlanModalOpen) ? 'full' : 'lg'}
       maxWidth={(isResolving || isPlanModalOpen) ? '1180px' : undefined}
+      mobileFullScreen
       title={
         isPlanModalOpen ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>

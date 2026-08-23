@@ -91,6 +91,7 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
                 // Tìm kiếm vật tư theo Tên trong Catalog
                 var materialNameTrim = item.Name.Trim();
                 var material = await _uow.Repository<MaterialCatalog>().Query()
+                    .Include(m => m.BaseUnit)
                     .FirstOrDefaultAsync(m => m.Name == materialNameTrim, cancellationToken);
                 if (material == null)
                 {
@@ -128,6 +129,12 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
 
                 // Quy đổi số lượng yêu cầu đợt này sang Base Unit
                 decimal qtyInBase = item.Quantity / (conversionRate == 0 ? 1m : conversionRate);
+
+                if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && qtyInBase % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Vật tư '{material.Name}' được quản lý bằng đơn vị gốc '{material.BaseUnit.UnitName}' (số nguyên). Việc quy đổi {item.Quantity} {unit.UnitName} sẽ dẫn đến số lượng lẻ ({qtyInBase} {material.BaseUnit.UnitName}), hệ thống không cho phép.");
+                }
 
                 // Lấy định mức BOQ được duyệt của vật tư trong Phase này
                 var boq = await _uow.Repository<BOQItem>().Query()

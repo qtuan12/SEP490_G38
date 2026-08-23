@@ -162,10 +162,11 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     continue; // Bỏ qua vật tư không nhận đợt này (giao bù sau)
                 }
 
-                if (poItem.Unit != null && poItem.Unit.IsDiscrete && item.Quantity % 1 != 0)
+                decimal receivedBaseQty = item.Quantity / poItem.ConversionRate;
+                if (poItem.Material?.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && receivedBaseQty % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
-                        $"Đơn vị tính '{poItem.Unit.UnitName}' của vật tư [{poItem.Material.Name}] yêu cầu số lượng nhận phải là số nguyên.");
+                        $"Vật tư [{poItem.Material.Name}] được quản lý bằng đơn vị gốc '{poItem.Material.BaseUnit.UnitName}' (số nguyên). Việc nhận {item.Quantity} {poItem.Unit?.UnitName ?? ""} sẽ dẫn đến tồn kho lẻ ({receivedBaseQty} {poItem.Material.BaseUnit.UnitName}), hệ thống không cho phép.");
                 }
 
                 receivedQtyMap.TryGetValue(item.MaterialId, out decimal totalReceivedBefore);

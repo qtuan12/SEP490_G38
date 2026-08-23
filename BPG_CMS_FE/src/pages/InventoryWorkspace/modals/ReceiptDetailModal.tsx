@@ -287,6 +287,7 @@ export const ReceiptDetailModal: React.FC<ReceiptDetailModalProps> = ({
         onClose={() => !saving && !cancelling && onClose()}
         title={`Chi tiết Phiếu Nhập Kho: ${detail?.receiptNo || ''}`}
         width="lg"
+        mobileFullScreen
         footer={
           <div className="flex justify-between items-center w-full">
             <div>

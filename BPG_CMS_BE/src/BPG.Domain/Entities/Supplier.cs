@@ -9,7 +9,7 @@ public class Supplier : BaseEntity
     public string? ServiceArea { get; set; }
     public decimal? Rating { get; set; }
     public string? EvaluationNote { get; set; }
-    public string CollaborationStatus { get; set; } = "Active";
+    public string CollaborationStatus { get; set; } = BPG.Domain.Constants.CollaborationStatus.Regular;
 
     public ICollection<PurchaseOrder> PurchaseOrders { get; set; } = new List<PurchaseOrder>();
 }

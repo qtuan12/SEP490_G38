@@ -35,7 +35,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     const boq = item.boqQuantity || 0;
     const used = item.usedQuantity || 0;
 
-    if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
+    if ((boq > 0 && used > boq) || (boq === 0 && used > 0)) {
       return 'over_boq';
     }
     if (boq > 0 && used >= 0.8 * boq && used < boq) {
@@ -247,7 +247,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     const used = item.usedQuantity || 0;
     const percent = boq > 0 ? Math.min(Math.round((used / boq) * 100), 100) : 0;
 
-    if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
+    if ((boq > 0 && used > boq) || (boq === 0 && used > 0)) {
       return (
         <div className="flex flex-col items-center gap-0.5">
           <span
@@ -299,9 +299,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             <AlertTriangle size={12} />
             <span>Tồn kho thấp</span>
           </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            Khả dụng &le; Ngưỡng an toàn ({formatQty(safety)})
-          </span>
+
           {boq > 0 && (
             <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
               <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
