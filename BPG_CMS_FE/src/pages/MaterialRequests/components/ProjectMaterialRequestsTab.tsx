@@ -504,7 +504,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                 <th className="px-4 py-3">Người yêu cầu</th>
                 <th className="px-4 py-3">Phân loại</th>
                 <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3 text-center">Thao tác</th>
+                <th className="px-2.5 py-3 text-center w-[148px] min-w-[148px]">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--border-light))]">
@@ -538,7 +538,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                   <td className="px-4 py-3.5 whitespace-nowrap">
                     {getStatusBadge(req)}
                   </td>
-                  <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                  <td className="px-2.5 py-3.5 text-center whitespace-nowrap w-[148px] min-w-[148px]">
                     <div className="inline-flex flex-nowrap items-center justify-center gap-1.5 whitespace-nowrap">
                       <Button
                         variant="secondary"
@@ -547,11 +547,11 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                           setSelectedRequest(req);
                           setIsDetailOpen(true);
                         }}
-                        className="py-1 px-2 h-auto text-[0.78rem] font-medium inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
+                        className="p-1.5 h-auto inline-flex shrink-0 items-center justify-center border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
                         title="Xem chi tiết & đối chiếu định mức"
+                        aria-label="Xem chi tiết yêu cầu vật tư"
                       >
-                        <Eye size={13} />
-                        <span>Chi tiết</span>
+                        <Eye size={14} />
                       </Button>
 
                       {canManageTechnical && req.createdBy === Number(user?.id) && canResubmitProjectMaterialRequest(req) && (
