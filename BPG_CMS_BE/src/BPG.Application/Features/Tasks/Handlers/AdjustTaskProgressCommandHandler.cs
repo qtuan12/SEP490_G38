@@ -129,6 +129,11 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                 await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, task.TaskId, ct);
                 await _unitOfWork.SaveChangesAsync(ct);
             }
+            else
+            {
+                await _rollupService.UpdatePhaseStatusAsync(task.PhaseId, ct);
+                await _unitOfWork.SaveChangesAsync(ct);
+            }
 
             await _unitOfWork.CommitTransactionAsync(ct);
         }

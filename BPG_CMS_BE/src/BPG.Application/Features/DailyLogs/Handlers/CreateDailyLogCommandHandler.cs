@@ -260,13 +260,18 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 };
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 
-                // 9. ?ồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
+                // 9. Đồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
                 if (task.ParentTaskId.HasValue)
                 {
                     await _progressRollupService.RecalculateParentTaskProgressAsync(
                         task.ParentTaskId.Value,
                         task.TaskId,
                         cancellationToken);
+                }
+                else
+                {
+                    // Update Phase Status directly for top-level tasks
+                    await _progressRollupService.UpdatePhaseStatusAsync(task.PhaseId, cancellationToken);
                 }
 
                 await _uow.SaveChangesAsync(cancellationToken);

@@ -5,7 +5,7 @@ import { RoleGroup } from '../../../auth/roles';
 import { useAuth } from '../../../context/AuthContext';
 import type { WBSTask } from '../../../types/common';
 import { TableLoader } from '../../../components/ui';
-import { Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle, Copy } from 'lucide-react';
+import { Search, Folder, FileText, ChevronDown, ChevronRight, ChevronUp, CheckCircle, Trash2, AlertTriangle, FolderPlus, FilePlus2, Pencil, MoreVertical, Box, FileSignature, CornerDownRight, Info, History, PauseCircle, Copy } from 'lucide-react';
 
 const getProgressColor = (progress: number) => {
   if (progress === 100) return 'hsl(var(--success))';
@@ -43,7 +43,8 @@ export const WBSTree = () => {
     setIsReportInventoryIncidentOpen, setSelectedPhaseForInventoryIncident,
     setIsReportIncidentOpen,
     isPhaseReadyForAcceptance, loading, handleReorderTask, handleDeleteTask, handleDeletePhase,
-    handleCloneTask, handleClonePhase, projectId
+    handleCloneTask, handleClonePhase, projectId,
+    searchTerm, setSearchTerm, setFilterAssignee, setFilterWeight, filterWeight, members
   } = useWBS();
 
   const navigate = useNavigate();
@@ -78,9 +79,54 @@ export const WBSTree = () => {
     <>
       {/* ─── Left: WBS Tree ─────────────────────────────── */}
       <div className="card" style={{ padding: '20px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', marginBottom: '14px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
-          Sơ đồ hình cây Giai đoạn → Công việc
-        </h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '14px', borderBottom: '1px solid hsl(var(--border))', paddingBottom: '8px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', margin: 0 }}>
+              Sơ đồ hình cây Giai đoạn → Công việc
+            </h4>
+            
+            <div className="flex gap-2 flex-wrap items-center w-full md:w-auto">
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Tìm giai đoạn, công việc..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-[220px]"
+                />
+              </div>
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <select
+                  value={filterAssignee}
+                  onChange={(e) => setFilterAssignee(e.target.value)}
+                  className="px-3 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[180px]"
+                >
+                  <option value="">Tất cả người phụ trách</option>
+                  {members.map(member => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.userName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <select
+                  value={filterWeight}
+                  onChange={(e) => setFilterWeight(e.target.value)}
+                  className="px-3 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[140px]"
+                >
+                  <option value="">Tất cả mức độ</option>
+                  {[1, 2, 3, 4].map(w => (
+                    <option key={w} value={w.toString()}>
+                      {w === 1 ? '1 - Bình thường' : w === 2 ? '2 - Cao' : w === 3 ? '3 - Quan trọng' : w === 4 ? '4 - Rất quan trọng' : `Mức độ ${w}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {loading ? (
           <TableLoader isTable={false} message="Đang tải sơ đồ WBS..." minHeight="300px" />

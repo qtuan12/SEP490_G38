@@ -142,6 +142,30 @@ export const wbsService = {
     const res = await apiClient.post<ApiResponse<number>>(`/tasks/${taskId}/clone`);
     return res.data;
   },
+
+  importWbs: async (projectId: number | string, file: File): Promise<{ phaseCount: number; taskCount: number; skippedCount: number; errors: string[] }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.postFormData<ApiResponse<{ phaseCount: number; taskCount: number; skippedCount: number; errors: string[] }>>(`/projects/${projectId}/wbs/import`, formData);
+    return res.data;
+  },
+
+  downloadWbsTemplate: async (): Promise<void> => {
+    const token = localStorage.getItem('bpg_token');
+    const BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7111/api';
+    const response = await fetch(`${BASE_URL}/projects/0/wbs/template`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error('Không thể tải file mẫu.');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'mau_cau_truc_wbs.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   assignTask: async (taskId: number, data: { taskId: number, assigneeIds: number[] }): Promise<void> => {
     await apiClient.put(`/tasks/${taskId}/assignees`, data);
   },
