@@ -79,7 +79,7 @@ public class GetWbsTreeQueryHandlerTests
         result.Phases.Should().ContainSingle();
         var phaseDto = result.Phases.Single();
         phaseDto.PhaseId.Should().Be(20);
-        phaseDto.ProgressPercent.Should().Be(25);
+        phaseDto.ProgressPercent.Should().Be(50);
         phaseDto.Tasks.Should().ContainSingle();
         var materialDto = phaseDto.Materials.Should().ContainSingle().Which;
         materialDto.MaterialId.Should().Be(50);
