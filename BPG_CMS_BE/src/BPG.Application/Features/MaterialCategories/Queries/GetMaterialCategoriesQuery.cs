@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BPG.Application.Features.MaterialCategories.Queries;
 
-[Cacheable(DurationSeconds = 300)]
 public class GetMaterialCategoriesQuery : PaginationRequest, IRequest<PagedList<MaterialCategoryDto>>
 {
 }

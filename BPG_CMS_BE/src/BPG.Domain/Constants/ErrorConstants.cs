@@ -56,6 +56,7 @@ public static class ErrorCodes
     public const string PoRejectReasonRequired = "BIZ_042";      // Thiếu lý do khi Giám đốc từ chối PO
     public const string PoNotApproved = "BIZ_043";               // PO chưa được Giám đốc duyệt
     public const string PoProjectNotActive = "BIZ_051";          // Dự án không ở trạng thái đang thi công
+    public const string PoPhaseFrozen = "BIZ_052";                // Giai đoạn đã nghiệm thu, bị đóng băng
 
     // ==================== MUA HÀNG TRỰC TIẾP (DP) ====================
     public const string DpNotDraft = "BIZ_023";                  // Phiếu không còn ở trạng thái Nháp
@@ -72,8 +73,9 @@ public static class ErrorCodes
     public const string DpProjectNotActive = "BIZ_034";          // Dự án không ở trạng thái đang thi công
     public const string DpPhaseFrozen = "BIZ_035";               // Giai đoạn đã nghiệm thu, bị đóng băng
     public const string DpPurchaseDateInFuture = "BIZ_036";      // Ngày mua ở tương lai
-    public const string DpPurchaseDateBeforeProject = "BIZ_037";  // Ngày mua trước ngày bắt đầu dự án
-    public const string DpPurchaseDateAfterPhase = "BIZ_038";    // Ngày mua sau ngày kết thúc giai đoạn
+    // BIZ_037, BIZ_038 (ngày mua so với ngày bắt đầu dự án / ngày kết thúc giai đoạn) đã bỏ.
+    // Không tái sử dụng mã.
+    public const string DpPurchaseDateBeforePhase = "BIZ_053"; // Ngày mua trước ngày bắt đầu giai đoạn
     public const string DpPhaseProjectMismatch = "BIZ_039";      // Giai đoạn không thuộc dự án đã chọn
     public const string DpDuplicateMaterial = "BIZ_040";         // Vật tư bị khai báo trùng trong phiếu
     public const string DpInvalidUnit = "BIZ_044";               // ĐVT không thuộc đơn vị cơ bản/quy đổi của vật tư

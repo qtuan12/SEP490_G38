@@ -176,6 +176,8 @@ export const apiClient = {
             errMsg = 'Phiên đăng nhập đã hết hạn hoặc chưa xác thực. Vui lòng đăng nhập lại.';
           } else if (response.status === 404) {
             errMsg = 'Tài nguyên hoặc dữ liệu yêu cầu không tồn tại.';
+          } else if (response.status === 413) {
+            errMsg = 'Kích thước file tải lên quá lớn. Vui lòng chọn file có dung lượng nhỏ hơn.';
           } else if (response.status === 429) {
             errMsg = 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau.';
           } else if (response.status === 500) {

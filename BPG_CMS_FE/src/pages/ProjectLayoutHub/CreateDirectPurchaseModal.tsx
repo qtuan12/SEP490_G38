@@ -65,8 +65,6 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const isEditing = !!draftId;
 
   const [phases, setPhases] = useState<WBSPhase[]>([]);
-  /** Ngày bắt đầu dự án (yyyy-mm-dd) — cận dưới của ngày mua. */
-  const [projectStart, setProjectStart] = useState<string | undefined>();
   const [selectedPhaseId, setSelectedPhaseId] = useState<string>('');
   const [boqItems, setBoqItems] = useState<PhaseBOQItemDto[]>([]);
   const [catalog, setCatalog] = useState<MaterialCatalog[]>([]);
@@ -101,10 +99,6 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     setIssueMode(null);
     setServerErrors([]);
     projectService.getPhases(String(projectId)).then(setPhases).catch(() => setPhases([]));
-    projectService
-      .getProjectById(String(projectId))
-      .then(p => setProjectStart(p?.startDate ? toInputDate(p.startDate) : undefined))
-      .catch(() => setProjectStart(undefined));
     materialService
       .getMaterials({ pageNumber: 1, pageSize: 1000 })
       .then(res => setCatalog(res.items ?? []))
@@ -267,23 +261,23 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const updateRowField = (i: number, field: 'quantity' | 'unitPrice', value: string) =>
     setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
 
-  // ---------- Khoảng ngày mua hợp lệ ----------
-  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai.
-  // Không bắt buộc nằm trong khoảng của giai đoạn: chỉ cần không sớm hơn ngày bắt đầu dự án
-  // và không vượt quá ngày kết thúc giai đoạn. Backend chốt lại ở bước Gửi.
-  const todayStr = todayVnISO();
   const selectedPhase = phases.find(p => String(p.id) === selectedPhaseId);
-  const phaseEnd = selectedPhase?.endDate?.split('T')[0];
-  const maxPurchaseDate = phaseEnd && phaseEnd < todayStr ? phaseEnd : todayStr;
-  const minPurchaseDate = projectStart;
+
+  // ---------- Khoảng ngày mua hợp lệ ----------
+  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai. Cũng không được sớm
+  // hơn ngày bắt đầu giai đoạn — chỉ mua khẩn cấp cho giai đoạn đã thực sự bắt đầu, khớp với
+  // check DpPurchaseDateBeforePhase ở SubmitDirectPurchaseCommandHandler. Không còn ràng buộc
+  // theo ngày kết thúc giai đoạn hay ngày bắt đầu dự án.
+  const todayStr = todayVnISO();
+  const maxPurchaseDate = todayStr;
+  const phaseStart = selectedPhase?.startDate?.split('T')[0];
+  const minPurchaseDate = phaseStart;
 
   const purchaseDateHint = (): string | null => {
     if (!purchaseDate) return null;
     if (purchaseDate > todayStr) return 'Ngày mua không được ở tương lai.';
-    if (minPurchaseDate && purchaseDate < minPurchaseDate)
-      return `Ngày mua phải từ ${toDisplayDate(minPurchaseDate)} (ngày bắt đầu dự án) trở đi.`;
-    if (phaseEnd && purchaseDate > phaseEnd)
-      return `Ngày mua vượt quá ngày kết thúc giai đoạn (${toDisplayDate(phaseEnd)}).`;
+    if (phaseStart && purchaseDate < phaseStart)
+      return `Ngày mua phải từ ${toDisplayDate(phaseStart)} (ngày bắt đầu giai đoạn) trở đi.`;
     return null;
   };
   const dateHint = purchaseDateHint();
@@ -402,16 +396,25 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     return byIndex;
   }, [apiFieldErrors]);
 
+  // Giai đoạn đã nghiệm thu bị đóng băng — backend chặn cả lưu nháp lẫn gửi phiếu
+  // (DirectPurchaseGuard.EnsureProjectOpenForDraftingAsync), nên chặn luôn từ khâu chọn ở FE.
+  // Tên giai đoạn thường đã có sẵn tiền tố "Giai đoạn N: ...", nên không lặp lại chữ "Giai đoạn"
+  // trong câu — tránh "Giai đoạn Giai đoạn 1: ...".
+  const phaseFrozenHint = selectedPhase?.status === 'frozen'
+    ? `"${selectedPhase.name}" đã được nghiệm thu và đóng băng, không thể lập phiếu mua khẩn cấp.`
+    : null;
+
   /** Nháp chỉ cần đủ thông tin để lưu; phần còn lại backend chốt ở bước Gửi. */
   const draftIssues = useMemo(() => {
     const issues: string[] = [];
     if (!selectedPhaseId) issues.push('Chưa chọn giai đoạn.');
+    if (phaseFrozenHint) issues.push(phaseFrozenHint);
     if (!purchaseDate) issues.push('Chưa chọn ngày mua.');
     const filled = rows.filter(r => r.materialId);
     const dupe = filled.find((r, i) => filled.findIndex(x => x.materialId === r.materialId) !== i);
     if (dupe) issues.push(`Vật tư "${dupe.materialName}" bị trùng lặp.`);
     return issues;
-  }, [selectedPhaseId, purchaseDate, rows]);
+  }, [selectedPhaseId, phaseFrozenHint, purchaseDate, rows]);
 
   const submitIssues = useMemo(() => {
     const issues = [...draftIssues];
@@ -582,7 +585,10 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const invoiceError = strict && uploadedFiles.length === 0 ? 'Bắt buộc phải tải ảnh hóa đơn.' : undefined;
   const itemsError = apiFieldErrors.items ?? (strict && rows.length === 0 ? 'Phiếu phải có ít nhất một vật tư.' : undefined);
   // Giai đoạn và ngày mua thì cả lưu nháp lẫn gửi đều bắt buộc.
+  // phaseFrozenHint hiện ngay khi chọn, không đợi bấm Lưu/Gửi — chọn nhầm giai đoạn đã
+  // đóng băng thì backend sẽ chặn cả lưu nháp, báo sớm đỡ mất công điền cả phiếu.
   const phaseError = apiFieldErrors.phaseId
+    ?? phaseFrozenHint
     ?? (issueMode !== null && !selectedPhaseId ? 'Vui lòng chọn giai đoạn.' : undefined);
   const dateError = purchaseDateError
     ?? dateHint
@@ -700,7 +706,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
             >
               <option value="">-- Chọn giai đoạn --</option>
               {phases.map(ph => (
-                <option key={ph.id} value={ph.id}>{ph.name}</option>
+                <option key={ph.id} value={ph.id} disabled={ph.status === 'frozen'}>
+                  {ph.name}{ph.status === 'frozen' ? ' (đã nghiệm thu)' : ''}
+                </option>
               ))}
             </select>
             {phaseError && <div style={cellErrorStyle}>{phaseError}</div>}

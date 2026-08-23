@@ -41,9 +41,10 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 interface InventoryWorkspaceProps {
   projectId: number;
+  projectStatus: string;
 }
 
-export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
+export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId, projectStatus }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { connection } = useNotification();
   type InventorySubTab = 'current' | 'receipts' | 'issuances' | 'ledger';
@@ -58,8 +59,9 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   );
   const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
   const canManageProjectInventory = isProjectLeader;
-  const canCreateReceipt = canManageProjectInventory;
-  const canCreateIssuance = canManageProjectInventory;
+  const isProjectActive = (projectStatus || '').toLowerCase() === 'inprogress';
+  const canCreateReceipt = canManageProjectInventory && isProjectActive;
+  const canCreateIssuance = canManageProjectInventory && isProjectActive;
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
@@ -90,17 +92,18 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   useEffect(() => {
     const openCreate = searchParams.get('openCreate');
-    if (openCreate === 'receipt' && activeSubTab === 'receipts' && canCreateReceipt) {
-      setIsCreateReceiptOpen(true);
+    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+      if (canCreateReceipt) setIsCreateReceiptOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
-      setSearchParams(newParams);
-    } else if (openCreate === 'receipt' && !canCreateReceipt) {
+      setSearchParams(newParams, { replace: true });
+    } else if (openCreate === 'issuance' && activeSubTab === 'issuances') {
+      if (canCreateIssuance) setIsCreateIssuanceOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
       setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams, activeSubTab, canCreateReceipt, setSearchParams]);
+  }, [searchParams, activeSubTab, canCreateReceipt, canCreateIssuance, setSearchParams]);
 
   const handleSubTabChange = (subTab: InventorySubTab) => {
     setActiveSubTab(subTab);
