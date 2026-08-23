@@ -82,7 +82,9 @@ namespace BPG.Infrastructure.Services
                     var uploadParams = new ImageUploadParams
                     {
                         File = new FileDescription(file.FileName, stream),
-                        Folder = folder
+                        Folder = folder,
+                        UseFilename = true,
+                        UniqueFilename = true
                     };
                     uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
                 }
@@ -91,7 +93,9 @@ namespace BPG.Infrastructure.Services
                     var uploadParams = new RawUploadParams
                     {
                         File = new FileDescription(file.FileName, stream),
-                        Folder = folder
+                        Folder = folder,
+                        UseFilename = true,
+                        UniqueFilename = true
                     };
                     uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
                 }
@@ -135,7 +139,9 @@ namespace BPG.Infrastructure.Services
                     var uploadParams = new ImageUploadParams
                     {
                         File = new FileDescription(fileName, stream),
-                        Folder = folder
+                        Folder = folder,
+                        UseFilename = true,
+                        UniqueFilename = true
                     };
                     uploadResult = await _cloudinary.UploadAsync(uploadParams, ct);
                 }
@@ -144,7 +150,9 @@ namespace BPG.Infrastructure.Services
                     var uploadParams = new RawUploadParams
                     {
                         File = new FileDescription(fileName, stream),
-                        Folder = folder
+                        Folder = folder,
+                        UseFilename = true,
+                        UniqueFilename = true
                     };
                     uploadResult = await _cloudinary.UploadAsync(uploadParams, "raw", ct);
                 }

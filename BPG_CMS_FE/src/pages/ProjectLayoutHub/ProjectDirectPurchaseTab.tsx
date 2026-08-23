@@ -140,7 +140,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={16} />
             <input
               type="text"
-              placeholder="Tìm theo số phiếu, lý do..."
+              placeholder="Tìm theo số phiếu, lý do, giai đoạn, người tạo..."
               className="py-2 pl-9 pr-3 border border-[hsl(var(--border))] rounded-lg text-sm bg-transparent w-full sm:w-64"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
