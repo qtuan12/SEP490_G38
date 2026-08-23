@@ -11,9 +11,10 @@ import {
   AlertTriangle,
   Clock,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Eye
 } from 'lucide-react';
-import { Badge } from '../../../components/ui';
+import { Badge, Button } from '../../../components/ui';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
@@ -339,11 +340,18 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
                         {loadingRowAction === inc.id ? (
                           <Loader2 size={16} className="animate-spin text-[hsl(var(--primary))]" />
                         ) : (
-                          <>
-                            <button className="text-[hsl(var(--primary))] hover:underline text-sm font-medium px-2 py-1">
-                              Xem
-                            </button>
-                          </>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[hsl(var(--border))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--bg-main))] hover:border-[hsl(var(--primary))]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(inc);
+                            }}
+                          >
+                            <Eye size={14} />
+                            <span>Xem</span>
+                          </Button>
                         )}
                       </div>
                     </td>

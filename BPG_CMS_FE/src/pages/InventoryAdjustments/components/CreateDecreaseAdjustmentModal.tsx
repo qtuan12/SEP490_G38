@@ -642,8 +642,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                             <div
                               key={mat.materialId}
                               className={`p-2 px-3 flex items-center justify-between cursor-pointer transition-colors ${isAlreadyAdded
-                                  ? 'bg-gray-50 opacity-60'
-                                  : 'hover:bg-blue-50/80 text-gray-800'
+                                ? 'bg-gray-50 opacity-60'
+                                : 'hover:bg-blue-50/80 text-gray-800'
                                 }`}
                               onClick={() => {
                                 setSelectedMaterialId(mat.materialId);
@@ -739,7 +739,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="ghost" onClick={onClose}>Hủy</Button>
-          <Button type="submit" variant="primary" isLoading={loading}>Tạo Phiếu Trình Duyệt</Button>
+          <Button type="submit" variant="primary" isLoading={loading}>Xác Nhận</Button>
         </div>
       </form>
     </Modal>
