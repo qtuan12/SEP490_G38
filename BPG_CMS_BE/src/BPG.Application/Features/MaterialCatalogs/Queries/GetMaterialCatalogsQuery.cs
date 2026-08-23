@@ -5,7 +5,6 @@ using MediatR;
 
 namespace BPG.Application.Features.MaterialCatalogs.Queries;
 
-[Cacheable(DurationSeconds = 300)]
 public class GetMaterialCatalogsQuery : PaginationRequest, IRequest<PagedList<MaterialCatalogDto>>
 {
     public long? CategoryId { get; set; }

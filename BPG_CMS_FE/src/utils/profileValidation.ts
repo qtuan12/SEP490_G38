@@ -1,6 +1,6 @@
 // Quy tắc validate hồ sơ cá nhân — phải khớp với backend (UpdateProfileCommandValidator)
 
-const NAME_PATTERN = /^[\p{L}\s]+$/u;
+const NAME_PATTERN = /^[\p{L}\s0-9.'-]+$/u;
 const PHONE_PATTERN = /^(0[0-9]{9}|\+84[0-9]{9})$/;
 
 /** Trả về câu lỗi đầu tiên, hoặc null nếu họ tên hợp lệ. */
@@ -12,7 +12,7 @@ export function validateFullName(name: string): string | null {
   if (!trimmed) return 'Họ tên không được để trống.';
   if (trimmed.length < 2) return 'Họ tên phải có ít nhất 2 ký tự.';
   if (trimmed.length > 100) return 'Họ tên không được vượt quá 100 ký tự.';
-  if (!NAME_PATTERN.test(trimmed)) return 'Họ tên chỉ được chứa chữ cái và khoảng trắng.';
+  if (!NAME_PATTERN.test(trimmed)) return "Họ tên chỉ được chứa chữ cái, số, khoảng trắng và các ký tự - . '";
   return null;
 }
 

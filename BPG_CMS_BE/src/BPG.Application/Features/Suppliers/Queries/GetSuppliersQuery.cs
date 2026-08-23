@@ -5,7 +5,6 @@ using MediatR;
 
 namespace BPG.Application.Features.Suppliers.Queries
 {
-    [Cacheable(DurationSeconds = 300)]
     public class GetSuppliersQuery : PaginationRequest, IRequest<PagedList<SupplierDto>>
     {
         public string? CollaborationStatus { get; set; }

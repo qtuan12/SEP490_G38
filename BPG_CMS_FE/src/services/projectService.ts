@@ -78,8 +78,9 @@ async function getRawProjectDetail(projectId: string, forceRefresh = false): Pro
         projectDetailCache.set(parsedId, { data: res.data, timestamp: Date.now() });
       }
       return res.data;
-    } catch (err) {
-      return null;
+    } catch (err: any) {
+      // Re-throw the error instead of returning null so the caller can handle transient errors vs 403/404
+      throw err;
     } finally {
       projectDetailRequests.delete(parsedId);
     }
@@ -246,39 +247,34 @@ export const projectService = {
 
   async getProjectById(id: string, forceRefresh = false): Promise<Project | null> {
     if (!USE_MOCK_API) {
-      try {
-        const p = await getRawProjectDetail(id, forceRefresh);
-        if (!p) return null;
-        const designAttachments = p.attachments?.filter((a: any) => a.attachmentType === 'Design') || [];
-        const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
-        
-        const normalizeProjectStatus = (rawStatus: string): 'draft' | 'inprogress' | 'paused' | 'done' => {
-          const lower = rawStatus?.toLowerCase();
-          if (lower === 'completed' || lower === 'done' || lower === 'closed') return 'done';
-          if (lower === 'paused') return 'paused';
-          if (lower === 'inprogress' || lower === 'in_progress') return 'inprogress';
-          return 'draft';
-        };
+      const p = await getRawProjectDetail(id, forceRefresh);
+      if (!p) return null;
+      const designAttachments = p.attachments?.filter((a: any) => a.attachmentType === 'Design') || [];
+      const drawingAttachment = designAttachments.length > 0 ? designAttachments[0] : null;
+      
+      const normalizeProjectStatus = (rawStatus: string): 'draft' | 'inprogress' | 'paused' | 'done' => {
+        const lower = rawStatus?.toLowerCase();
+        if (lower === 'completed' || lower === 'done' || lower === 'closed') return 'done';
+        if (lower === 'paused') return 'paused';
+        if (lower === 'inprogress' || lower === 'in_progress') return 'inprogress';
+        return 'draft';
+      };
 
-        const project: Project = {
-          id: p.projectId.toString(),
-          name: p.name,
-          address: p.address || '',
-          startDate: p.plannedStart,
-          endDate: p.plannedEnd,
-          status: normalizeProjectStatus(p.status),
-          drawingUrl: drawingAttachment?.fileUrl || '',
-          drawingUrls: designAttachments.map((a: any) => a.fileUrl).filter(Boolean),
-          attachments: p.attachments,
-          progress: p.progress || 0,
-          pauseReason: p.pauseReason,
-          pausedAt: p.pausedAt
-        };
-        // Removed local storage override
-        return project;
-      } catch (err) {
-        return null;
-      }
+      const project: Project = {
+        id: p.projectId.toString(),
+        name: p.name,
+        address: p.address || '',
+        startDate: p.plannedStart,
+        endDate: p.plannedEnd,
+        status: normalizeProjectStatus(p.status),
+        drawingUrl: drawingAttachment?.fileUrl || '',
+        drawingUrls: designAttachments.map((a: any) => a.fileUrl).filter(Boolean),
+        attachments: p.attachments,
+        progress: p.progress || 0,
+        pauseReason: p.pauseReason,
+        pausedAt: p.pausedAt
+      };
+      return project;
     }
     const normalizedId = id.match(/^\d+$/) ? `p-${id}` : id;
     const projects = await this.getProjects();

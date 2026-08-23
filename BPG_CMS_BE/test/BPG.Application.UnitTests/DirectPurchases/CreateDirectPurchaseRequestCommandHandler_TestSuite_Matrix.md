@@ -32,7 +32,7 @@ Test requirement: Passed `9`, Failed `0`, Untested `0`, N/A/B `2 / 7 / 0`, Total
 |  | Throws `ForbiddenException` — `AUTH_002`: `Chỉ Technical Manager hoặc Trưởng dự án được lập và gửi phiếu mua khẩn cấp của dự án này.` |  |  |  |  | O |  |  |  |  |
 |  | Throws `NotFoundException` — `BIZ_001`: `Không tìm thấy dự án của phiếu mua trực tiếp.` |  |  |  |  |  | O |  |  |  |
 |  | Throws `BusinessException` — `BIZ_034`: `Dự án '<tên>' đang ở trạng thái '<trạng thái>', không ở trạng thái Đang thi công nên không thể lập hoặc sửa phiếu mua khẩn cấp.` |  |  |  |  |  |  | O |  |  |
-|  | Throws `BusinessException` — `BIZ_035`: `Giai đoạn '<tên>' đã được nghiệm thu và đóng băng, không thể lập hoặc sửa phiếu mua khẩn cấp.` |  |  |  |  |  |  |  | O |  |
+|  | Throws `BusinessException` — `BIZ_035`: `"<tên>" đã được nghiệm thu và đóng băng, không thể lập hoặc sửa phiếu mua khẩn cấp.` |  |  |  |  |  |  |  | O |  |
 |  | Throws `BusinessException` — `BIZ_040`: `Vật tư ID 50 bị trùng lặp trong phiếu.` |  |  |  |  |  |  |  |  | O |
 | Confirm | Log message |  |  |  |  |  |  |  |  |  |
 | Result | Type(N : Normal, A : Abnormal, B : Boundary) | N | N | A | A | A | A | A | A | A |
