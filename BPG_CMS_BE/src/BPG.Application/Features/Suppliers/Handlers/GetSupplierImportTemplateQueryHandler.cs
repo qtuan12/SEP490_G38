@@ -15,7 +15,7 @@ namespace BPG.Application.Features.Suppliers.Handlers
             var ws = workbook.Worksheets.Add("Nhà cung cấp");
 
             // Header row
-            var headers = new[] { "STT", "Tên nhà cung cấp (*)", "Thông tin liên hệ", "Địa chỉ", "Khu vực phục vụ", "Đánh giá (0-5)", "Ghi chú đánh giá" };
+            var headers = new[] { "STT", "Tên nhà cung cấp (*)", "Thông tin liên hệ", "Địa chỉ", "Khu vực phục vụ" };
             for (int i = 0; i < headers.Length; i++)
             {
                 ws.Cell(1, i + 1).Value = headers[i];
@@ -26,8 +26,8 @@ namespace BPG.Application.Features.Suppliers.Handlers
             // Example rows
             object[][] examples =
             [
-                [1, "Công ty TNHH ABC", "0901234567", "Số 1 Lê Lợi - Q.1 - TP.HCM", "TP. Hồ Chí Minh", 4.5, "Nhà cung cấp uy tín"],
-                [2, "Nhà cung cấp XYZ", "0912345678", "123 Nguyễn Huệ - Hà Nội", "Hà Nội", "", ""],
+                [1, "Công ty TNHH ABC", "0901234567", "Số 1 Lê Lợi - Q.1 - TP.HCM", "TP. Hồ Chí Minh"],
+                [2, "Nhà cung cấp XYZ", "0912345678", "123 Nguyễn Huệ - Hà Nội", "Hà Nội"],
             ];
             
             for (int r = 0; r < examples.Length; r++)
