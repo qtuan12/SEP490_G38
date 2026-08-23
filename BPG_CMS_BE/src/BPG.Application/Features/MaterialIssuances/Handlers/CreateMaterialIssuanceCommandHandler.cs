@@ -203,6 +203,13 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản
                 decimal requiredBaseQty = item.Quantity / conversionRate;
+
+                if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && requiredBaseQty % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Vật tư [{inv.Material.Name}] được quản lý bằng đơn vị gốc '{inv.Material.BaseUnit.UnitName}' (số nguyên). Việc quy đổi {item.Quantity} {selectedUnit.UnitName} sẽ dẫn đến số lượng lẻ ({requiredBaseQty} {inv.Material.BaseUnit.UnitName}), hệ thống không cho phép xuất kho nửa vời.");
+                }
+
                 resolvedItems[item.MaterialId] = (item.UnitId, conversionRate, selectedUnit);
 
                 // Tồn kho khả dụng = Số lượng tồn - Số lượng đóng băng

@@ -135,10 +135,16 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
 
         {hasMany && (
           <>
-            <button type="button" onClick={goPrev} title="Ảnh trước (←)" style={{ ...navButtonStyle, left: '-52px' }}>
+            <button type="button" onClick={goPrev} title="Ảnh trước (←)" className="hidden md:flex" style={{ ...navButtonStyle, left: '-52px' }}>
               <ChevronLeft size={22} />
             </button>
-            <button type="button" onClick={goNext} title="Ảnh sau (→)" style={{ ...navButtonStyle, right: '-52px' }}>
+            <button type="button" onClick={goNext} title="Ảnh sau (→)" className="hidden md:flex" style={{ ...navButtonStyle, right: '-52px' }}>
+              <ChevronRight size={22} />
+            </button>
+            <button type="button" onClick={goPrev} title="Ảnh trước (←)" className="md:hidden flex" style={{ ...navButtonStyle, left: '16px' }}>
+              <ChevronLeft size={22} />
+            </button>
+            <button type="button" onClick={goNext} title="Ảnh sau (→)" className="md:hidden flex" style={{ ...navButtonStyle, right: '16px' }}>
               <ChevronRight size={22} />
             </button>
           </>

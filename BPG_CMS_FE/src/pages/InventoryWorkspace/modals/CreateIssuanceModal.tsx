@@ -338,8 +338,9 @@ export const CreateIssuanceModal: React.FC<CreateIssuanceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => !submitting && onClose()}
-      title="Tạo Phiếu Xuất Kho Thi Công"
+      title="Tạo Phiếu Xuất Kho (Cấp phát vật tư)"
       width="lg"
+      mobileFullScreen
       footer={
         <div className="flex justify-end gap-2 w-full">
           <Button variant="outline" onClick={onClose} disabled={submitting}>

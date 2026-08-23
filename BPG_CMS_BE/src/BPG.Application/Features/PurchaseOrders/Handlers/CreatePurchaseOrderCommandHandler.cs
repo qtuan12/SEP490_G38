@@ -59,6 +59,18 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 throw new BusinessException(ErrorCodes.PoProjectNotActive,
                     $"Dự án '{project.Name}' hiện không ở trạng thái Đang thi công nên không thể tạo đơn mua hàng.");
 
+            if (request.SupplierId.HasValue)
+            {
+                var supplier = await _uow.Repository<Supplier>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.SupplierId == request.SupplierId, cancellationToken)
+                    ?? throw new NotFoundException("Không tìm thấy nhà cung cấp đã chọn.");
+
+                if (supplier.CollaborationStatus == BPG.Domain.Constants.CollaborationStatus.Blacklisted)
+                    throw new BusinessException("ERR_SUPPLIER_BLACKLISTED",
+                        $"Nhà cung cấp '{supplier.SupplierName}' đang nằm trong danh sách đen và không được phép phát sinh giao dịch mới.");
+            }
+
             // 1c. Giai đoạn đã nghiệm thu thì bị đóng băng, không phát sinh đơn mua hàng mới —
             // đồng bộ với rule đã áp dụng cho MaterialRequest (CreateMaterialRequestCommandHandler)
             // và phiếu mua khẩn cấp (DirectPurchaseGuard.EnsureProjectOpenForDraftingAsync).

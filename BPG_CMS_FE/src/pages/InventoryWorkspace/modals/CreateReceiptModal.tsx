@@ -363,6 +363,7 @@ export const CreateReceiptModal: React.FC<CreateReceiptModalProps> = ({
       onClose={() => !submitting && onClose()}
       title="Tạo Phiếu Nhập Kho"
       width="lg"
+      mobileFullScreen
       footer={
         <>
           <Button variant="outline" onClick={onClose} disabled={submitting}>

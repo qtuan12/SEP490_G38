@@ -24,7 +24,9 @@ export const NotificationsList: React.FC = () => {
   const filteredAll = filter === 'unread' ? notifications.filter(n => !n.isRead) : notifications;
   const startIndex = (page - 1) * PAGE_SIZE;
   const filtered = filteredAll.slice(startIndex, startIndex + PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  
+  const currentTotal = filter === 'unread' ? unreadCount : totalCount;
+  const totalPages = Math.max(1, Math.ceil(currentTotal / PAGE_SIZE));
 
   const handleItemClick = async (noti: any) => {
     if (!noti.isRead) {
@@ -173,7 +175,7 @@ export const NotificationsList: React.FC = () => {
           <Pagination
             currentPage={page}
             totalPages={totalPages}
-            onPageChange={(p) => { setPage(p); setFilter('all'); }}
+            onPageChange={setPage}
           />
         )}
       </div>

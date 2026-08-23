@@ -184,10 +184,16 @@ export const SupplierManagement: React.FC = () => {
       header: 'Trạng thái',
       render: (supplier: Supplier) => (
         <Badge
-          variant={supplier.collaborationStatus === 'Active' ? 'success' : 'danger'}
+          variant={
+            supplier.collaborationStatus === 'Strategic' ? 'info' :
+            supplier.collaborationStatus === 'Regular' ? 'success' :
+            supplier.collaborationStatus === 'Restricted' ? 'warning' : 'danger'
+          }
           className="normal-case font-medium"
         >
-          {supplier.collaborationStatus === 'Active' ? 'Đang hoạt động' : 'Tạm ngưng'}
+          {supplier.collaborationStatus === 'Strategic' ? 'Chiến lược' :
+           supplier.collaborationStatus === 'Regular' ? 'Thường xuyên' :
+           supplier.collaborationStatus === 'Restricted' ? 'Hạn chế' : 'Danh sách đen'}
         </Badge>
       ),
     },

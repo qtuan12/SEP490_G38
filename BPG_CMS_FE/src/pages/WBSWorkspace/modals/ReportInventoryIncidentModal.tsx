@@ -298,7 +298,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho " width="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Vật tư Kho " width="xl" mobileFullScreen>
 
       <div style={{
         display: 'flex',
