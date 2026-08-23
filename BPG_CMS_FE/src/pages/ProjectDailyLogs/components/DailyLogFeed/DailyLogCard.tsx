@@ -277,7 +277,7 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
         )}
 
         {/* Comments & Instructions Thread */}
-        <div className="mt-1.5 border-t border-[hsl(var(--border)/0.5)] pt-3 min-w-0 w-full overflow-hidden">
+        <div className="mt-1.5 border-t border-[hsl(var(--border)/0.5)] pt-3 min-w-0 w-full">
           <h4 className="text-xs font-semibold text-[hsl(var(--text-secondary))] mb-2 flex items-center gap-1.5">
             <MessageSquare size={13} />
             <span>Ý kiến Chỉ đạo & Bình luận ({log.comments?.length || 0})</span>
@@ -406,9 +406,6 @@ export const DailyLogCard: React.FC<DailyLogCardProps> = ({
                   className="w-full text-xs p-2.5 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--primary))] resize-none overflow-y-auto leading-relaxed min-h-[42px] max-h-[160px] transition-all"
                   required
                 />
-                <span className="text-[10px] text-[hsl(var(--text-muted))]">
-                  * Bấm <strong>Enter</strong> để gửi, <strong>Shift + Enter</strong> để xuống dòng.
-                </span>
               </div>
               <Button
                 type="submit"
