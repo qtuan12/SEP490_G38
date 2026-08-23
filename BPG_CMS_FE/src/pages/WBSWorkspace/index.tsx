@@ -10,7 +10,7 @@ import type { WBSPhase, WBSTask, MaterialRequest } from '../../types/common';
 import { WBSContext } from './components/WBSContext';
 import { WBSTree } from './components/WBSTree';
 import { WBSModalsContainer } from './components/WBSModalsContainer';
-import { FileText, BarChart2, Search } from 'lucide-react';
+import { FileText, BarChart2 } from 'lucide-react';
 import { ConfirmDialog, FullScreenLoading } from '../../components/ui';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
