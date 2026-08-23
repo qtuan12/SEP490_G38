@@ -150,6 +150,13 @@ export const wbsService = {
     return res.data;
   },
 
+  previewWbsImport: async (projectId: number | string, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.postFormData<ApiResponse<any>>(`/projects/${projectId}/wbs/import/preview`, formData);
+    return res.data;
+  },
+
   downloadWbsTemplate: async (): Promise<void> => {
     const token = localStorage.getItem('bpg_token');
     const BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7111/api';

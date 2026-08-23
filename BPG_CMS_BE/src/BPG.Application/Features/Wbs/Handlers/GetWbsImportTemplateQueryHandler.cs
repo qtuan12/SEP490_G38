@@ -39,12 +39,12 @@ public class GetWbsImportTemplateQueryHandler : IRequestHandler<GetWbsImportTemp
         // Dropdown list for "Mức độ ưu tiên" column
         var weightValidation = ws.Range("F2:F1000").CreateDataValidation();
         weightValidation.AllowedValues = XLAllowedValues.List;
-        weightValidation.List("1 - Bình thường,2 - Cao,3 - Quan trọng,4 - Rất quan trọng");
+        weightValidation.List("\"1,2,3,4\"");
 
         // Dropdown list for "Thuê ngoài" column
         var outsourcedValidation = ws.Range("G2:G1000").CreateDataValidation();
         outsourcedValidation.AllowedValues = XLAllowedValues.List;
-        outsourcedValidation.List("x");
+        outsourcedValidation.List("\"x\"");
 
         // Format Date columns
         ws.Range("D2:E1000").Style.DateFormat.Format = "dd/MM/yyyy";
@@ -57,12 +57,12 @@ public class GetWbsImportTemplateQueryHandler : IRequestHandler<GetWbsImportTemp
         // Example rows
         object[][] examples =
         [
-            ["1", "Phần thô", "Thi công phần thô", "01/06/2027", "30/06/2027", "", "", "", "", "", ""],
-            ["1.1", "Đổ móng", "Đổ bê tông móng", "01/06/2027", "10/06/2027", "3 - Quan trọng", "x", "Đội xây dựng A", "0987654321", "manager@bpg.com, staff1@bpg.com", ""],
-            ["1.1.1", "Ép cọc", "Ép cọc bê tông", "01/06/2027", "05/06/2027", "2 - Cao", "", "", "", "staff1@bpg.com", ""],
-            ["1.1.2", "Đào đất", "Đào đất hố móng", "05/06/2027", "08/06/2027", "1 - Bình thường", "", "", "", "staff2@bpg.com", "1.1.1"],
-            ["1.2", "Xây tường", "Xây tường bao", "10/06/2027", "25/06/2027", "2 - Cao", "", "", "", "staff3@bpg.com", "1.1"],
-            ["2", "Phần hoàn thiện", "Sơn, lát gạch...", "01/07/2027", "31/07/2027", "", "", "", "", "", "1"]
+            ["1", "Phần thô", "Thi công phần thô", "03/09/2026", "21/09/2026", "", "", "", "", "", ""],
+            ["1.1", "Đổ móng", "Đổ bê tông móng", "04/09/2026", "19/09/2026", "3", "x", "Đội xây dựng A", "0987654321", "", ""],
+            ["1.1.1", "Ép cọc", "Ép cọc bê tông", "15/09/2026", "16/09/2026", "2", "", "", "", "kysu17@bpg.com", ""],
+            ["1.1.2", "Đào đất", "Đào đất hố móng", "17/09/2026", "18/09/2026", "1", "", "", "", "kysu10@bpg.com", "1.1.1"],
+            ["1.2", "Xây tường", "Xây tường bao", "20/09/2026", "21/09/2026", "2", "", "", "", "", "1.1"],
+            ["2", "Phần hoàn thiện", "Sơn, lát gạch...", "22/09/2026", "25/09/2026", "", "", "", "", "", ""]
         ];
         
         for (int r = 0; r < examples.Length; r++)
@@ -84,7 +84,7 @@ public class GetWbsImportTemplateQueryHandler : IRequestHandler<GetWbsImportTemp
         wsGuide.Cell(4, 1).Value = "   - Cấp 2 (Công việc): 1.1, 1.2, 2.1...";
         wsGuide.Cell(5, 1).Value = "   - Cấp 3 (Công việc con): 1.1.1, 1.1.2...";
         wsGuide.Cell(6, 1).Value = "2. Ngày tháng: Định dạng dd/MM/yyyy. Ngày công việc phải nằm trong ngày giai đoạn/công việc cha.";
-        wsGuide.Cell(7, 1).Value = "3. Mức độ ưu tiên: Chọn từ danh sách thả xuống. (Chỉ áp dụng cho công việc).";
+        wsGuide.Cell(7, 1).Value = "3. Mức độ ưu tiên: Chọn mức 1, 2, 3, 4 từ danh sách thả xuống (Chỉ áp dụng cho công việc).";
         wsGuide.Cell(8, 1).Value = "4. Thuê ngoài: Điền chữ 'x' nếu công việc này giao cho đội thầu phụ bên ngoài, sau đó điền tên đội và SĐT.";
         wsGuide.Cell(9, 1).Value = "5. Nhân viên được giao: Điền email của nhân viên. Dùng dấu phẩy (,) hoặc chấm phẩy (;) để phân cách nhiều email.";
         wsGuide.Cell(10, 1).Value = "6. Công việc cần hoàn thành trước: Điền Chỉ mục của các công việc cần hoàn thành trước. Dùng dấu phẩy hoặc chấm phẩy để phân cách nhiều Chỉ mục.";
