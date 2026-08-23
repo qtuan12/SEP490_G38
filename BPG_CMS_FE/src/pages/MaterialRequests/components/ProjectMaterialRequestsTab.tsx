@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { projectService } from '../../../services/projectService';
 import { inventoryService } from '../../../services/inventoryService';
-import type { MaterialRequest, WBSPhase } from '../../../types/common';
+import type { MaterialRequest, MaterialRequestProcurementDecision, WBSPhase } from '../../../types/common';
 import { MaterialRequestDetailModal } from '../modals/MaterialRequestDetailModal';
 import { Badge, Button, Pagination, TableLoader } from '../../../components/ui';
 import {
@@ -28,6 +28,14 @@ import {
   REALTIME_DATA_CHANGED_AGGREGATION_MS,
   RealtimeEntities,
 } from '../../../constants/realtimeEntities';
+import {
+  canResubmitProjectMaterialRequest,
+  canProcessMaterialRequestByAccountant,
+  getProjectMaterialRequestBusinessStatus,
+  getProjectMaterialRequestBusinessStatusVariant,
+  matchesProjectMaterialRequestStatusFilter,
+  type ProjectMaterialRequestStatusFilter,
+} from '../materialRequestDecision';
 
 const MATERIAL_REQUEST_REALTIME_ENTITIES = [
   ...RealtimeEntities.materialRequests,
@@ -64,7 +72,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   // Filters state
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ProjectMaterialRequestStatusFilter>('');
 
   // Auto-apply phase filter from URL query param if present
   useEffect(() => {
@@ -130,13 +138,14 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
   // Custom action modal state
   const [actionModalOpen, setActionModalOpen] = useState(false);
-  const [actionType, setActionType] = useState<'verify' | 'disburse' | 'approve' | 'reject' | 'cancel' | null>(null);
+  const [actionType, setActionType] = useState<'disburse' | 'approve' | 'reject' | 'cancel' | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
   const [actionNote, setActionNote] = useState('');
   const [actionNoteError, setActionNoteError] = useState('');
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
 
-  const isAccountant = canManageAccounting;
+  const currentRoles = user?.roles?.length ? user.roles : user ? [user.role] : undefined;
+  const isAccountant = canManageAccounting && canProcessMaterialRequestByAccountant(currentRoles);
   const isDirector = canApprove;
   const canCreateRequest = canManageTechnical;
 
@@ -254,18 +263,19 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
   });
 
   // Action handlers
-  const handleVerifyRequestByAccountant = async (reqId: string, note?: string) => {
+  const handleVerifyRequestByAccountant = async (
+    reqId: string,
+    decision: MaterialRequestProcurementDecision,
+    note: string,
+  ): Promise<boolean> => {
     try {
-      const req = requests.find(r => r.id === reqId);
-      const updated = await projectService.processMaterialRequestByAccountant(reqId, note);
-      if (req?.isOverBOQ) {
-        console.log((updated as any).__message || 'Yêu cầu vượt định mức. Đã chuyển trình Giám đốc phê duyệt.');
-      } else {
-        console.log((updated as any).__message || 'Đã duyệt yêu cầu vật tư trong định mức.');
-      }
+      const updated = await projectService.processMaterialRequestByAccountant(reqId, decision, note);
+      toast.success(updated.__message || 'Đã lưu kết quả thẩm định yêu cầu vật tư.');
       scheduleRealtimeRefresh();
+      return true;
     } catch (err: any) {
       toast.error(err.message || 'Không thể soát xét yêu cầu vật tư.');
+      return false;
     }
   };
 
@@ -310,7 +320,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     }
   };
 
-  const openActionModal = (type: 'verify' | 'disburse' | 'approve' | 'reject' | 'cancel', reqId: string) => {
+  const openActionModal = (type: 'disburse' | 'approve' | 'reject' | 'cancel', reqId: string) => {
     setActionType(type);
     setActionRequestId(reqId);
     setActionNote('');
@@ -327,9 +337,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
 
     setIsSubmittingAction(true);
     try {
-      if (actionType === 'verify') {
-        await handleVerifyRequestByAccountant(actionRequestId, actionNote);
-      } else if (actionType === 'disburse') {
+      if (actionType === 'disburse') {
         await handleDisburseRequestByAccountant(actionRequestId, actionNote);
       } else if (actionType === 'approve') {
         await handleApproveRequestByDirector(actionRequestId, actionNote);
@@ -356,7 +364,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
         req.items.some(it => it.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesPhase = phaseFilter === '' || req.phaseId === phaseFilter;
-      const matchesStatus = statusFilter === '' || req.status === statusFilter;
+      const matchesStatus = matchesProjectMaterialRequestStatusFilter(req, statusFilter);
 
       return matchesSearch && matchesPhase && matchesStatus;
     });
@@ -373,22 +381,29 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     setCurrentPage(1);
   }, [searchTerm, phaseFilter, statusFilter]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (request: MaterialRequest) => {
+    switch (request.status) {
       case 'pending_leader':
         return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ Leader</Badge>;
       case 'approved_by_leader':
         return <Badge variant="info"><CheckCircle size={12} className="mr-1" /> Đã tổng hợp</Badge>;
       case 'pending_accountant':
-        return <Badge variant="warning"><Clock size={12} className="mr-1" /> Chờ phê duyệt</Badge>;
+        return <Badge variant="warning"><Clock size={12} className="mr-1" /> {getProjectMaterialRequestBusinessStatus(request)}</Badge>;
       case 'pending_disbursement':
         return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ tạm ứng</Badge>;
       case 'pending_director':
-        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> Chờ duyệt vượt định mức</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]"><Clock size={12} className="mr-1" /> {getProjectMaterialRequestBusinessStatus(request)}</Badge>;
       case 'approved':
-        return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã phê duyệt</Badge>;
+        return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> {getProjectMaterialRequestBusinessStatus(request)}</Badge>;
       case 'rejected':
-        return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
+        return (
+          <Badge variant={getProjectMaterialRequestBusinessStatusVariant(request)}>
+            {canResubmitProjectMaterialRequest(request)
+              ? <XCircle size={12} className="mr-1" />
+              : <Clock size={12} className="mr-1" />}
+            {getProjectMaterialRequestBusinessStatus(request)}
+          </Badge>
+        );
       case 'cancelled':
         return <Badge variant="default"><XCircle size={12} className="mr-1" /> Đã hủy</Badge>;
       default:
@@ -446,12 +461,14 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
             <select
               className="text-xs text-slate-700 bg-white border border-[hsl(var(--border))] rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none cursor-pointer shadow-sm"
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => setStatusFilter(e.target.value as ProjectMaterialRequestStatusFilter)}
             >
               <option value="">Tất cả Trạng thái</option>
               <option value="pending_accountant">Chờ phê duyệt</option>
-              <option value="pending_director">Chờ duyệt vượt định mức</option>
+              <option value="pending_director">Chờ phê duyệt vượt định mức</option>
               <option value="approved">Đã phê duyệt</option>
+              <option value="rejected:InternalTransfer">Đề nghị điều chuyển nội bộ</option>
+              <option value="rejected:WaitSupply">Chờ cung ứng</option>
               <option value="rejected">Từ chối</option>
               <option value="cancelled">Đã hủy</option>
             </select>
@@ -487,7 +504,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                 <th className="px-4 py-3">Người yêu cầu</th>
                 <th className="px-4 py-3">Phân loại</th>
                 <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3 text-center">Thao tác</th>
+                <th className="px-2.5 py-3 text-center w-[148px] min-w-[148px]">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[hsl(var(--border-light))]">
@@ -519,10 +536,10 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                     {getClassificationBadge(req)}
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
-                    {getStatusBadge(req.status)}
+                    {getStatusBadge(req)}
                   </td>
-                  <td className="px-4 py-3.5 text-center">
-                    <div className="flex items-center justify-center gap-2">
+                  <td className="px-2.5 py-3.5 text-center whitespace-nowrap w-[148px] min-w-[148px]">
+                    <div className="inline-flex flex-nowrap items-center justify-center gap-1.5 whitespace-nowrap">
                       <Button
                         variant="secondary"
                         size="sm"
@@ -530,14 +547,14 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                           setSelectedRequest(req);
                           setIsDetailOpen(true);
                         }}
-                        className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
+                        className="p-1.5 h-auto inline-flex shrink-0 items-center justify-center border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
                         title="Xem chi tiết & đối chiếu định mức"
+                        aria-label="Xem chi tiết yêu cầu vật tư"
                       >
-                        <Eye size={13} />
-                        <span>Chi tiết</span>
+                        <Eye size={14} />
                       </Button>
 
-                      {canManageTechnical && req.createdBy === Number(user?.id) && req.status === 'rejected' && (
+                      {canManageTechnical && req.createdBy === Number(user?.id) && canResubmitProjectMaterialRequest(req) && (
                         <Button
                           variant="primary"
                           size="sm"
@@ -545,7 +562,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                             setSelectedResubmitRequest(req);
                             setIsResubmitOpen(true);
                           }}
-                          className="py-1 px-2.5 h-auto text-[0.78rem] font-medium flex items-center gap-1 bg-amber-500 hover:bg-amber-600 text-white border-none"
+                          className="py-1 px-2 h-auto text-[0.78rem] font-medium inline-flex shrink-0 items-center whitespace-nowrap bg-amber-500 hover:bg-amber-600 text-white border-none"
                           title="Chỉnh sửa và gửi lại yêu cầu bị từ chối"
                         >
                           <span>Gửi lại</span>
@@ -613,7 +630,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           isAccountant={isAccountant}
           isDirector={isDirector}
           canManageTechnical={canManageTechnical}
-          handleVerifyRequestByAccountant={(id) => openActionModal('verify', id)}
+          handleVerifyRequestByAccountant={handleVerifyRequestByAccountant}
           handleDisburseRequestByAccountant={(id) => openActionModal('disburse', id)}
           handleApproveRequestByDirector={(id) => openActionModal('approve', id)}
           handleRejectRequest={(id) => openActionModal('reject', id)}
@@ -627,8 +644,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           isOpen={actionModalOpen}
           onClose={() => !isSubmittingAction && setActionModalOpen(false)}
           title={
-            actionType === 'verify' ? 'Xác nhận Yêu cầu' :
-              actionType === 'disburse' ? 'Xác nhận Giải ngân Tạm ứng' :
+            actionType === 'disburse' ? 'Xác nhận Giải ngân Tạm ứng' :
                 actionType === 'approve' ? 'Xác nhận Phê duyệt Vượt định mức' :
                   actionType === 'cancel' ? 'Hủy yêu cầu vật tư' :
                     'Từ chối Yêu cầu Vật tư'
@@ -690,8 +706,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                 disabled={isSubmittingAction}
               >
                 {isSubmittingAction ? 'Đang xử lý...' :
-                  actionType === 'verify' ? 'Xác nhận' :
-                    actionType === 'disburse' ? 'Xác nhận giải ngân' :
+                  actionType === 'disburse' ? 'Xác nhận giải ngân' :
                       actionType === 'approve' ? 'Xác nhận duyệt' :
                         actionType === 'cancel' ? 'Xác nhận Hủy' :
                           'Xác nhận từ chối'}

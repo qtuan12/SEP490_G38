@@ -13,7 +13,7 @@ export const getSurplusMaxActionQuantity = (item: SurplusRequestItem): number =>
     .reduce((total, action) => total + action.quantity, 0);
 
   const unallocatedQuantity = item.quantity - item.processedQuantity - activeTransferQuantity;
-  return Math.max(0, Math.min(unallocatedQuantity, item.availableQuantity));
+  return Math.max(0, unallocatedQuantity);
 };
 
 export const getSurplusRequestStatusDetails = (status: string) => {

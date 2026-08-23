@@ -12,6 +12,10 @@ namespace BPG.Application.Features.PurchaseOrders.Queries
 
         public DateOnly? OrderDateFrom { get; set; }
         public DateOnly? OrderDateTo { get; set; }
+
+        // Phân loại nguồn gốc PO: "normal" = PO thường (qua NCC), "direct" = PO tự sinh
+        // từ phiếu mua khẩn cấp (PONumber "DP-PO-...", SupplierId null). Bỏ trống = không lọc.
+        public string? SourceType { get; set; }
         // Khong truyen ProjectId -> xem danh sach PO cua tat ca du an theo role duoc phep.
     }
 }

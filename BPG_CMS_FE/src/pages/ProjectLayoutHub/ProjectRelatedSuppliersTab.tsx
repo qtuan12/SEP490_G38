@@ -66,7 +66,7 @@ export const ProjectRelatedSuppliersTab: React.FC<Props> = ({ projectId }) => {
       return master || {
         supplierId: projectSupplier.supplierId,
         supplierName: projectSupplier.supplierName,
-        collaborationStatus: 'Active',
+        collaborationStatus: 'Regular',
       };
     });
   }, [masterSupplierPage?.items, projectSuppliers]);
@@ -145,10 +145,16 @@ export const ProjectRelatedSuppliersTab: React.FC<Props> = ({ projectId }) => {
       header: text.status,
       render: supplier => (
         <Badge
-          variant={supplier.collaborationStatus === 'Active' ? 'success' : 'danger'}
+          variant={
+            supplier.collaborationStatus === 'Strategic' ? 'info' :
+            supplier.collaborationStatus === 'Regular' ? 'success' :
+            supplier.collaborationStatus === 'Restricted' ? 'warning' : 'danger'
+          }
           className="normal-case font-medium"
         >
-          {supplier.collaborationStatus === 'Active' ? text.active : text.inactive}
+          {supplier.collaborationStatus === 'Strategic' ? 'Chiến lược' :
+           supplier.collaborationStatus === 'Regular' ? 'Thường xuyên' :
+           supplier.collaborationStatus === 'Restricted' ? 'Hạn chế' : 'Danh sách đen'}
         </Badge>
       ),
     },

@@ -60,6 +60,44 @@ public static class MaterialRequestStatus
     public const string Cancelled = "Cancelled";
 }
 
+public static class MaterialRequestProcurementDecision
+{
+    public const string ExternalPurchase = "ExternalPurchase";
+    public const string InternalTransfer = "InternalTransfer";
+    public const string WaitSupply = "WaitSupply";
+    public const string NeedMoreInfo = "NeedMoreInfo";
+    public const string NotApproved = "NotApproved";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
+    {
+        ExternalPurchase,
+        InternalTransfer,
+        WaitSupply,
+        NeedMoreInfo,
+        NotApproved
+    };
+
+    public static bool IsValid(string? decision) =>
+        decision is not null && All.Contains(decision);
+
+    public static string ResolveTechnicalStatus(string decision, string boqCheckStatus)
+    {
+        if (!IsValid(decision))
+        {
+            throw new ArgumentException("Invalid material request procurement decision.", nameof(decision));
+        }
+
+        if (decision != ExternalPurchase)
+        {
+            return MaterialRequestStatus.Rejected;
+        }
+
+        return boqCheckStatus == BOQCheckStatus.WithinBOQ
+            ? MaterialRequestStatus.Approved
+            : MaterialRequestStatus.WaitingApproval;
+    }
+}
+
 public static class PurchaseOrderStatus
 {
     public const string Draft = "Draft";

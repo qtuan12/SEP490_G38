@@ -85,6 +85,7 @@ public sealed class GetMaterialRequestAssessmentQueryHandler
 
         var surplusItems = await _uow.Repository<SurplusRequestItem>().Query()
             .AsNoTracking()
+            .Include(item => item.Transfers)
             .Include(item => item.SurplusRequest)
                 .ThenInclude(surplus => surplus.Project)
             .Where(item => materialIds.Contains(item.MaterialId)
@@ -111,7 +112,8 @@ public sealed class GetMaterialRequestAssessmentQueryHandler
             .GroupBy(inventory => (inventory.ProjectId, inventory.MaterialId))
             .ToDictionary(
                 group => group.Key,
-                group => group.Sum(inventory => Math.Max(0, inventory.Quantity - inventory.ReservedQuantity)));
+                // ReservedQuantity chính là lượng được khóa cho luồng surplus, không phải lượng mất khỏi nguồn điều chuyển.
+                group => group.Sum(inventory => Math.Max(0, inventory.Quantity)));
 
         var priceItems = await _uow.Repository<PurchaseOrderItem>().Query()
             .AsNoTracking()
@@ -184,9 +186,18 @@ public sealed class GetMaterialRequestAssessmentQueryHandler
             })
             .Select(group =>
             {
-                var surplusBase = group.Sum(source => Math.Max(
-                    0,
-                    ToBase(source.Quantity - source.ProcessedQuantity, source.ConversionRate)));
+                var surplusBase = group.Sum(source =>
+                {
+                    var committedTransferQuantity = source.Transfers
+                        .Where(transfer => transfer.Status != SurplusTransferStatus.Rejected
+                            && transfer.Status != SurplusTransferStatus.Received)
+                        .Sum(transfer => transfer.TransferQuantity);
+                    return Math.Max(
+                        0,
+                        ToBase(
+                            source.Quantity - source.ProcessedQuantity - committedTransferQuantity,
+                            source.ConversionRate));
+                });
                 sourceInventory.TryGetValue((group.Key.ProjectId, item.MaterialId), out var inventoryBase);
                 return new MaterialRequestInternalSourceDto
                 {

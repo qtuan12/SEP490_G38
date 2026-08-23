@@ -203,6 +203,13 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
                 // Chuyển đổi số lượng xuất ra đơn vị cơ bản
                 decimal requiredBaseQty = item.Quantity / conversionRate;
+
+                if (inv.Material.BaseUnit != null && inv.Material.BaseUnit.IsDiscrete && requiredBaseQty % 1 != 0)
+                {
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
+                        $"Vật tư [{inv.Material.Name}] được quản lý bằng đơn vị gốc '{inv.Material.BaseUnit.UnitName}' (số nguyên). Việc quy đổi {item.Quantity} {selectedUnit.UnitName} sẽ dẫn đến số lượng lẻ ({requiredBaseQty} {inv.Material.BaseUnit.UnitName}), hệ thống không cho phép xuất kho nửa vời.");
+                }
+
                 resolvedItems[item.MaterialId] = (item.UnitId, conversionRate, selectedUnit);
 
                 // Tồn kho khả dụng = Số lượng tồn - Số lượng đóng băng
@@ -268,10 +275,7 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
 
                 await _uow.Repository<MaterialIssuanceItem>().AddRangeAsync(issuanceItems, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
-                await _uow.CommitTransactionAsync(cancellationToken);
 
-                try
-                {
                 var actorName = await _uow.Repository<User>().Query()
                     .AsNoTracking()
                     .Where(u => u.UserId == currentUserId)
@@ -321,24 +325,28 @@ namespace BPG.Application.Features.MaterialIssuances.Handlers
                         cancellationToken);
                 }
 
-                // Realtime: broadcast to members viewing this project's inventory workspace
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + project.ProjectId,
-                    HubMethodNames.MaterialIssuanceChanged,
-                    issuance.MaterialIssuanceId,
-                    cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
 
-                // Realtime: broadcast to members viewing global inventory (Project_0)
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + 0,
-                    HubMethodNames.MaterialIssuanceChanged,
-                    issuance.MaterialIssuanceId,
-                    cancellationToken);
+                try
+                {
+                    // Realtime: broadcast to members viewing this project's inventory workspace
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + project.ProjectId,
+                        HubMethodNames.MaterialIssuanceChanged,
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
+
+                    // Realtime: broadcast to members viewing global inventory (Project_0)
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + 0,
+                        HubMethodNames.MaterialIssuanceChanged,
+                        issuance.MaterialIssuanceId,
+                        cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex,
-                        "Material issuance {IssuanceId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        "Material issuance {IssuanceId} was committed, but post-commit realtime broadcast failed for project {ProjectId}.",
                         issuance.MaterialIssuanceId,
                         project.ProjectId);
                 }

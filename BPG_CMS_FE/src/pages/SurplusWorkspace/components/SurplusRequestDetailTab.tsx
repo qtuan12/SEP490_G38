@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Button, LoadingSpinner, Modal } from '../../../components/ui';
-import { ArrowLeft, RotateCcw, ArrowRightLeft, Flame, ChevronDown, ChevronUp, CircleSlash2 } from 'lucide-react';
+import { ArrowLeft, RotateCcw, ArrowRightLeft, Flame, ChevronDown, ChevronUp, CircleSlash2, Search } from 'lucide-react';
 import { surplusService } from '../../../services/surplusService';
 import type { SurplusRequestDetail, SurplusRequestItem } from '../../../types/surplus';
 import {
@@ -49,6 +49,9 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   const [closeReason, setCloseReason] = useState('');
   const [closeError, setCloseError] = useState<string | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+
   const loadDetail = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     if (showLoading) setError(null);
@@ -67,6 +70,15 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
   };
 
   const openCloseModal = (item: SurplusRequestItem) => {
+    const hasActiveTransfer = item.actions.some(action => 
+        action.actionType === 'Transfer' && 
+        action.status !== 'Rejected' && 
+        action.status !== 'Received'
+    );
+    if (hasActiveTransfer) {
+        toast.error('Không thể đóng khi vật tư còn phiếu điều chuyển đang chờ xử lý.');
+        return;
+    }
     setCloseItem(item);
     setCloseReason('');
     setCloseError(null);
@@ -127,6 +139,13 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
 
   const isProcessing = detail.status === 'Processing';
 
+  const filteredItems = detail.items.filter(item => {
+    const matchSearch = item.materialName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        item.materialCode.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchStatus = statusFilter === 'ALL' || item.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
   return (
     <div className="flex flex-col gap-5">
       {/* Back button */}
@@ -140,11 +159,40 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
 
 
 
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-2">
+        <div className="relative flex-1 max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <Search size={16} />
+          </div>
+          <input
+            type="text"
+            className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            placeholder="Tìm theo mã hoặc tên vật tư..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="w-full sm:w-48">
+          <select
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">Tất cả trạng thái</option>
+            <option value="Pending">Chờ xử lý</option>
+            <option value="Processing">Đang xử lý</option>
+            <option value="Completed">Hoàn thành</option>
+            <option value="Cancelled">Đã hủy</option>
+          </select>
+        </div>
+      </div>
+
       {/* Item list */}
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-slate-700">Danh sách vật tư ({detail.items.length})</h3>
+        <h3 className="text-sm font-semibold text-slate-700">Danh sách vật tư ({filteredItems.length})</h3>
 
-        {detail.items.map(item => {
+        {filteredItems.map(item => {
           const itemBadge = getSurplusItemStatusDetails(item.status);
           const remaining = item.quantity - item.processedQuantity;
           const isExpanded = expandedItemId === item.surplusRequestItemId;
@@ -163,12 +211,12 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                     </span>
                   </div>
                   <div className="flex gap-4 mt-1 text-xs text-slate-500">
-                    <span>Tổng: <strong className="text-slate-700">{item.quantity} {item.unitName}</strong></span>
-                    <span>Đã xử lý: <strong className="text-green-600">{item.processedQuantity} {item.unitName}</strong></span>
-                    <span>Còn lại: <strong className="text-orange-600">{remaining} {item.unitName}</strong></span>
-                    <span>Tồn hiện tại: <strong className="text-slate-700">{item.currentInventoryQuantity} {item.unitName}</strong></span>
-                    <span>Tạm khóa: <strong className="text-rose-600">{item.reservedQuantity} {item.unitName}</strong></span>
-                    <span>Khả dụng: <strong className="text-blue-600">{item.availableQuantity} {item.unitName}</strong></span>
+                    <span>Tổng: <strong className="text-slate-700">{item.quantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+                    <span>Đã xử lý: <strong className="text-green-600">{item.processedQuantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+                    <span>Còn lại: <strong className="text-orange-600">{remaining.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+                    <span>Tồn hiện tại: <strong className="text-slate-700">{item.currentInventoryQuantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+                    <span>Tạm khóa: <strong className="text-rose-600">{item.reservedQuantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+                    <span>Khả dụng: <strong className="text-blue-600">{item.availableQuantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
                   </div>
                   {item.status === 'Cancelled' && item.closeReason && (
                     <div className="mt-2 text-xs text-slate-500">
@@ -242,7 +290,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                     <table className="w-full text-left border-collapse bg-white dark:bg-slate-900">
                       <thead>
                         <tr className="bg-slate-100/70 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                          <th className="py-2 px-3 font-semibold w-24">Mã phiếu</th>
+                          <th className="py-2 px-3 font-semibold w-16">STT</th>
                           <th className="py-2 px-3 font-semibold">Loại xử lý</th>
                           <th className="py-2 px-3 font-semibold text-right">Số lượng</th>
                           <th className="py-2 px-3 font-semibold text-center">Trạng thái</th>
@@ -267,8 +315,8 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                                   }
                                 }}
                               >
-                                <td className="py-2 px-3 text-xs text-blue-600 dark:text-blue-400 hover:underline font-mono">
-                                  #{action.actionId}
+                                <td className="py-2 px-3 text-xs text-slate-600 dark:text-slate-400 font-medium">
+                                  {idx + 1}
                                 </td>
                                 <td className="py-2 px-3 text-xs">
                                   <span className={`inline-flex px-2 py-0.5 rounded-full font-semibold border ${typeBadge.color}`}>

@@ -37,7 +37,7 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
     if (!buyerName.trim()) { setError('Vui lòng nhập tên người mua/đơn vị thu mua.'); return; }
     const qty = parseFloat(liqQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
-    if (qty > maxLiquidationQuantity) { setError(`Số lượng thanh lý tối đa là ${maxLiquidationQuantity} ${item.unitName} sau khi trừ phần đang tạm khóa.`); return; }
+    if (qty > maxLiquidationQuantity) { setError(`Số lượng tối đa có thể thanh lý trong đợt xử lý này là ${maxLiquidationQuantity} ${item.unitName}.`); return; }
     if (isDiscreteUnit(item.unitName) && qty % 1 !== 0) { setError(`Đơn vị tính '${item.unitName}' yêu cầu số lượng phải là số nguyên.`); return; }
     const amount = parseFloat(totalAmount);
     if (isNaN(amount) || amount < 0) { setError('Giá trị thu hồi phải >= 0.'); return; }
@@ -89,11 +89,11 @@ export const CreateLiquidationModal: React.FC<CreateLiquidationModalProps> = ({
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm">
           <span className="font-semibold text-slate-700">{item.materialName}</span>
           <span className="text-slate-500 ml-2">({item.materialCode})</span>
-          <p className="text-slate-500 mt-1">
-            Còn lại trong đợt: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
-            <span className="mx-2">•</span>
-            Có thể thanh lý: <strong className="text-blue-600">{maxLiquidationQuantity} {item.unitName}</strong>
-          </p>
+          <div className="mt-1 flex items-center gap-2 text-slate-600">
+            <span>Còn lại trong đợt: <strong className="text-orange-600">{remaining.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Có thể thanh lý: <strong className="text-blue-600">{maxLiquidationQuantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+          </div>
         </div>
 
         <FormItem label="Tên người mua / Đơn vị thu mua" required>

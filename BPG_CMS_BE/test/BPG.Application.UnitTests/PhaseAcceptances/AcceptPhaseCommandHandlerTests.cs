@@ -61,6 +61,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
             _mockUow.Setup(u => u.Repository<PhaseAcceptance>()).Returns(_mockAcceptanceRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockProjectMemberRepo.Object);
+            _mockProjectMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
             _mockUow.Setup(u => u.BeginTransactionAsync(
                     IsolationLevel.Serializable,
                     It.IsAny<CancellationToken>()))

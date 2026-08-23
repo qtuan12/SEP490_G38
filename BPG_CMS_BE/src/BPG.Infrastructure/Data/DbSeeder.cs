@@ -236,13 +236,13 @@ public static class DbSeeder
     {
         var units = new List<Unit>
         {
-            new() { UnitCode = "KG",     UnitName = "Kilôgam",   IsDiscrete = false },
-            new() { UnitCode = "TAN",    UnitName = "Tấn",       IsDiscrete = false },
+            new() { UnitCode = "KG",     UnitName = "kg",        IsDiscrete = false },
+            new() { UnitCode = "TAN",    UnitName = "tấn",       IsDiscrete = false },
             new() { UnitCode = "BAO",    UnitName = "Bao",       IsDiscrete = true  },
-            new() { UnitCode = "M3",     UnitName = "Mét khối",  IsDiscrete = false },
-            new() { UnitCode = "M2",     UnitName = "Mét vuông", IsDiscrete = false },
-            new() { UnitCode = "MET",    UnitName = "Mét",       IsDiscrete = false },
-            new() { UnitCode = "LIT",    UnitName = "Lít",       IsDiscrete = false },
+            new() { UnitCode = "M3",     UnitName = "m³",        IsDiscrete = false },
+            new() { UnitCode = "M2",     UnitName = "m²",        IsDiscrete = false },
+            new() { UnitCode = "MET",    UnitName = "m",         IsDiscrete = false },
+            new() { UnitCode = "LIT",    UnitName = "lít",       IsDiscrete = false },
             new() { UnitCode = "VIEN",   UnitName = "Viên",      IsDiscrete = true  },
             new() { UnitCode = "CAY",    UnitName = "Cây",       IsDiscrete = true  },
             new() { UnitCode = "TAM",    UnitName = "Tấm",       IsDiscrete = true  },
@@ -268,7 +268,7 @@ public static class DbSeeder
         var categories = new List<MaterialCategory>
         {
             new() { CategoryName = "Xi măng", Description = "Xi măng đóng bao và xi măng rời/xá cấp bằng xe bồn chuyên dụng." },
-            new() { CategoryName = "Bê tông thương phẩm", Description = "Bê tông tươi theo cấp độ bền/mác, quản lý khối lượng theo mét khối." },
+            new() { CategoryName = "Bê tông thương phẩm", Description = "Bê tông tươi theo cấp độ bền/mác, quản lý khối lượng theo m³." },
             new() { CategoryName = "Sắt thép xây dựng", Description = "Thép cuộn, thép thanh vằn, dây thép buộc và vật tư phụ cốt thép." },
             new() { CategoryName = "Cát đá vật liệu rời", Description = "Cát bê tông, cát xây tô, cát san lấp, đá dăm và cấp phối." },
             new() { CategoryName = "Gạch xây dựng", Description = "Gạch đặc, gạch lỗ và gạch block dùng xây tường, bể và hạng mục phụ." },
@@ -294,15 +294,17 @@ public static class DbSeeder
 
         var suppliers = new List<Supplier>
         {
-            new() { SupplierName = "Xi măng VICEM Bỉm Sơn", ContactInfo = "Bộ phận kinh doanh miền Bắc", Address = "Bỉm Sơn, Thanh Hóa", ServiceArea = "Hà Nội và miền Bắc", Rating = 4.7m, EvaluationNote = "Cấp xi măng bao và lô xi măng khối lượng lớn; chứng từ lô hàng rõ ràng.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Thép Hòa Phát - khu vực miền Bắc", ContactInfo = "Bộ phận kinh doanh thép xây dựng", Address = "Hưng Yên", ServiceArea = "Hà Nội, Hưng Yên và lân cận", Rating = 4.8m, EvaluationNote = "Thép cuộn và thép thanh vằn nhiều đường kính; giao theo bó/cây và đối chiếu khối lượng.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Đơn vị bê tông thương phẩm Hưng Yên", ContactInfo = "Điều phối trạm trộn - xe bồn", Address = "Văn Giang, Hưng Yên", ServiceArea = "Văn Giang và khu vực phía Đông Hà Nội", Rating = 4.6m, EvaluationNote = "Điều phối bê tông M100-M350 theo mét khối, có phiếu giao từng xe.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Đại lý VLXD Minh Phát Hà Đông", ContactInfo = "Kho vật liệu xây dựng", Address = "Hà Đông, Hà Nội", ServiceArea = "Hà Đông, Thanh Xuân, Nam Từ Liêm", Rating = 4.4m, EvaluationNote = "Cát, đá, gạch, xi măng và vật tư phụ; phù hợp giao nhiều đợt.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Saint-Gobain Việt Nam - Weber", ContactInfo = "Kênh phân phối vật liệu hoàn thiện", Address = "Hà Nội", ServiceArea = "Toàn quốc", Rating = 4.6m, EvaluationNote = "Keo dán gạch và vật liệu hoàn thiện có tài liệu kỹ thuật.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Sika Việt Nam", ContactInfo = "Kênh phân phối dự án", Address = "Hà Nội", ServiceArea = "Toàn quốc", Rating = 4.7m, EvaluationNote = "Vật liệu chống thấm và sửa chữa bê tông.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Nhà phân phối sơn Dulux Hà Nội", ContactInfo = "Kênh dự án", Address = "Hà Nội", ServiceArea = "Hà Nội và Hưng Yên", Rating = 4.5m, EvaluationNote = "Bột bả, sơn lót, sơn nội thất và ngoại thất theo thùng.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Đại lý điện nước An Phát", ContactInfo = "Kho điện nước", Address = "Hà Đông, Hà Nội", ServiceArea = "Hà Nội", Rating = 4.3m, EvaluationNote = "Dây điện, ống luồn, hộp âm, PVC/PPR và phụ kiện giao nhanh.", CollaborationStatus = "Active" },
-            new() { SupplierName = "Kho thạch cao và phụ kiện hoàn thiện Hà Nội", ContactInfo = "Bộ phận bán hàng công trình", Address = "Nam Từ Liêm, Hà Nội", ServiceArea = "Hà Nội và Hưng Yên", Rating = 4.4m, EvaluationNote = "Tấm thạch cao, khung xương, vít và vật tư trần.", CollaborationStatus = "Active" }
+            new() { SupplierName = "Xi măng VICEM Bỉm Sơn", ContactInfo = "Bộ phận kinh doanh miền Bắc", Address = "Bỉm Sơn, Thanh Hóa", ServiceArea = "Hà Nội và miền Bắc", Rating = 4.7m, EvaluationNote = "Cấp xi măng bao và lô xi măng khối lượng lớn; chứng từ lô hàng rõ ràng.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Strategic },
+            new() { SupplierName = "Thép Hòa Phát - khu vực miền Bắc", ContactInfo = "Bộ phận kinh doanh thép xây dựng", Address = "Hưng Yên", ServiceArea = "Hà Nội, Hưng Yên và lân cận", Rating = 4.8m, EvaluationNote = "Thép cuộn và thép thanh vằn nhiều đường kính; giao theo bó/cây và đối chiếu khối lượng.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Strategic },
+            new() { SupplierName = "Đơn vị bê tông thương phẩm Hưng Yên", ContactInfo = "Điều phối trạm trộn - xe bồn", Address = "Văn Giang, Hưng Yên", ServiceArea = "Văn Giang và khu vực phía Đông Hà Nội", Rating = 4.6m, EvaluationNote = "Điều phối bê tông M100-M350 theo m³, có phiếu giao từng xe.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular },
+            new() { SupplierName = "Đại lý VLXD Minh Phát Hà Đông", ContactInfo = "Kho vật liệu xây dựng", Address = "Hà Đông, Hà Nội", ServiceArea = "Hà Đông, Thanh Xuân, Nam Từ Liêm", Rating = 4.4m, EvaluationNote = "Cát, đá, gạch, xi măng và vật tư phụ; phù hợp giao nhiều đợt.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular },
+            new() { SupplierName = "Saint-Gobain Việt Nam - Weber", ContactInfo = "Kênh phân phối vật liệu hoàn thiện", Address = "Hà Nội", ServiceArea = "Toàn quốc", Rating = 4.6m, EvaluationNote = "Keo dán gạch và vật liệu hoàn thiện có tài liệu kỹ thuật.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular },
+            new() { SupplierName = "Sika Việt Nam", ContactInfo = "Kênh phân phối dự án", Address = "Hà Nội", ServiceArea = "Toàn quốc", Rating = 4.7m, EvaluationNote = "Vật liệu chống thấm và sửa chữa bê tông.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Strategic },
+            new() { SupplierName = "Nhà phân phối sơn Dulux Hà Nội", ContactInfo = "Kênh dự án", Address = "Hà Nội", ServiceArea = "Hà Nội và Hưng Yên", Rating = 4.5m, EvaluationNote = "Bột bả, sơn lót, sơn nội thất và ngoại thất theo thùng.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular },
+            new() { SupplierName = "Đại lý điện nước An Phát", ContactInfo = "Kho điện nước", Address = "Hà Đông, Hà Nội", ServiceArea = "Hà Nội", Rating = 4.3m, EvaluationNote = "Dây điện, ống luồn, hộp âm, PVC/PPR và phụ kiện giao nhanh.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular },
+            new() { SupplierName = "Kho thạch cao và phụ kiện hoàn thiện Hà Nội", ContactInfo = "Bộ phận bán hàng công trình", Address = "Nam Từ Liêm, Hà Nội", ServiceArea = "Hà Nội và Hưng Yên", Rating = 4.4m, EvaluationNote = "Tấm thạch cao, khung xương, vít và vật tư trần.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular },
+            new() { SupplierName = "VLXD Thành Đạt", ContactInfo = "Kho gạch", Address = "Thanh Trì, Hà Nội", ServiceArea = "Hà Nội", Rating = 2.1m, EvaluationNote = "Giao hàng thường xuyên trễ hẹn, sai quy cách.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Restricted },
+            new() { SupplierName = "Sơn chống thấm Quang Minh", ContactInfo = "Đại lý bán lẻ", Address = "Hai Bà Trưng, Hà Nội", ServiceArea = "Hà Nội", Rating = 1.5m, EvaluationNote = "Hàng giả, chất lượng kém.", CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Blacklisted }
         };
 
         foreach (var s in suppliers)
@@ -450,12 +452,12 @@ public static class DbSeeder
             M("SON-NGOAI-18", "Sơn phủ ngoại thất", "Thùng 18 lít; sơn phủ ngoài trời.", "Sơn & bột bả", "THUNG"),
 
             // ===== ĐIỆN =====
-            M("CADIVI-CV1.5", "Dây điện CV 1.5 mm²", "Quản lý theo mét; cuộn thương mại 100 m.", "Điện & phụ kiện", "MET"),
-            M("CADIVI-CV2.5", "Dây điện CV 2.5 mm²", "Quản lý theo mét; cuộn thương mại 100 m.", "Điện & phụ kiện", "MET"),
-            M("CADIVI-CV4", "Dây điện CV 4 mm²", "Quản lý theo mét; cuộn thương mại 100 m.", "Điện & phụ kiện", "MET"),
-            M("CADIVI-CV6", "Dây điện CV 6 mm²", "Dây cấp nguồn nhánh; quản lý theo mét.", "Điện & phụ kiện", "MET"),
-            M("ONG-LUON-D20", "Ống luồn dây điện cứng D20", "Cây thương mại 4 m; tồn gốc theo mét.", "Điện & phụ kiện", "MET"),
-            M("ONG-LUON-D25", "Ống luồn dây điện cứng D25", "Cây thương mại 4 m; tồn gốc theo mét.", "Điện & phụ kiện", "MET"),
+            M("CADIVI-CV1.5", "Dây điện CV 1.5 mm²", "Quản lý theo m; cuộn thương mại 100 m.", "Điện & phụ kiện", "MET"),
+            M("CADIVI-CV2.5", "Dây điện CV 2.5 mm²", "Quản lý theo m; cuộn thương mại 100 m.", "Điện & phụ kiện", "MET"),
+            M("CADIVI-CV4", "Dây điện CV 4 mm²", "Quản lý theo m; cuộn thương mại 100 m.", "Điện & phụ kiện", "MET"),
+            M("CADIVI-CV6", "Dây điện CV 6 mm²", "Dây cấp nguồn nhánh; quản lý theo m.", "Điện & phụ kiện", "MET"),
+            M("ONG-LUON-D20", "Ống luồn dây điện cứng D20", "Cây thương mại 4 m; tồn gốc theo m.", "Điện & phụ kiện", "MET"),
+            M("ONG-LUON-D25", "Ống luồn dây điện cứng D25", "Cây thương mại 4 m; tồn gốc theo m.", "Điện & phụ kiện", "MET"),
             M("MANG-SONG-D20", "Măng sông nối ống điện D20", "Phụ kiện nối hai đoạn ống luồn D20.", "Điện & phụ kiện", "CAI"),
             M("MANG-SONG-D25", "Măng sông nối ống điện D25", "Phụ kiện nối hai đoạn ống luồn D25.", "Điện & phụ kiện", "CAI"),
             M("DE-AM-DON", "Đế âm tường đơn", "Đế âm lắp công tắc/ổ cắm đơn.", "Điện & phụ kiện", "CAI"),
@@ -465,17 +467,17 @@ public static class DbSeeder
             M("CONG-TAC-1", "Công tắc 1 chiều", "Công tắc hoàn thiện lắp âm.", "Điện & phụ kiện", "CAI"),
 
             // ===== CẤP THOÁT NƯỚC =====
-            M("PVC-D60", "Ống PVC D60", "Ống thoát; cây 4 m, tồn gốc theo mét.", "Cấp thoát nước & phụ kiện", "MET"),
-            M("PVC-D90", "Ống PVC D90", "Ống thoát; cây 4 m, tồn gốc theo mét.", "Cấp thoát nước & phụ kiện", "MET"),
-            M("PVC-D114", "Ống PVC D114", "Ống thoát phân/bồn cầu; cây 4 m, tồn gốc theo mét.", "Cấp thoát nước & phụ kiện", "MET"),
+            M("PVC-D60", "Ống PVC D60", "Ống thoát; cây 4 m, tồn gốc theo m.", "Cấp thoát nước & phụ kiện", "MET"),
+            M("PVC-D90", "Ống PVC D90", "Ống thoát; cây 4 m, tồn gốc theo m.", "Cấp thoát nước & phụ kiện", "MET"),
+            M("PVC-D114", "Ống PVC D114", "Ống thoát phân/bồn cầu; cây 4 m, tồn gốc theo m.", "Cấp thoát nước & phụ kiện", "MET"),
             M("CO-PVC-D90", "Co PVC 90 độ D90", "Phụ kiện đổi hướng tuyến thoát D90.", "Cấp thoát nước & phụ kiện", "CAI"),
             M("TE-PVC-D90", "Tê PVC D90", "Phụ kiện chia/đấu nối tuyến thoát D90.", "Cấp thoát nước & phụ kiện", "CAI"),
             M("CO-PVC-D114", "Co PVC 90 độ D114", "Phụ kiện đổi hướng tuyến thoát D114.", "Cấp thoát nước & phụ kiện", "CAI"),
             M("TE-PVC-D114", "Tê PVC D114", "Phụ kiện đấu nối tuyến thoát D114.", "Cấp thoát nước & phụ kiện", "CAI"),
             M("KEO-PVC-500", "Keo dán ống PVC 500 ml", "Chai keo dán ống và phụ kiện PVC.", "Cấp thoát nước & phụ kiện", "CHAI"),
-            M("PPR-D20", "Ống PPR D20", "Ống cấp nước; cây 4 m, tồn gốc theo mét.", "Cấp thoát nước & phụ kiện", "MET"),
-            M("PPR-D25", "Ống PPR D25", "Ống cấp nước; cây 4 m, tồn gốc theo mét.", "Cấp thoát nước & phụ kiện", "MET"),
-            M("PPR-D32", "Ống PPR D32", "Ống cấp nước trục; cây 4 m, tồn gốc theo mét.", "Cấp thoát nước & phụ kiện", "MET"),
+            M("PPR-D20", "Ống PPR D20", "Ống cấp nước; cây 4 m, tồn gốc theo m.", "Cấp thoát nước & phụ kiện", "MET"),
+            M("PPR-D25", "Ống PPR D25", "Ống cấp nước; cây 4 m, tồn gốc theo m.", "Cấp thoát nước & phụ kiện", "MET"),
+            M("PPR-D32", "Ống PPR D32", "Ống cấp nước trục; cây 4 m, tồn gốc theo m.", "Cấp thoát nước & phụ kiện", "MET"),
             M("CO-PPR-D25", "Co PPR D25", "Phụ kiện chuyển hướng ống cấp D25.", "Cấp thoát nước & phụ kiện", "CAI"),
             M("TE-PPR-D25", "Tê PPR D25", "Phụ kiện chia nhánh ống cấp D25.", "Cấp thoát nước & phụ kiện", "CAI"),
             M("VAN-BI-D25", "Van bi khóa nước D25", "Van khóa nhánh cấp nước.", "Cấp thoát nước & phụ kiện", "CAI"),

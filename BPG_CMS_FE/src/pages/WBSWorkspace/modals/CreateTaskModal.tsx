@@ -96,7 +96,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       startDate: '',
       deadline: '',
       assignedTo: '',
-      weight: undefined,
+      weight: '1',
       isOutsourced: false,
       outsourcedTeamName: '',
       outsourcedTeamContact: ''
@@ -295,10 +295,10 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 {...register('weight')}
                 className={`w-full text-sm px-3 py-2 rounded-md border ${errors.weight ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
               >
-                <option value="">Bình thường (Mặc định)</option>
-                <option value="2">Cao</option>
-                <option value="3">Quan trọng</option>
-                <option value="4">Rất quan trọng</option>
+                <option value="1">1 - Bình thường (Mặc định)</option>
+                <option value="2">2 - Cao</option>
+                <option value="3">3 - Quan trọng</option>
+                <option value="4">4 - Rất quan trọng</option>
               </select>
               <p className="text-[11px] text-slate-400 mt-1.5">Mức độ càng cao, % hoàn thành của công việc này càng đóng góp nhiều vào tiến độ chung.</p>
               {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight.message?.toString()}</p>}

@@ -277,6 +277,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => !submittingReturn && onClose()}
+      mobileFullScreen
       title={
         <div className="flex items-center gap-2">
           <Briefcase className="text-blue-600" size={20} />

@@ -1,4 +1,4 @@
-﻿using BPG.Application.Common.Models;
+using BPG.Application.Common.Models;
 using MediatR;
 using System;
 using System.Threading;

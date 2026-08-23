@@ -15,6 +15,11 @@ export interface WBSContextType {
   isTPKT: boolean;
   canEdit: boolean;
   filterAssignee: string;
+  setFilterAssignee: (val: string) => void;
+  filterWeight: string;
+  setFilterWeight: (val: string) => void;
+  searchTerm: string;
+  setSearchTerm: (val: string) => void;
 
   expandedPhases: Record<string, boolean>;
   togglePhase: (phaseId: string) => void;
@@ -114,6 +119,9 @@ export interface WBSContextType {
   setIsReportInventoryIncidentOpen: (open: boolean) => void;
   selectedPhaseForInventoryIncident: WBSPhase | null;
   setSelectedPhaseForInventoryIncident: (phase: WBSPhase | null) => void;
+
+  isImportWbsOpen: boolean;
+  setIsImportWbsOpen: (open: boolean) => void;
 
   handleApproveByLeader: (id: string) => void;
   handleApproveByTPKT: (id: string) => void;

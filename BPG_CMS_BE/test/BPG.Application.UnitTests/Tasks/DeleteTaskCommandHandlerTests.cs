@@ -18,6 +18,7 @@ public class DeleteTaskCommandHandlerTests
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepo = new();
     private readonly Mock<IGenericRepository<ProjectMember>> _memberRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
+    private readonly Mock<IProgressRollupService> _rollupService = new();
     private readonly DeleteTaskCommandHandler _handler;
 
     public DeleteTaskCommandHandlerTests()
@@ -27,7 +28,7 @@ public class DeleteTaskCommandHandlerTests
         _uow.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         _currentUser.SetupUser(1, BPG.Domain.Constants.UserRole.TechnicalManager);
         SetupTasks(TaskEntity());
-        _handler = new DeleteTaskCommandHandler(_uow.Object, ServiceStubFactory.RealtimeSender(), _currentUser.Object);
+        _handler = new DeleteTaskCommandHandler(_uow.Object, ServiceStubFactory.RealtimeSender(), _currentUser.Object, _rollupService.Object);
     }
 
     [Fact]

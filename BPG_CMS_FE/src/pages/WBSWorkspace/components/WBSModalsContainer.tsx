@@ -16,7 +16,7 @@ import { AdjustProgressModal } from '../modals/AdjustProgressModal';
 import { ReportIncidentModal } from '../../Incidents/modals/ReportIncidentModal';
 import { ReportInventoryIncidentModal } from '../modals/ReportInventoryIncidentModal';
 import { canCreateDailyLog, hasSiteEngineerRole } from '../../../utils/taskPermissions';
-
+import { ImportWbsModal } from '../modals/ImportWbsModal';
 
 export const WBSModalsContainer = () => {
   const {
@@ -320,6 +320,8 @@ export const WBSModalsContainer = () => {
           onError={handleError}
         />
       )}
+
+      <ImportWbsModal />
     </>
   );
 };

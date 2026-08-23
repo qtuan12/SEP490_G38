@@ -117,6 +117,12 @@
   text-underline-offset: 2px;
 }
 
+.mr-assessment-inline__source-value a {
+  color: hsl(var(--primary));
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .mr-assessment-inline__message {
   margin: 0;
   color: hsl(var(--text-muted));

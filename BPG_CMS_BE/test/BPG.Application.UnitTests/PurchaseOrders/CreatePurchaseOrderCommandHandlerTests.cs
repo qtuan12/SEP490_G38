@@ -36,6 +36,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
         private readonly Mock<IGenericRepository<PurchaseOrderItem>> _mockPoItemRepo;
         private readonly Mock<IGenericRepository<GoodsReceiptItem>> _mockReceiptItemRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockMemberRepo;
+        private readonly Mock<IGenericRepository<Supplier>> _mockSupplierRepo;
         private readonly Mock<IGenericRepository<Attachment>> _mockAttachmentRepo;
         private readonly List<Attachment> _savedAttachments = [];
         private readonly CreatePurchaseOrderCommandHandler _handler;
@@ -49,6 +50,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockPoItemRepo = new Mock<IGenericRepository<PurchaseOrderItem>>();
             _mockReceiptItemRepo = new Mock<IGenericRepository<GoodsReceiptItem>>();
             _mockMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
+            _mockSupplierRepo = new Mock<IGenericRepository<Supplier>>();
             _mockAttachmentRepo = new Mock<IGenericRepository<Attachment>>();
             var mockCurrentUserService = new Mock<ICurrentUserService>();
 
@@ -58,6 +60,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             _mockUow.Setup(u => u.Repository<PurchaseOrderItem>()).Returns(_mockPoItemRepo.Object);
             _mockUow.Setup(u => u.Repository<GoodsReceiptItem>()).Returns(_mockReceiptItemRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockMemberRepo.Object);
+            _mockUow.Setup(u => u.Repository<Supplier>()).Returns(_mockSupplierRepo.Object);
             _mockUow.Setup(u => u.Repository<Attachment>()).Returns(_mockAttachmentRepo.Object);
             _mockUow.Setup(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
             _mockUow.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
@@ -83,6 +86,7 @@ namespace BPG.Application.UnitTests.PurchaseOrders
             SetupExistingPOItems();
             SetupApprovedReceiptItems();
             SetupProjectMembers();
+            SetupSuppliers(new Supplier { SupplierId = 30, CollaborationStatus = BPG.Domain.Constants.CollaborationStatus.Regular });
             SetupExistingPurchaseOrders();
 
             _handler = new CreatePurchaseOrderCommandHandler(
@@ -403,6 +407,9 @@ namespace BPG.Application.UnitTests.PurchaseOrders
 
         private void SetupProjectMembers(params ProjectMember[] members)
             => _mockMemberRepo.Setup(r => r.Query()).Returns(members.AsQueryable().BuildMock());
+
+        private void SetupSuppliers(params Supplier[] suppliers)
+            => _mockSupplierRepo.Setup(r => r.Query()).Returns(suppliers.AsQueryable().BuildMock());
 
         private void SetupExistingPurchaseOrders(params PurchaseOrder[] purchaseOrders)
             => _mockPoRepo.Setup(r => r.Query()).Returns(purchaseOrders.AsQueryable().BuildMock());

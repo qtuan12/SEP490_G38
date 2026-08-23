@@ -136,7 +136,7 @@ export const CreatePOPage: React.FC = () => {
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-active'],
-    queryFn: () => supplierService.getSuppliers({ pageSize: 200, collaborationStatus: 'Active' }).then((r) => r.items),
+    queryFn: () => supplierService.getSuppliers({ pageSize: 200 }).then((r) => r.items.filter(s => s.collaborationStatus !== 'Blacklisted')),
   });
 
   // Mã đơn hàng dự kiến sẽ được backend sinh — chỉ hiển thị tham khảo, không cho chỉnh sửa
@@ -568,6 +568,15 @@ export const CreatePOPage: React.FC = () => {
             />
             {supplierError && (
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'hsl(var(--danger))' }}>{supplierError}</p>
+            )}
+            {supplierId > 0 && suppliers.find(s => s.supplierId === supplierId)?.collaborationStatus === 'Restricted' && (
+              <div className="mt-2 p-3 bg-[hsl(var(--warning)/0.1)] border border-[hsl(var(--warning))] rounded text-sm text-[hsl(var(--warning-foreground))] flex items-start gap-2">
+                <span className="text-[hsl(var(--warning))] font-bold">⚠️</span>
+                <span>
+                  <strong>Lưu ý:</strong> Nhà cung cấp này đang ở trạng thái <strong>Hạn chế</strong>. 
+                  Hãy cân nhắc kỹ hoặc xin ý kiến trước khi chốt đơn.
+                </span>
+              </div>
             )}
           </div>
           <div>

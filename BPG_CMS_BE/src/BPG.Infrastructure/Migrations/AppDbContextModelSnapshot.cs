@@ -997,6 +997,10 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<long>("PhaseId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ProcurementDecision")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1465,6 +1469,11 @@ namespace BPG.Infrastructure.Migrations
 
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
+
+                    b.Property<string>("Importance")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<long?>("IncidentId")
                         .HasColumnType("bigint");

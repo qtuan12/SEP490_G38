@@ -78,41 +78,33 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
 
-                await _uow.CommitTransactionAsync(cancellationToken);
+                var directorUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var directorName = directorUser?.FullName ?? "Giám đốc";
 
-                // Gửi thông báo realtime
-                try
+                // 1. Thông báo cho Project Leader (người tạo)
+                if (mr.CreatedBy.HasValue)
                 {
-                    var directorUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-                    var directorName = directorUser?.FullName ?? "Giám đốc";
-
-                    // 1. Thông báo cho Project Leader (người tạo)
-                    if (mr.CreatedBy.HasValue)
-                    {
-                        await _notificationService.SendNotificationAsync(
-                            mr.CreatedBy.Value,
-                            "Yêu cầu vượt định mức đã được duyệt",
-                            $"Yêu cầu vượt định mức cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Giám đốc '{directorName}' phê duyệt.",
-                            NotificationType.Procurement,
-                            $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
-                            mr.RequestId,
-                            cancellationToken);
-                    }
-
-                    // 2. Thông báo cho bộ phận Kế toán
-                    await _notificationService.SendNotificationToRoleAsync(
-                        BPG.Domain.Constants.UserRole.Accountant,
+                    await _notificationService.SendNotificationAsync(
+                        mr.CreatedBy.Value,
                         "Yêu cầu vượt định mức đã được duyệt",
-                        $"Giám đốc '{directorName}' đã phê duyệt yêu cầu vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'",
+                        $"Yêu cầu vượt định mức cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Giám đốc '{directorName}' phê duyệt.",
                         NotificationType.Procurement,
                         $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                         mr.RequestId,
                         cancellationToken);
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error sending notification: {ex.Message}");
-                }
+
+                // 2. Thông báo cho bộ phận Kế toán
+                await _notificationService.SendNotificationToRoleAsync(
+                    BPG.Domain.Constants.UserRole.Accountant,
+                    "Yêu cầu vượt định mức đã được duyệt",
+                    $"Giám đốc '{directorName}' đã phê duyệt yêu cầu vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'",
+                    NotificationType.Procurement,
+                    $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
+                    mr.RequestId,
+                    cancellationToken);
+
+                await _uow.CommitTransactionAsync(cancellationToken);
 
                 return ApiResponse<bool>.SuccessResult(true, "Giám đốc phê duyệt yêu cầu vật tư thành công.");
             }
