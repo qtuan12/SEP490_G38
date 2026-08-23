@@ -64,9 +64,8 @@ public class CreateSurplusReturnActionCommandHandler : IRequestHandler<CreateSur
         var inventory = await _uow.Repository<CurrentInventory>().Query()
             .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct)
             ?? throw new BusinessException(ErrorCodes.InsufficientStock, "Vật tư không tồn tại trong kho dự án.");
-        var availableQuantity = inventory.Quantity - inventory.ReservedQuantity;
-        if (request.ReturnQuantity > availableQuantity)
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để trả nhà cung cấp. Khả dụng: {availableQuantity.ToString("G29")}, yêu cầu: {request.ReturnQuantity.ToString("G29")}.");
+        if (request.ReturnQuantity > inventory.Quantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho vật lý để trả nhà cung cấp. Tồn kho hiện tại: {inventory.Quantity.ToString("G29")}, yêu cầu: {request.ReturnQuantity.ToString("G29")}.");
 
         var approvedSuppliers = await _supplierService.GetApprovedSuppliersAsync(
             item.SurplusRequest.ProjectId,

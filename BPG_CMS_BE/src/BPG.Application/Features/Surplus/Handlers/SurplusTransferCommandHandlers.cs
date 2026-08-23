@@ -83,8 +83,8 @@ public class CreateSurplusTransferActionCommandHandler : IRequestHandler<CreateS
             .FirstOrDefaultAsync(ci => ci.ProjectId == fromProjectId && ci.MaterialId == item.MaterialId, ct)
             ?? throw new BusinessException(ErrorCodes.InsufficientStock, $"Vật tư không tồn tại trong kho của dự án.");
 
-        if ((inv.Quantity - inv.ReservedQuantity) < baseTransferQty)
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để chuyển. Tồn kho khả dụng: {(inv.Quantity - inv.ReservedQuantity).ToString("G29")}, Yêu cầu chuyển: {baseTransferQty.ToString("G29")} (base unit).");
+        if (inv.Quantity < baseTransferQty)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho vật lý để chuyển. Tồn kho hiện tại: {inv.Quantity.ToString("G29")}, Yêu cầu chuyển: {baseTransferQty.ToString("G29")} (base unit).");
 
         // Không tăng ReservedQuantity ở đây vì toàn bộ số lượng đã được lock từ khi tạo SurplusRequest.
         // Reserved sẽ được giảm khi transfer được Received (ReceiveSurplusTransferCommandHandler).

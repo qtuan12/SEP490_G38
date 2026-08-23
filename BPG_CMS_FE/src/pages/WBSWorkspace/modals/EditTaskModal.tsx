@@ -68,7 +68,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
       startDate: task.startDate || '',
       deadline: task.deadline || '',
       assignedTo: task.assignedTo || '',
-      weight: task.weight !== undefined ? task.weight : undefined,
+      weight: (task.weight !== undefined && task.weight !== null) ? task.weight.toString() : '1',
       isOutsourced: task.isOutsourced || false,
       outsourcedTeamName: task.outsourcedTeamName || '',
       outsourcedTeamContact: task.outsourcedTeamContact || ''
@@ -85,7 +85,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
         startDate: task.startDate || '',
         deadline: task.deadline || '',
         assignedTo: task.assignedTo ? task.assignedTo.toString().split(',')[0] : '',
-        weight: task.weight !== undefined ? task.weight : undefined,
+        weight: (task.weight !== undefined && task.weight !== null) ? task.weight.toString() : '1',
         isOutsourced: task.isOutsourced || false,
         outsourcedTeamName: task.outsourcedTeamName || '',
         outsourcedTeamContact: task.outsourcedTeamContact || ''
@@ -321,7 +321,7 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 {errors.startDate && <p className="text-red-500 text-xs mt-1">{errors.startDate.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5 text-slate-600">Hạn chót <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium mb-1.5 text-slate-600">Ngày kết thúc <span className="text-red-500">*</span></label>
                 <input 
                   type="date" 
                   {...register('deadline')} 
@@ -337,10 +337,10 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                 {...register('weight')}
                 className={`w-full text-sm px-3 py-2 rounded-md border ${errors.weight ? 'border-red-500' : 'border-slate-200'} bg-white text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600`}
               >
-                <option value="">Bình thường (Mặc định)</option>
-                <option value="2">Cao</option>
-                <option value="3">Quan trọng</option>
-                <option value="4">Rất quan trọng</option>
+                <option value="1">1 - Bình thường (Mặc định)</option>
+                <option value="2">2 - Cao</option>
+                <option value="3">3 - Quan trọng</option>
+                <option value="4">4 - Rất quan trọng</option>
               </select>
               <p className="text-[11px] text-slate-400 mt-1.5">Mức độ càng cao, % hoàn thành của công việc này càng đóng góp nhiều vào tiến độ chung.</p>
               {errors.weight && <p className="text-red-500 text-xs mt-1">{errors.weight.message?.toString()}</p>}

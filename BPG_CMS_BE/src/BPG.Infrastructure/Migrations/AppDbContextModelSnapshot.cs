@@ -1466,6 +1466,11 @@ namespace BPG.Infrastructure.Migrations
                     b.Property<DateOnly>("EndDate")
                         .HasColumnType("date");
 
+                    b.Property<string>("Importance")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<long?>("IncidentId")
                         .HasColumnType("bigint");
 
