@@ -35,7 +35,7 @@ export const PortfolioDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <LoadingSpinner size="md" label="Đang tải Dữ liệu Portfolio..." />
+        <LoadingSpinner size="md" label="Đang tải Dữ liệu Tổng quan Toàn bộ Dự án..." />
       </div>
     );
   }
@@ -165,7 +165,7 @@ export const PortfolioDashboard: React.FC = () => {
                     <strong className="text-[0.95rem] block mb-1">
                       {w.projectName}
                     </strong>
-                    <div className="text-sm font-medium mb-1">Task: {w.taskName}</div>
+                    <div className="text-sm font-medium mb-1">Công việc: {w.taskName}</div>
                     <span className="text-[0.85rem] opacity-90">{w.message}</span>
                   </div>
                 </div>

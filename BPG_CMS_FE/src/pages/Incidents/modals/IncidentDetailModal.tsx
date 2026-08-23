@@ -957,9 +957,9 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
   }[incident.status as string] ?? { label: incident.status, color: 'hsl(var(--text-secondary))', bg: 'hsl(var(--bg-muted))' };
 
   const userRole = (user?.role || '').toLowerCase();
-  const isTPKT = userRole === 'technicalmanager' || userRole === 'admin';
-  const isAccountant = userRole === 'accountant' || userRole === 'admin';
-  const isDirector = userRole === 'director' || userRole === 'admin';
+  const isTPKT = userRole === 'technicalmanager';
+  const isAccountant = userRole === 'accountant';
+  const isDirector = userRole === 'director';
 
   const incidentDetailsJSX = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

@@ -41,7 +41,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
   const [isDecreaseOpen, setIsDecreaseOpen] = useState(false);
   const [loadingRowAction, setLoadingRowAction] = useState<string | null>(null);
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const incidentIdParam = searchParams.get('incidentId');
 
   // Auto-open incident detail when incidentId is in query params
@@ -54,6 +54,17 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
       }
     }
   }, [incidentIdParam, incidents]);
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setSelectedIncident(null);
+    setSelectedPhase(null);
+    if (searchParams.has('incidentId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('incidentId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const [error, setError] = useState<string | null>(null);
 
@@ -347,11 +358,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
       {isDetailOpen && selectedIncident && (
         <IncidentDetailModal
           isOpen={isDetailOpen}
-          onClose={() => {
-            setIsDetailOpen(false);
-            setSelectedIncident(null);
-            setSelectedPhase(null);
-          }}
+          onClose={handleCloseDetail}
           incident={selectedIncident}
           phase={selectedPhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}

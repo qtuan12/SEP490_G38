@@ -137,10 +137,10 @@ export const downloadBOQImportTemplate = async (
   });
 
   const sheet = workbook.addWorksheet('BOQ', { views: [{ state: 'frozen', ySplit: 1 }] });
-  const headers = ['STT', 'Mã vật tư*', 'Tên vật tư', 'Quy cách', 'Số lượng định mức*', 'Mã ĐVT*', 'Tên ĐVT'];
+  const headers = ['STT', 'Mã vật tư*', 'Tên vật tư', 'Số lượng định mức*', 'Mã ĐVT*', 'Tên ĐVT'];
   sheet.addRow(headers);
   sheet.columns = [
-    { width: 8 }, { width: 18 }, { width: 34 }, { width: 30 },
+    { width: 8 }, { width: 18 }, { width: 34 },
     { width: 22 }, { width: 16 }, { width: 18 },
   ];
   const headerRow = sheet.getRow(1);
@@ -156,7 +156,6 @@ export const downloadBOQImportTemplate = async (
       index + 1,
       row.materialCode,
       row.materialName,
-      row.specification ?? '',
       row.quantity,
       row.unitCode,
       row.unitName,

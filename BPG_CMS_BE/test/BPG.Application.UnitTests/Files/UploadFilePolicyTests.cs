@@ -111,20 +111,28 @@ public class UploadFilePolicyTests
     }
 
     [Fact]
-    public async Task ValidateFileAsync_ShouldAllowFiftyMiBOnlyForProjectDesigns()
+    public async Task ValidateFileAsync_ShouldAllowFiftyMiBOnlyForProjectDesignsAndTwentyMiBForIncidents()
     {
         UploadFilePolicy.TryResolveDestination("projects/design", out var designs, out _).Should().BeTrue();
         UploadFilePolicy.TryResolveDestination("incidents", out var incidents, out _).Should().BeTrue();
+        UploadFilePolicy.TryResolveDestination("dailylogs", out var dailylogs, out _).Should().BeTrue();
         var signature = new byte[] { (byte)'A', (byte)'C', (byte)'1', (byte)'0', (byte)'3', (byte)'2' };
 
         var designResult = await UploadFilePolicy.ValidateFileAsync(
             File("large.dwg", signature, UploadFilePolicy.MaxProjectDesignFileSizeBytes), designs);
         var incidentResult = await UploadFilePolicy.ValidateFileAsync(
-            File("large.pdf", "%PDF-1.7"u8.ToArray(), UploadFilePolicy.MaxFileSizeBytes + 1), incidents);
+            File("large.pdf", "%PDF-1.7"u8.ToArray(), UploadFilePolicy.MaxIncidentFileSizeBytes), incidents);
+        var incidentTooLargeResult = await UploadFilePolicy.ValidateFileAsync(
+            File("toolarge.pdf", "%PDF-1.7"u8.ToArray(), UploadFilePolicy.MaxIncidentFileSizeBytes + 1), incidents);
+        var dailyLogTooLargeResult = await UploadFilePolicy.ValidateFileAsync(
+            File("toolarge.jpg", new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 }, UploadFilePolicy.MaxFileSizeBytes + 1), dailylogs);
 
         designResult.IsValid.Should().BeTrue(designResult.ErrorMessage);
-        incidentResult.IsValid.Should().BeFalse();
-        incidentResult.ErrorMessage.Should().Contain("10 MB");
+        incidentResult.IsValid.Should().BeTrue(incidentResult.ErrorMessage);
+        incidentTooLargeResult.IsValid.Should().BeFalse();
+        incidentTooLargeResult.ErrorMessage.Should().Contain("20 MB");
+        dailyLogTooLargeResult.IsValid.Should().BeFalse();
+        dailyLogTooLargeResult.ErrorMessage.Should().Contain("10 MB");
     }
 
     [Fact]
@@ -140,19 +148,19 @@ public class UploadFilePolicyTests
     }
 
     [Fact]
-    public async Task ValidateFileAsync_ShouldAcceptExactlyTenMiBAndRejectAnythingLarger()
+    public async Task ValidateFileAsync_ShouldAcceptExactlyTwentyMiBForIncidentsAndRejectAnythingLarger()
     {
         UploadFilePolicy.TryResolveDestination("incidents", out var destination, out _).Should().BeTrue();
         var signature = "%PDF-1.7"u8.ToArray();
-        var exact = File("plan.pdf", signature, UploadFilePolicy.MaxFileSizeBytes);
-        var tooLarge = File("plan.pdf", signature, UploadFilePolicy.MaxFileSizeBytes + 1);
+        var exact = File("plan.pdf", signature, UploadFilePolicy.MaxIncidentFileSizeBytes);
+        var tooLarge = File("plan.pdf", signature, UploadFilePolicy.MaxIncidentFileSizeBytes + 1);
 
         var exactResult = await UploadFilePolicy.ValidateFileAsync(exact, destination);
         var tooLargeResult = await UploadFilePolicy.ValidateFileAsync(tooLarge, destination);
 
         exactResult.IsValid.Should().BeTrue(exactResult.ErrorMessage);
         tooLargeResult.IsValid.Should().BeFalse();
-        tooLargeResult.ErrorMessage.Should().Contain("10 MB");
+        tooLargeResult.ErrorMessage.Should().Contain("20 MB");
     }
 
     [Fact]
