@@ -78,7 +78,7 @@ namespace BPG.Application.Features.MaterialRequests.Commands
             {
                 throw new BusinessException(
                     "ERR_ACCOUNTANT_NOTE_REQUIRED",
-                    Ghi chú phải có ít nhất 5 ký tự.");
+                    "Ghi chú phải có ít nhất 5 ký tự.");
             }
 
             await _uow.BeginTransactionAsync(cancellationToken);

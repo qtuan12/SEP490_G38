@@ -74,7 +74,14 @@ export const MaterialRequestAssessmentItemRow: React.FC<MaterialRequestAssessmen
                     <div className="mr-assessment-inline__compact-list">
                       {assessment.internalSources.map(source => (
                         <div className="mr-assessment-inline__source-value" key={source.projectId}>
-                          <strong>{source.projectName}</strong>
+                          <a
+                            href={`/projects/${source.projectId}?tab=surplus`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Mở dự án ${source.projectName} trong tab mới`}
+                          >
+                            <strong>{source.projectName}</strong>
+                          </a>
                           <small>{formatNumber(source.availableQuantity)} {assessment.unitName} khả dụng</small>
                         </div>
                       ))}
