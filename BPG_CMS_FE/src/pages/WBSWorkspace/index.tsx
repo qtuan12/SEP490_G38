@@ -471,7 +471,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
                   className="flex items-center gap-2 py-2 px-3 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer bg-white border border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.05)]"
                 >
                   <FileText size={15} />
-                  <span className="hidden sm:inline">Import Excel</span>
+                  <span className="hidden sm:inline">Nhập từ Excel</span>
                 </button>
               )}
               <button

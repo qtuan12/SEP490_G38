@@ -33,6 +33,7 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
             .Include(t => t.Assignees)
+            .Include(t => t.ParentTask)
             .Include(t => t.Phase)
             .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
@@ -58,6 +59,11 @@ public class RestoreTaskCommandHandler : IRequestHandler<RestoreTaskCommand, Api
         if (!string.IsNullOrEmpty(task.ObsoleteReason) && (task.ObsoleteReason.Contains("Sự cố khẩn cấp") || task.ObsoleteReason.Contains("Sự cố")))
         {
             throw new BusinessException("ERR_TASK_CANNOT_BE_RESTORED", "Công việc này đã bị hủy/thay thế do xử lý sự cố thi công và không thể khôi phục.");
+        }
+
+        if (task.ParentTask != null && task.ParentTask.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
+        {
+            throw new BusinessException("ERR_PARENT_TASK_OBSOLETE", $"Vui lòng khôi phục công việc cha '{task.ParentTask.Name}' trước.");
         }
 
         var hasObsoletePredecessor = await _unitOfWork.Repository<TaskDependency>()

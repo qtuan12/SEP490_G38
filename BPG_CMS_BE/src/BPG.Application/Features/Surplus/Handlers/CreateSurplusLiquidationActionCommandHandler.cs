@@ -62,9 +62,8 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
         var inventory = await _uow.Repository<CurrentInventory>().Query()
             .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct)
             ?? throw new BusinessException(ErrorCodes.InsufficientStock, "Vật tư không tồn tại trong kho dự án.");
-        var availableQuantity = inventory.Quantity - inventory.ReservedQuantity;
-        if (request.LiquidationQuantity > availableQuantity)
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để thanh lý. Khả dụng: {availableQuantity.ToString("G29")}, yêu cầu: {request.LiquidationQuantity.ToString("G29")}.");
+        if (request.LiquidationQuantity > inventory.Quantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho vật lý để thanh lý. Tồn kho hiện tại: {inventory.Quantity.ToString("G29")}, yêu cầu: {request.LiquidationQuantity.ToString("G29")}.");
 
         var liquidation = new SurplusLiquidation
         {

@@ -76,7 +76,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.message || 'Không thể khôi phục công việc.');
+      toast.error(err?.message || 'Không thể khôi phục công việc.');
       setIsRestoreConfirmOpen(false);
     }
   });

@@ -277,6 +277,14 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
             }
         }
 
+        if (result.Errors.Any())
+        {
+            result.PhaseCount = 0;
+            result.TaskCount = 0;
+            result.SkippedCount = lastRow - 1; 
+            return result;
+        }
+
         if (phasesToCreate.Any())
         {
             await _uow.Repository<Phase>().AddRangeAsync(phasesToCreate, cancellationToken);
