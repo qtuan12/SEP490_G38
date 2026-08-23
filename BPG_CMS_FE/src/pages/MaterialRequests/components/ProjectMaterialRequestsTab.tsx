@@ -755,7 +755,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onClose={() => setIsCreateOpen(false)}
           onSuccess={(msg) => {
             setIsCreateOpen(false);
-            console.log(msg);
+            toast.success(msg);
             scheduleRealtimeRefresh();
           }}
           projectId={projectId.toString()}
