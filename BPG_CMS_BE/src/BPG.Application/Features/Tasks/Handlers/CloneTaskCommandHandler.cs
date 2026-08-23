@@ -70,6 +70,18 @@ public class CloneTaskCommandHandler : IRequestHandler<CloneTaskCommand, ApiResp
         if (source.Phase.Status == PhaseStatus.Approved)
             throw new AlreadyApprovedException("Giai đoạn", source.PhaseId);
 
+        if (source.ParentTaskId.HasValue)
+        {
+            var parentTask = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(task => task.TaskId == source.ParentTaskId.Value, ct);
+            if (parentTask != null && parentTask.Status == TaskStatus.Obsolete)
+            {
+                throw new BusinessException(ErrorCodes.InvalidTransition, "Không thể nhân bản công việc khi công việc cha đã bị dừng.");
+            }
+        }
+
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)
             && !await _projectAccessService.IsCurrentUserProjectLeaderAsync(
                 source.Phase.ProjectId,
