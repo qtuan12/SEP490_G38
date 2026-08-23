@@ -59,6 +59,18 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 throw new BusinessException(ErrorCodes.PoProjectNotActive,
                     $"Dự án '{project.Name}' hiện không ở trạng thái Đang thi công nên không thể tạo đơn mua hàng.");
 
+            if (request.SupplierId.HasValue)
+            {
+                var supplier = await _uow.Repository<Supplier>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.SupplierId == request.SupplierId, cancellationToken)
+                    ?? throw new NotFoundException("Không tìm thấy nhà cung cấp đã chọn.");
+
+                if (supplier.CollaborationStatus == BPG.Domain.Constants.CollaborationStatus.Blacklisted)
+                    throw new BusinessException("ERR_SUPPLIER_BLACKLISTED",
+                        $"Nhà cung cấp '{supplier.SupplierName}' đang nằm trong danh sách đen và không được phép phát sinh giao dịch mới.");
+            }
+
             // 1c. Giai đoạn đã nghiệm thu thì bị đóng băng, không phát sinh đơn mua hàng mới —
             // đồng bộ với rule đã áp dụng cho MaterialRequest (CreateMaterialRequestCommandHandler)
             // và phiếu mua khẩn cấp (DirectPurchaseGuard.EnsureProjectOpenForDraftingAsync).
@@ -231,6 +243,34 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 await _uow.Repository<Attachment>().AddRangeAsync(quotationAttachments, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
 
+                // Giám đốc là người phải hành động tiếp theo (duyệt/từ chối), trưởng dự án được báo để theo dõi vật tư.
+                var currentUserId = _currentUserService.UserId;
+                var notiTitle = "Đơn hàng mới chờ duyệt";
+                var notiContent = $"Đơn hàng {po.PONumber} cho giai đoạn '{phase.Name}' đang chờ Giám đốc duyệt. Tổng giá trị: {totalAmount:N0}đ.";
+
+                if (currentUserId.HasValue)
+                {
+                    await _notificationService.SendNotificationToRoleAsync(
+                        UserRole.Director, notiTitle, notiContent,
+                        NotificationType.Procurement, currentUserId.Value, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+                }
+                else
+                {
+                    await _notificationService.SendNotificationToRoleAsync(
+                        UserRole.Director, notiTitle, notiContent,
+                        NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+                }
+
+                var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+                    .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && m.UserId != currentUserId)
+                    .Select(m => m.UserId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (projectLeaderId > 0)
+                    await _notificationService.SendNotificationAsync(
+                        projectLeaderId, notiTitle, notiContent,
+                        NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
+
                 await _uow.CommitTransactionAsync(cancellationToken);
             }
             catch
@@ -241,34 +281,6 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
             await _realtimeSender.SendToGroupAsync(
                 $"Project_{request.ProjectId}", HubMethodNames.PurchaseOrderUpdated, new { POId = po.POId }, cancellationToken);
-
-            // Giám đốc là người phải hành động tiếp theo (duyệt/từ chối), trưởng dự án được báo để theo dõi vật tư.
-            var currentUserId = _currentUserService.UserId;
-            var notiTitle = "Đơn hàng mới chờ duyệt";
-            var notiContent = $"Đơn hàng {po.PONumber} cho giai đoạn '{phase.Name}' đang chờ Giám đốc duyệt. Tổng giá trị: {totalAmount:N0}đ.";
-
-            if (currentUserId.HasValue)
-            {
-                await _notificationService.SendNotificationToRoleAsync(
-                    UserRole.Director, notiTitle, notiContent,
-                    NotificationType.Procurement, currentUserId.Value, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
-            }
-            else
-            {
-                await _notificationService.SendNotificationToRoleAsync(
-                    UserRole.Director, notiTitle, notiContent,
-                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
-            }
-
-            var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
-                .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && m.UserId != currentUserId)
-                .Select(m => m.UserId)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (projectLeaderId > 0)
-                await _notificationService.SendNotificationAsync(
-                    projectLeaderId, notiTitle, notiContent,
-                    NotificationType.Procurement, NotificationLink.ProjectPurchaseOrders(po.ProjectId), po.POId, cancellationToken);
 
             return po.POId;
         }

@@ -107,36 +107,18 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                 await BPG.Application.Common.Helpers.BOQStatusReevaluator.ReevaluateSiblingRequestsAsync(_uow, mr.PhaseId, mr.RequestId, cancellationToken);
                 await _uow.SaveChangesAsync(cancellationToken);
 
-                await _uow.CommitTransactionAsync(cancellationToken);
+                var accountantUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                var accountantName = accountantUser?.FullName ?? "Kế toán";
 
-                // Gửi thông báo realtime
-                try
+                if (mr.Status == MaterialRequestStatus.Approved)
                 {
-                    var accountantUser = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
-                    var accountantName = accountantUser?.FullName ?? "Kế toán";
-
-                    if (mr.Status == MaterialRequestStatus.Approved)
+                    // 1. Phê duyệt trong định mức: thông báo cho Project Leader (người tạo)
+                    if (mr.CreatedBy.HasValue)
                     {
-                        // 1. Phê duyệt trong định mức: thông báo cho Project Leader (người tạo)
-                        if (mr.CreatedBy.HasValue)
-                        {
-                            await _notificationService.SendNotificationAsync(
-                                mr.CreatedBy.Value,
-                                "Yêu cầu vật tư đã được phê duyệt",
-                                $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Kế toán '{accountantName}' phê duyệt.",
-                                NotificationType.Procurement,
-                                $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
-                                mr.RequestId,
-                                cancellationToken);
-                        }
-                    }
-                    else if (mr.Status == MaterialRequestStatus.WaitingApproval)
-                    {
-                        // 2. Vượt định mức: thông báo trình Giám đốc duyệt
-                        await _notificationService.SendNotificationToRoleAsync(
-                            BPG.Domain.Constants.UserRole.Director,
-                            "Yêu cầu vượt định mức chờ duyệt",
-                            $"Kế toán '{accountantName}' vừa trình Giám đốc một yêu cầu vật tư vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'.",
+                        await _notificationService.SendNotificationAsync(
+                            mr.CreatedBy.Value,
+                            "Yêu cầu vật tư đã được phê duyệt",
+                            $"Yêu cầu vật tư cho giai đoạn '{mr.Phase?.Name}' của bạn đã được Kế toán '{accountantName}' phê duyệt.",
                             NotificationType.Procurement,
                             $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
                             mr.RequestId,
@@ -154,9 +136,17 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                             cancellationToken);
                     }
                 }
-                catch (Exception ex)
+                else if (mr.Status == MaterialRequestStatus.WaitingApproval)
                 {
-                    Console.WriteLine($"Error sending notification: {ex.Message}");
+                    // 2. Vượt định mức: thông báo trình Giám đốc duyệt
+                    await _notificationService.SendNotificationToRoleAsync(
+                        BPG.Domain.Constants.UserRole.Director,
+                        "Yêu cầu vượt định mức chờ duyệt",
+                        $"Kế toán '{accountantName}' vừa trình Giám đốc một yêu cầu vật tư vượt định mức giai đoạn '{mr.Phase?.Name}' thuộc dự án '{mr.Phase?.Project?.Name}'.",
+                        NotificationType.Procurement,
+                        $"/projects/{mr.Phase?.ProjectId}/workspace/materialrequests",
+                        mr.RequestId,
+                        cancellationToken);
                 }
 
                 string message = request.Decision switch

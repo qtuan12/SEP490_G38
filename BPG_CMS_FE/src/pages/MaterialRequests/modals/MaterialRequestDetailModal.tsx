@@ -180,6 +180,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       onClose={onClose}
       title={`${request.id.toUpperCase().replace('MAT-REQ-', 'YCVT-')} — Chi tiết Yêu cầu Vật tư`}
       width="xl"
+      mobileFullScreen
     >
       {loadingData ? (
         <LoadingSpinner size="md" label="Đang tải thông tin đối chiếu định mức..." className="py-12" />

@@ -56,7 +56,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
     if (!supplierId) { setError('Vui lòng chọn nhà cung cấp.'); return; }
     const qty = parseFloat(returnQty);
     if (isNaN(qty) || qty <= 0) { setError('Số lượng phải lớn hơn 0.'); return; }
-    if (qty > maxReturnQuantity) { setError(`Số lượng trả tối đa là ${maxReturnQuantity} ${item.unitName} sau khi trừ phần đang tạm khóa.`); return; }
+    if (qty > maxReturnQuantity) { setError(`Số lượng tối đa có thể trả trong đợt xử lý này là ${maxReturnQuantity} ${item.unitName}.`); return; }
     if (isDiscreteUnit(item.unitName) && qty % 1 !== 0) { setError(`Đơn vị '${item.unitName}' yêu cầu số lượng phải là số nguyên.`); return; }
     if (files.length === 0) { setError('Bắt buộc phải tải lên ít nhất 1 file minh chứng.'); return; }
 
@@ -108,11 +108,11 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
         <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm">
           <span className="font-semibold text-slate-700">{item.materialName}</span>
           <span className="text-slate-500 ml-2">({item.materialCode})</span>
-          <p className="text-slate-500 mt-1">
-            Còn lại trong đợt: <strong className="text-orange-600">{remaining} {item.unitName}</strong>
-            <span className="mx-2">•</span>
-            Có thể trả: <strong className="text-blue-600">{maxReturnQuantity} {item.unitName}</strong>
-          </p>
+          <div className="mt-1 flex items-center gap-2 text-slate-600">
+            <span>Còn lại trong đợt: <strong className="text-orange-600">{remaining.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+            <span className="text-slate-300">•</span>
+            <span>Có thể trả: <strong className="text-blue-600">{maxReturnQuantity.toLocaleString('vi-VN')} {item.unitName}</strong></span>
+          </div>
         </div>
 
         <FormItem label="Nhà cung cấp" required>

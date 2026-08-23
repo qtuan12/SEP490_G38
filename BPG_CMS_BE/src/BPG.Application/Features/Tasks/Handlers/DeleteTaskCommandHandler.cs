@@ -14,12 +14,14 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRealtimeNotificationSender _realtimeSender;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IProgressRollupService _rollupService;
 
-    public DeleteTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService)
+    public DeleteTaskCommandHandler(IUnitOfWork unitOfWork, IRealtimeNotificationSender realtimeSender, ICurrentUserService currentUserService, IProgressRollupService rollupService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
         _currentUserService = currentUserService;
+        _rollupService = rollupService;
     }
 
     public async Task<ApiResponse> Handle(DeleteTaskCommand request, CancellationToken ct)
@@ -64,6 +66,15 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
 
         _unitOfWork.Repository<ProjectTask>().Remove(task);
         await _unitOfWork.SaveChangesAsync(ct);
+
+        if (task.ParentTaskId.HasValue)
+        {
+            await _rollupService.RecalculateParentTaskProgressAsync(task.ParentTaskId.Value, null, ct);
+        }
+        else
+        {
+            await _rollupService.UpdatePhaseStatusAsync(task.PhaseId, ct);
+        }
 
         if (task.Phase != null)
         {

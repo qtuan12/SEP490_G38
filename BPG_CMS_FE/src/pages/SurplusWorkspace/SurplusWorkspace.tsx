@@ -187,11 +187,11 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             <span className="text-slate-400 text-sm">/ Đề xuất #{selectedBatchId}</span>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-lg">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+          <div className="flex flex-nowrap bg-slate-100 p-1 rounded-lg overflow-x-auto w-full md:w-auto hide-scrollbar">
             <button
               onClick={() => setActiveTab('outbound')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'outbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${activeTab === 'outbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
               Danh sách đề xuất
@@ -199,7 +199,7 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
             {isLeader && (
               <button
                 onClick={() => setActiveTab('inbound')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${activeTab === 'inbound' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
               >
                 Vật tư chuyển đến

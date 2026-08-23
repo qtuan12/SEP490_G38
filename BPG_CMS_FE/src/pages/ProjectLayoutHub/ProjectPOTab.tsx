@@ -97,6 +97,12 @@ const RowActionsMenu: React.FC<{ items: RowMenuItem[] }> = ({ items }) => {
 // Đơn bị Giám đốc từ chối là trạng thái kết thúc, không hủy thêm được nữa.
 const CANCELLABLE = ['Draft', 'PendingApproval', 'Sent'];
 
+const PO_SOURCE_OPTIONS = [
+  { label: 'Tất cả nguồn', value: '' },
+  { label: 'PO thường', value: 'normal' },
+  { label: 'PO mua khẩn cấp', value: 'direct' },
+];
+
 const PO_STATUS_OPTIONS = [
   { label: 'Tất cả trạng thái', value: '' },
   { label: 'Chờ Giám đốc duyệt', value: 'PendingApproval' },
@@ -145,6 +151,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const { isProjectLeader, canManageAccounting, canApprove } = useProjectAccess(projectId);
   const isAccountant = canManageAccounting;
   const [statusFilter, setStatusFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,7 +173,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   const filterBtnRef = useRef<HTMLButtonElement>(null);
   const filterPanelRef = useRef<HTMLDivElement>(null);
 
-  const activeFilterCount = [statusFilter, dateFrom || dateTo].filter(Boolean).length;
+  const activeFilterCount = [statusFilter, sourceFilter, dateFrom || dateTo].filter(Boolean).length;
 
   useEffect(() => {
     if (!isFilterOpen) return;
@@ -197,6 +204,7 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
 
   const handleClearAllFilters = () => {
     setStatusFilter('');
+    setSourceFilter('');
     setDateFrom('');
     setDateTo('');
     setPage(1);
@@ -233,11 +241,12 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['project-purchase-orders', projectId, page, statusFilter, debouncedSearchTerm, dateFrom, dateTo],
+    queryKey: ['project-purchase-orders', projectId, page, statusFilter, sourceFilter, debouncedSearchTerm, dateFrom, dateTo],
     queryFn: () =>
       inventoryService.getPurchaseOrders({
         projectId,
         status: statusFilter || undefined,
+        sourceType: sourceFilter || undefined,
         search: debouncedSearchTerm || undefined,
         orderDateFrom: dateFrom || undefined,
         orderDateTo: dateTo || undefined,
@@ -410,6 +419,22 @@ export const ProjectPOTab: React.FC<Props> = ({ projectId }) => {
                 onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
               >
                 {PO_STATUS_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[hsl(var(--text-muted))] pointer-events-none" size={14} />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-semibold text-[hsl(var(--text-secondary))] uppercase tracking-wide">Loại đơn hàng</label>
+            <div className="relative">
+              <select
+                className="appearance-none pl-3 pr-9 py-2 border border-[hsl(var(--border))] rounded-lg text-sm bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] w-full"
+                value={sourceFilter}
+                onChange={e => { setSourceFilter(e.target.value); setPage(1); }}
+              >
+                {PO_SOURCE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>

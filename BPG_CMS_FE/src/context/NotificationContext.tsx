@@ -214,7 +214,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const connection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
-        accessTokenFactory: () => localStorage.getItem('bpg_token') || '',
+        accessTokenFactory: () => token || '',
       })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
@@ -260,10 +260,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     connection.onreconnected(() => {
       scheduleDataRefresh({
-        changedAt: new Date().toISOString(),
-        refreshAll: true,
-      }, true);
-      fetchNotifications(1, 20);
+        entities: ['Global'],
+        changedAt: new Date().toISOString()
+      });
+    });
+
+    connection.onclose((error) => {
+      if (error && (error.message.includes('401') || error.message.includes('403'))) {
+        console.warn('SignalR bị từ chối truy cập (401/403). Dừng kết nối ngay.');
+        // Nếu dùng hook logout từ AuthContext, ta có thể gọi ở đây
+        // Nhưng tạm thời ngắt kết nối là an toàn nhất.
+        void connection.stop();
+      }
     });
 
     connection

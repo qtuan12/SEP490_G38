@@ -192,6 +192,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
       onClose={() => !submitting && onClose()}
       title={detail ? `Chi tiết phiếu ${detail.requestNumber}` : 'Chi tiết phiếu mua khẩn cấp'}
       width="lg"
+      mobileFullScreen
       footer={renderFooter()}
     >
       {loading && (

@@ -156,7 +156,57 @@ public class ProgressRollupService : IProgressRollupService
                 {
                     await RecalculateParentTaskProgressAsync(parentTask.ParentTaskId.Value, triggeringChildTaskId, ct);
                 }
+                else
+                {
+                    // Nếu đây là task gốc (top-level), cập nhật trạng thái của Phase
+                    await UpdatePhaseStatusAsync(parentTask.PhaseId, ct);
+                }
             }
+        }
+    }
+
+    public async Task UpdatePhaseStatusAsync(long phaseId, CancellationToken ct = default)
+    {
+        var phase = await _unitOfWork.Repository<Phase>()
+            .Query()
+            .FirstOrDefaultAsync(p => p.PhaseId == phaseId, ct);
+            
+        if (phase == null || phase.Status == BPG.Domain.Constants.PhaseStatus.Approved) return;
+
+        var allTasks = await _unitOfWork.Repository<ProjectTask>()
+            .Query()
+            .Where(t => t.PhaseId == phaseId && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+            .ToListAsync(ct);
+
+        if (!allTasks.Any()) return;
+
+        var topLevelTasks = allTasks.Where(t => t.ParentTaskId == null).ToList();
+        if (!topLevelTasks.Any()) return;
+
+        bool allCompleted = topLevelTasks.All(t => t.ProgressPercent == 100);
+        bool anyInProgress = topLevelTasks.Any(t => t.ProgressPercent > 0);
+
+        string newStatus = phase.Status;
+
+        if (allCompleted)
+        {
+            newStatus = BPG.Domain.Constants.PhaseStatus.Completed;
+        }
+        else if (anyInProgress)
+        {
+            newStatus = BPG.Domain.Constants.PhaseStatus.InProgress;
+        }
+        else
+        {
+            // Nếu lùi tiến độ về 0%
+            newStatus = BPG.Domain.Constants.PhaseStatus.Draft;
+        }
+
+        if (phase.Status != newStatus)
+        {
+            phase.Status = newStatus;
+            _unitOfWork.Repository<Phase>().Update(phase);
+            await _unitOfWork.SaveChangesAsync(ct);
         }
     }
 }

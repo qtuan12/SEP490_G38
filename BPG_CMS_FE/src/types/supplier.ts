@@ -6,7 +6,7 @@ export interface Supplier {
   serviceArea?: string;
   rating?: number;
   evaluationNote?: string;
-  collaborationStatus: 'Active' | 'Inactive';
+  collaborationStatus: 'Strategic' | 'Regular' | 'Restricted' | 'Blacklisted';
 }
 
 export interface GetSuppliersQuery {

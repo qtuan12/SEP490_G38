@@ -224,6 +224,19 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
 
                 _uow.Repository<DirectPurchaseRequest>().Update(dp);
                 await _uow.SaveChangesAsync(ct);
+
+                var title = anyOverBOQ
+                    ? "Phiếu mua khẩn cấp VƯỢT ĐỊNH MỨC cần kiểm toán"
+                    : "Phiếu mua khẩn cấp mới cần kiểm toán";
+                var boqNote = anyOverBOQ ? " Phiếu vượt định mức BOQ." : string.Empty;
+                var content = $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} vừa được gửi cho giai đoạn '{dp.Phase.Name}'. " +
+                              $"Tổng giá trị: {dp.TotalAmount:N0}đ. Vật tư đã nhập kho.{boqNote} " +
+                              "Vui lòng đối chiếu hóa đơn để trình Giám đốc duyệt chi.";
+
+                await _notificationService.SendNotificationToRoleAsync(
+                    UserRole.Accountant, title, content,
+                    NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
+
                 await _uow.CommitTransactionAsync(ct);
             }
             catch
@@ -235,18 +248,6 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
             await _realtimeSender.SendToGroupAsync(
                 $"Project_{dp.ProjectId}", HubMethodNames.DirectPurchaseUpdated,
                 new { DirectPurchaseId = dp.DirectPurchaseId }, ct);
-
-            var title = anyOverBOQ
-                ? "Phiếu mua khẩn cấp VƯỢT ĐỊNH MỨC cần kiểm toán"
-                : "Phiếu mua khẩn cấp mới cần kiểm toán";
-            var boqNote = anyOverBOQ ? " Phiếu vượt định mức BOQ." : string.Empty;
-            var content = $"Phiếu mua khẩn cấp DP-{dp.DirectPurchaseId:D6} vừa được gửi cho giai đoạn '{dp.Phase.Name}'. " +
-                          $"Tổng giá trị: {dp.TotalAmount:N0}đ. Vật tư đã nhập kho.{boqNote} " +
-                          "Vui lòng đối chiếu hóa đơn để trình Giám đốc duyệt chi.";
-
-            await _notificationService.SendNotificationToRoleAsync(
-                UserRole.Accountant, title, content,
-                NotificationType.Procurement, NotificationLink.ProjectDirectPurchases(dp.ProjectId), dp.DirectPurchaseId, ct);
 
             return "Gửi phiếu thành công. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn để trình Giám đốc duyệt chi.";
         }

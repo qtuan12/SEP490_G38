@@ -19,7 +19,7 @@ const schema = z.object({
   serviceArea: z.string().trim().max(200, 'Khu vực phục vụ không được vượt quá 200 ký tự.').optional().or(z.literal('')),
   rating: z.string().optional().or(z.literal('')),
   evaluationNote: z.string().trim().max(1000, 'Ghi chú đánh giá không được vượt quá 1000 ký tự.').optional().or(z.literal('')),
-  collaborationStatus: z.enum(['Active', 'Inactive']).default('Active'),
+  collaborationStatus: z.enum(['Strategic', 'Regular', 'Restricted', 'Blacklisted']).default('Regular'),
 });
 
 type SupplierFormData = z.infer<typeof schema>;
@@ -56,7 +56,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
       serviceArea: '',
       rating: '',
       evaluationNote: '',
-      collaborationStatus: 'Active',
+      collaborationStatus: 'Regular',
     },
   });
 
@@ -79,7 +79,7 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
           serviceArea: '',
           rating: '',
           evaluationNote: '',
-          collaborationStatus: 'Active',
+          collaborationStatus: 'Regular',
         });
       }
     }
@@ -198,8 +198,10 @@ export const SupplierFormModal: React.FC<SupplierFormModalProps> = ({
               {...register('collaborationStatus')}
               error={!!errors.collaborationStatus}
               options={[
-                { label: 'Đang hoạt động', value: 'Active' },
-                { label: 'Tạm ngưng', value: 'Inactive' },
+                { label: 'Chiến lược (Rất tốt)', value: 'Strategic' },
+                { label: 'Thường xuyên', value: 'Regular' },
+                { label: 'Hạn chế (Có rủi ro)', value: 'Restricted' },
+                { label: 'Danh sách đen', value: 'Blacklisted' },
               ]}
             />
           </FormItem>

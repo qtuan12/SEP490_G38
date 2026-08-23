@@ -260,7 +260,7 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 };
                 await _uow.Repository<TaskProgressLog>().AddAsync(progressLog, cancellationToken);
 
-                // 9. ?ồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
+                // 9. Đồng bộ ngược tiến độ của các Task cha (Parent Tasks) nếu có
                 if (task.ParentTaskId.HasValue)
                 {
                     await _progressRollupService.RecalculateParentTaskProgressAsync(
@@ -268,15 +268,23 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                         task.TaskId,
                         cancellationToken);
                 }
-
-                await _uow.SaveChangesAsync(cancellationToken);
-                await _uow.CommitTransactionAsync(cancellationToken);
+                else
+                {
+                    // Update Phase Status directly for top-level tasks
+                    await _progressRollupService.UpdatePhaseStatusAsync(task.PhaseId, cancellationToken);
+                }
 
                 // Fetch Creator Name & Roles để trả về DTO hoàn chỉnh
                 var creator = await _uow.Repository<User>().Query()
                     .Include(u => u.UserRoles)
                         .ThenInclude(ur => ur.Role)
                     .FirstOrDefaultAsync(u => u.UserId == currentUserId, cancellationToken);
+
+                // 10. Gửi thông báo đến những người liên quan (lưu trong transaction)
+                await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
+
+                await _uow.SaveChangesAsync(cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
 
                 var dto = _mapper.Map<DailyLogDto>(log);
                 dto.TaskName = task.Name;
@@ -296,18 +304,15 @@ namespace BPG.Application.Features.DailyLogs.Handlers
                 dto.EditWindowHours = editWindowHours;
                 dto.CanEdit = true;
 
-                // 10. Gửi thông báo đến những người liên quan
                 try
                 {
-                    await SendNotificationsAsync(task, creator?.FullName ?? "Kỹ sư", request.NewProgressPercent, cancellationToken);
-
                     // 11. Gửi realtime cho client dòng thời gian dự án
                     await _realtimeSender.SendToGroupAsync($"Project_{project.ProjectId}", "ReceiveDailyLogCreated", dto, cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex,
-                        "Daily log {DailyLogId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        "Daily log {DailyLogId} was committed, but post-commit realtime broadcast failed for project {ProjectId}.",
                         log.LogId,
                         project.ProjectId);
                 }
