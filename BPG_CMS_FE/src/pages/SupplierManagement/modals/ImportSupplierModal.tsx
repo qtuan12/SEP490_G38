@@ -30,7 +30,7 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({ isOpen
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || 'Import thất bại, vui lòng thử lại.');
+      toast.error(err.message || 'Thêm dữ liệu thất bại, vui lòng thử lại.');
     },
   });
 
@@ -72,8 +72,8 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({ isOpen
         isLoading={importMutation.isPending}
         onClick={() => file && importMutation.mutate(file)}
       >
-        <UploadCloud size={15} style={{ marginRight: 6 }} />
-        Import
+        <UploadCloud size={15} className="mr-1.5" />
+        Thêm dữ liệu
       </Button>
     </>
   ) : (
@@ -84,18 +84,18 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({ isOpen
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Import nhà cung cấp từ Excel"
+      title="Thêm danh sách Nhà cung cấp"
       footer={footer}
       width="md"
     >
       {step === 'select' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-end">
             <button
               onClick={downloadTemplate}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'hsl(var(--primary))', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium"
             >
-              <Download size={13} /> Tải file mẫu (CSV)
+              <Download size={14} /> Tải file Excel mẫu
             </button>
           </div>
 
@@ -105,74 +105,67 @@ export const ImportSupplierModal: React.FC<ImportSupplierModalProps> = ({ isOpen
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              border: `2px dashed ${dragOver ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
-              borderRadius: 'var(--radius-md)',
-              padding: 32,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              background: dragOver ? 'hsl(var(--primary-glow))' : undefined,
-              transition: 'all 0.2s',
-            }}
+            className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center gap-3 cursor-pointer transition-colors ${
+              dragOver ? 'border-blue-500 bg-blue-50/50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'
+            }`}
           >
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" hidden onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
-            <FileSpreadsheet size={32} color={dragOver ? 'hsl(var(--primary))' : 'hsl(var(--text-muted))'} />
+            <FileSpreadsheet size={36} className={dragOver ? 'text-blue-500' : 'text-slate-400'} />
             {file ? (
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontWeight: 600, fontSize: 14 }}>{file.name}</p>
-                <p style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>{(file.size / 1024).toFixed(1)} KB — Nhấn để đổi file</p>
+              <div className="text-center">
+                <p className="font-semibold text-sm text-slate-700">{file.name}</p>
+                <p className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(1)} KB — Nhấn để chọn file khác</p>
               </div>
             ) : (
-              <div style={{ textAlign: 'center' }}>
-                <p style={{ fontWeight: 500, fontSize: 14 }}>Kéo thả file vào đây</p>
-                <p style={{ fontSize: 12, color: 'hsl(var(--text-muted))' }}>hoặc nhấn để chọn file .xlsx / .xls</p>
+              <div className="text-center">
+                <p className="font-medium text-sm text-slate-700">Kéo thả file vào đây</p>
+                <p className="text-xs text-slate-500 mt-1">hoặc nhấn để chọn file .xlsx / .xls từ máy</p>
               </div>
             )}
           </div>
 
           {/* Format guide */}
-          <div className="glass-panel" style={{ fontSize: 12, lineHeight: 1.8 }}>
-            <p style={{ fontWeight: 600, marginBottom: 4 }}>Định dạng file Excel:</p>
-            <p>• Dòng 1 là <strong>header</strong> (bỏ qua khi import)</p>
-            <p>• Cột B: Tên nhà cung cấp <span style={{ color: 'hsl(var(--danger))' }}>(*bắt buộc)</span></p>
-            <p>• Cột C: Liên hệ &nbsp;|&nbsp; D: Địa chỉ &nbsp;|&nbsp; E: Khu vực &nbsp;|&nbsp; F: Đánh giá (0–5) &nbsp;|&nbsp; G: Ghi chú</p>
-            <p>• Nhà cung cấp <strong>trùng tên</strong> sẽ bị bỏ qua tự động</p>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 leading-relaxed">
+            <p className="font-semibold text-slate-700 mb-1">Hướng dẫn định dạng file:</p>
+            <p>• Dòng 1 là <strong>dòng tiêu đề</strong> (hệ thống sẽ tự bỏ qua khi thêm)</p>
+            <p>• Cột B: Tên nhà cung cấp <span className="text-rose-600 font-medium">(*bắt buộc)</span></p>
+            <p>• Các cột còn lại (Liên hệ, Địa chỉ, Khu vực...) có thể để trống</p>
+            <p>• Nếu <strong>trùng Tên</strong> với nhà cung cấp đã có, hệ thống sẽ tự động bỏ qua</p>
           </div>
         </div>
       )}
 
       {step === 'result' && result && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* Summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Badge variant="success" className="text-lg px-3 py-1">{result.successCount}</Badge>
-              <span style={{ fontSize: 13 }}>Thêm mới thành công</span>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3.5 flex items-center gap-3">
+              <Badge variant="success" className="text-sm px-2.5 py-0.5">{result.successCount}</Badge>
+              <span className="text-sm font-medium text-emerald-800">Thêm mới thành công</span>
             </div>
-            <div className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <Badge variant="warning" className="text-lg px-3 py-1">{result.skippedCount}</Badge>
-              <span style={{ fontSize: 13 }}>Bỏ qua (trùng tên)</span>
+            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3.5 flex items-center gap-3">
+              <Badge variant="warning" className="text-sm px-2.5 py-0.5">{result.skippedCount}</Badge>
+              <span className="text-sm font-medium text-amber-800">Bỏ qua (trùng lặp/lỗi)</span>
             </div>
           </div>
 
           {/* Errors */}
           {result.errors.length > 0 && (
-            <div className="glass-panel" style={{ maxHeight: 180, overflowY: 'auto' }}>
-              <p style={{ fontWeight: 600, fontSize: 12, marginBottom: 6, color: 'hsl(var(--danger))' }}>
-                Chi tiết dòng bị bỏ qua / lỗi ({result.errors.length})
+            <div className="bg-rose-50 border border-rose-100 rounded-lg p-3 max-h-48 overflow-y-auto">
+              <p className="font-semibold text-xs text-rose-700 mb-2">
+                Chi tiết các dòng không thể thêm ({result.errors.length}):
               </p>
-              {result.errors.map((e, i) => (
-                <p key={i} style={{ fontSize: 12, color: 'hsl(var(--text-secondary))' }}>• {e}</p>
-              ))}
+              <ul className="list-disc list-inside text-xs text-rose-600 space-y-1">
+                {result.errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
             </div>
           )}
 
           {result.successCount === 0 && result.skippedCount === 0 && (
-            <p style={{ textAlign: 'center', fontSize: 13, color: 'hsl(var(--text-muted))' }}>
-              File không có dữ liệu nào để import.
+            <p className="text-center text-sm text-slate-500 py-4">
+              Không tìm thấy dữ liệu hợp lệ nào trong file.
             </p>
           )}
         </div>

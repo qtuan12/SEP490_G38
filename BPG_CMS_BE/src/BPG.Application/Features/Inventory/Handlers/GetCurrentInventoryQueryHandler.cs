@@ -177,22 +177,14 @@ namespace BPG.Application.Features.Inventory.Handlers
             foreach (var item in inventory)
             {
                 long materialId = item.MaterialId;
-                var phaseIds = new HashSet<long>();
+                var phaseIds = phases.Keys.ToList(); // Always show ALL phases of the project
 
-                if (boqGroups.TryGetValue(materialId, out var matBoqs))
-                {
-                    foreach (var x in matBoqs) phaseIds.Add(x.PhaseId);
-                }
-                else
+                if (!boqGroups.TryGetValue(materialId, out var matBoqs))
                 {
                     matBoqs = null;
                 }
 
-                if (usedGroups.TryGetValue(materialId, out var matUseds))
-                {
-                    foreach (var x in matUseds) phaseIds.Add(x.PhaseId);
-                }
-                else
+                if (!usedGroups.TryGetValue(materialId, out var matUseds))
                 {
                     matUseds = null;
                 }

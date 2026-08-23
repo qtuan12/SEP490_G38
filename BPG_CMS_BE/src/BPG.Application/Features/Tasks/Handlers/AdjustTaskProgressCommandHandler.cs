@@ -6,7 +6,7 @@ using BPG.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using BPG.Application.Features.Tasks.Commands;
-using BPG.Domain.Common;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Tasks.Handlers;
 
@@ -58,7 +58,7 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             var incompletePredecessors = await _unitOfWork.Repository<TaskDependency>()
                 .Query()
                 .Include(td => td.Predecessor)
-                .Where(td => td.TaskId == task.TaskId 
+                .Where(td => td.TaskId == task.TaskId
                     && td.Predecessor.ProgressPercent < 100
                     && td.Predecessor.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
                 .ToListAsync(ct);
@@ -118,19 +118,6 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
                 UpdatedBy = currentUserId
             });
 
-            if (oldProgress != request.NewProgress)
-            {
-                await _unitOfWork.Repository<DailyLog>().AddAsync(new DailyLog
-                {
-                    TaskId = task.TaskId,
-                    LogDate = VietnamTime.Today,
-                    NewProgressPercent = request.NewProgress,
-                    Description = $"Hệ thống ghi nhận điều chỉnh tiến độ trực tiếp từ {oldProgress}% thành {request.NewProgress}%. Lý do: {request.UpdateReason}",
-                    CreatedBy = currentUserId,
-                    CreatedAt = DateTime.UtcNow
-                }, ct);
-            }
-
             _unitOfWork.Repository<ProjectTask>().Update(task);
             await _unitOfWork.SaveChangesAsync(ct);
 
@@ -149,17 +136,43 @@ public class AdjustTaskProgressCommandHandler : IRequestHandler<AdjustTaskProgre
             throw;
         }
 
-        // Notify assignees
+        var projectId = task.Phase?.ProjectId ?? 0;
+        var notificationContent = request.NewProgress < task.ProgressPercent
+            ? $"Tiến độ công việc \"{task.Name}\" đã bị TPKT điều chỉnh giảm xuống {request.NewProgress}% với lý do: {request.UpdateReason}."
+            : $"Tiến độ công việc \"{task.Name}\" đã được TPKT điều chỉnh lên {request.NewProgress}% với lý do: {request.UpdateReason}.";
+
+        // Thông báo cho các kỹ sư được phân công
         foreach (var assignee in task.Assignees)
         {
             await _notificationService.SendNotificationAsync(
                 userId: assignee.UserId,
-                title: "Tiến độ công việc bị điều chỉnh",
-                content: $"Công việc {task.Name} đã bị điều chỉnh tiến độ thành {request.NewProgress}% với lý do: {request.UpdateReason}.",
+                title: "Tiến độ công việc bị điều chỉnh trực tiếp",
+                content: notificationContent,
                 notificationType: BPG.Domain.Constants.NotificationType.Progress,
                 referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
                 referenceId: task.TaskId,
                 ct: ct);
+        }
+
+        // Thông báo cho Project Leader của dự án (nếu khác với người thực hiện)
+        if (projectId > 0)
+        {
+            var projectLeaders = await _unitOfWork.Repository<ProjectMember>()
+                .Query()
+                .Where(pm => pm.ProjectId == projectId && pm.IsLeader && pm.UserId != currentUserId)
+                .ToListAsync(ct);
+
+            foreach (var leader in projectLeaders)
+            {
+                await _notificationService.SendNotificationAsync(
+                    userId: leader.UserId,
+                    title: "Tiến độ công việc bị điều chỉnh trực tiếp",
+                    content: notificationContent,
+                    notificationType: BPG.Domain.Constants.NotificationType.Progress,
+                    referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
+                    referenceId: task.TaskId,
+                    ct: ct);
+            }
         }
 
         // Trigger realtime WBS Tree update

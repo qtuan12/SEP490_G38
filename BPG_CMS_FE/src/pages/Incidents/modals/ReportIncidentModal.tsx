@@ -137,7 +137,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
       let finalDamageDesc = '';
       if (cData.canceledVolume) {
-        finalDamageDesc += `**Khối lượng nghiệm thu bị hủy:** ${cData.canceledVolume}\n\n`;
+        finalDamageDesc += `**Khối lượng công việc bị hủy:** ${cData.canceledVolume}\n\n`;
       }
       if (cData.estimatedDamage) {
         finalDamageDesc += `**Ước tính thiệt hại:** ${cData.estimatedDamage}\n\n`;
@@ -416,7 +416,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
               <>
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
-                    Khối lượng nghiệm thu bị hủy (Tùy chọn)
+                    Khối lượng công việc bị hủy (Tùy chọn)
                   </label>
                   <input
                     type="text"

@@ -207,25 +207,15 @@ namespace BPG.Application.UnitTests.DirectPurchases
                 It.IsAny<CancellationToken>()), Times.Once);
         }
 
-        [Fact]
-        public async Task Submit_PurchaseDateBeforeProjectStart_ShouldThrow()
-        {
-            SetDraft(TodayVn.AddDays(-10), projectStart: TodayVn.AddDays(-5));
-
-            var act = Submit;
-
-            (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateBeforeProject);
-        }
-
         /// <summary>
-        /// Ngày mua không bắt buộc nằm trong khoảng của giai đoạn: mua trước khi giai đoạn bắt đầu
-        /// vẫn hợp lệ, miễn là từ ngày bắt đầu dự án trở đi.
+        /// Ngày mua không còn bị ràng buộc theo ngày bắt đầu dự án hay ngày kết thúc giai đoạn.
+        /// Vẫn còn chặn ở tương lai (Submit_PurchaseDateInFuture_ShouldThrow) và trước ngày bắt đầu
+        /// giai đoạn (Submit_PurchaseDateBeforePhaseStart_ShouldThrow).
         /// </summary>
         [Fact]
-        public async Task Submit_PurchaseDateBeforePhaseStartButAfterProjectStart_ShouldPass()
+        public async Task Submit_PurchaseDateBeforeProjectStart_ShouldPass()
         {
-            SetDraft(TodayVn.AddDays(-10), phaseStart: TodayVn.AddDays(-5), projectStart: TodayVn.AddDays(-30));
+            SetDraft(TodayVn.AddDays(-10), projectStart: TodayVn.AddDays(-5));
 
             await Submit();
 
@@ -237,14 +227,56 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Fact]
-        public async Task Submit_PurchaseDateAfterPhaseEnd_ShouldThrow()
+        public async Task Submit_PurchaseDateAfterPhaseEnd_ShouldPass()
         {
             SetDraft(TodayVn.AddDays(-1), phaseEnd: TodayVn.AddDays(-5));
+
+            await Submit();
+
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(),
+                It.IsAny<IReadOnlyList<DirectPurchaseItem>>(),
+                UserId,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Submit_PurchaseDateBeforePhaseStart_ShouldThrow()
+        {
+            SetDraft(TodayVn.AddDays(-10), phaseStart: TodayVn.AddDays(-5));
 
             var act = Submit;
 
             (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateAfterPhase);
+                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateBeforePhase);
+        }
+
+        [Fact]
+        public async Task Submit_PurchaseDateOnPhaseStart_ShouldPass()
+        {
+            SetDraft(TodayVn.AddDays(-5), phaseStart: TodayVn.AddDays(-5));
+
+            await Submit();
+
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(),
+                It.IsAny<IReadOnlyList<DirectPurchaseItem>>(),
+                UserId,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Submit_PhaseStartNotSet_ShouldSkipPhaseStartCheck()
+        {
+            SetDraft(TodayVn.AddDays(-30));
+
+            await Submit();
+
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(),
+                It.IsAny<IReadOnlyList<DirectPurchaseItem>>(),
+                UserId,
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]

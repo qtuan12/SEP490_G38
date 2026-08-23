@@ -55,7 +55,9 @@ namespace BPG.Application.Features.DirectPurchases.Services
 
             if (phase.Status == PhaseStatus.Approved)
                 throw new BusinessException(ErrorCodes.DpPhaseFrozen,
-                    $"Giai đoạn '{phase.Name}' đã được nghiệm thu và đóng băng, không thể lập hoặc sửa phiếu mua khẩn cấp.");
+                    // Tên giai đoạn thường đã có sẵn tiền tố "Giai đoạn N: ...", nên không lặp lại chữ
+                    // "Giai đoạn" trong câu — tránh "Giai đoạn Giai đoạn 1: ...".
+                    $"\"{phase.Name}\" đã được nghiệm thu và đóng băng, không thể lập hoặc sửa phiếu mua khẩn cấp.");
         }
     }
 }

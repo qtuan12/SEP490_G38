@@ -93,13 +93,7 @@ export const UnitManagement: React.FC = () => {
         </span>
       ),
     },
-    {
-      key: 'unitId',
-      header: 'ID',
-      render: (unit: Unit) => (
-        <span className="text-[hsl(var(--text-secondary))] font-mono">#{unit.unitId}</span>
-      ),
-    },
+
     {
       key: 'unitCode',
       header: 'Mã Đơn vị',

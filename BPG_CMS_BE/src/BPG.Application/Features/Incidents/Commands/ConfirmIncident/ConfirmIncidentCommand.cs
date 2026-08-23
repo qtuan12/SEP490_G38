@@ -339,13 +339,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         };
                         await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
 
-                        await AddProgressDecreaseDailyLogAsync(
-                            incident,
-                            incident.Task.ProgressPercent,
-                            (byte)request.DecreaseProgressTo.Value,
-                            request.DecreaseProgressReason,
-                            currentUserId,
-                            cancellationToken);
+
 
                         incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
                         taskIdWithProgressDecrease = incident.Task.TaskId;
@@ -459,14 +453,6 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     };
                     await _unitOfWork.Repository<TaskProgressLog>().AddAsync(progressLog);
 
-                    await AddProgressDecreaseDailyLogAsync(
-                        incident,
-                        incident.Task.ProgressPercent,
-                        (byte)request.DecreaseProgressTo.Value,
-                        request.DecreaseProgressReason,
-                        currentUserId,
-                        cancellationToken);
-
                     incident.Task.ProgressPercent = (byte)request.DecreaseProgressTo.Value;
                     taskIdWithProgressDecrease = incident.Task.TaskId;
                     parentTaskIdToRecalculate = incident.Task.ParentTaskId;
@@ -555,6 +541,60 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
+        // Thông báo cho kỹ sư được phân công và Leader khi tiến độ bị giảm do sự cố
+        if (taskIdWithProgressDecrease.HasValue && incident.Task != null)
+        {
+            var affectedTask = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .Include(t => t.Assignees)
+                .Include(t => t.Phase)
+                .FirstOrDefaultAsync(t => t.TaskId == taskIdWithProgressDecrease.Value, cancellationToken);
+
+            if (affectedTask != null)
+            {
+                var decreasedTo = affectedTask.ProgressPercent;
+                var decreaseReason = !string.IsNullOrWhiteSpace(request.DecreaseProgressReason)
+                    ? request.DecreaseProgressReason
+                    : incident.Description;
+                var notifyContent = $"Tiến độ công việc \"{affectedTask.Name}\" đã bị điều chỉnh giảm xuống {decreasedTo}% do xử lý sự cố: {decreaseReason}.";
+                const string notifyTitle = "Tiến độ công việc bị giảm do xử lý sự cố";
+
+                // Thông báo cho các kỹ sư được phân công
+                foreach (var assignee in affectedTask.Assignees)
+                {
+                    await _notificationService.SendNotificationAsync(
+                        assignee.UserId,
+                        notifyTitle,
+                        notifyContent,
+                        NotificationType.Progress,
+                        NotificationReferenceType.Task,
+                        affectedTask.TaskId,
+                        cancellationToken);
+                }
+
+                // Thông báo cho Project Leader (nếu khác người thực hiện)
+                if (affectedTask.Phase != null)
+                {
+                    var projectLeaders = await _unitOfWork.Repository<ProjectMember>()
+                        .Query()
+                        .Where(pm => pm.ProjectId == affectedTask.Phase.ProjectId && pm.IsLeader && pm.UserId != currentUserId)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var leader in projectLeaders)
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            leader.UserId,
+                            notifyTitle,
+                            notifyContent,
+                            NotificationType.Progress,
+                            NotificationReferenceType.Task,
+                            affectedTask.TaskId,
+                            cancellationToken);
+                    }
+                }
+            }
+        }
+
         // Map and return
         var updatedIncident = await _unitOfWork.Repository<Incident>()
             .Query()
@@ -601,29 +641,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         return ApiResponse<IncidentDto>.SuccessResult(_mapper.Map<IncidentDto>(updatedIncident), "Sự cố đã được xác nhận và xử lý.");
     }
 
-    private async Task AddProgressDecreaseDailyLogAsync(
-        Incident incident,
-        byte oldProgress,
-        byte newProgress,
-        string? reason,
-        long currentUserId,
-        CancellationToken cancellationToken)
-    {
-        if (newProgress >= oldProgress || incident.Task == null)
-        {
-            return;
-        }
 
-        await _unitOfWork.Repository<DailyLog>().AddAsync(new DailyLog
-        {
-            TaskId = incident.Task.TaskId,
-            LogDate = VietnamTime.Today,
-            NewProgressPercent = newProgress,
-            Description = $"Hệ thống ghi nhận giảm tiến độ từ {oldProgress}% xuống {newProgress}% do sự cố #{incident.IncidentId}. Lý do: {(string.IsNullOrWhiteSpace(reason) ? incident.Description : reason.Trim())}",
-            CreatedBy = currentUserId,
-            CreatedAt = DateTime.UtcNow
-        }, cancellationToken);
-    }
 
     private async Task SaveIncidentDecisionAsync(CancellationToken cancellationToken)
     {
