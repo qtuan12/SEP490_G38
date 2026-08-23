@@ -184,10 +184,16 @@ export const SupplierManagement: React.FC = () => {
       header: 'Trạng thái',
       render: (supplier: Supplier) => (
         <Badge
-          variant={supplier.collaborationStatus === 'Active' ? 'success' : 'danger'}
+          variant={
+            supplier.collaborationStatus === 'Strategic' ? 'info' :
+            supplier.collaborationStatus === 'Regular' ? 'success' :
+            supplier.collaborationStatus === 'Restricted' ? 'warning' : 'danger'
+          }
           className="normal-case font-medium"
         >
-          {supplier.collaborationStatus === 'Active' ? 'Đang hoạt động' : 'Tạm ngưng'}
+          {supplier.collaborationStatus === 'Strategic' ? 'Chiến lược' :
+           supplier.collaborationStatus === 'Regular' ? 'Thường xuyên' :
+           supplier.collaborationStatus === 'Restricted' ? 'Hạn chế' : 'Danh sách đen'}
         </Badge>
       ),
     },
@@ -267,7 +273,7 @@ export const SupplierManagement: React.FC = () => {
           </div>
 
           {canManageSuppliers && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="flex items-center gap-2">
               <Button
                 variant="secondary"
                 isLoading={templateMutation.isPending}
@@ -275,7 +281,7 @@ export const SupplierManagement: React.FC = () => {
                 className="h-10 font-semibold flex items-center gap-1.5"
               >
                 <Download size={15} />
-                <span>Tải mẫu</span>
+                <span>Tải file mẫu</span>
               </Button>
               <Button
                 variant="secondary"
@@ -283,7 +289,7 @@ export const SupplierManagement: React.FC = () => {
                 className="h-10 font-semibold flex items-center gap-1.5"
               >
                 <Upload size={16} />
-                <span>Import Excel</span>
+                <span>Nhập từ Excel</span>
               </Button>
               <Button variant="primary" onClick={openCreateModal} className="h-10 font-semibold flex items-center gap-1.5">
                 <Plus size={18} />

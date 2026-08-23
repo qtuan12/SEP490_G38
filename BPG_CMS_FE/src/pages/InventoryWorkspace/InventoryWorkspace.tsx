@@ -41,9 +41,10 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 
 interface InventoryWorkspaceProps {
   projectId: number;
+  projectStatus: string;
 }
 
-export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId }) => {
+export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectId, projectStatus }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { connection } = useNotification();
   type InventorySubTab = 'current' | 'receipts' | 'issuances' | 'ledger';
@@ -58,8 +59,9 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
   );
   const { isProjectLeader, canManageInventory } = useProjectAccess(projectId);
   const canManageProjectInventory = isProjectLeader;
-  const canCreateReceipt = canManageProjectInventory;
-  const canCreateIssuance = canManageProjectInventory;
+  const isProjectActive = (projectStatus || '').toLowerCase() === 'inprogress';
+  const canCreateReceipt = canManageProjectInventory && isProjectActive;
+  const canCreateIssuance = canManageProjectInventory && isProjectActive;
 
   useEffect(() => {
     const subTab = searchParams.get('subTab');
@@ -90,17 +92,18 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
 
   useEffect(() => {
     const openCreate = searchParams.get('openCreate');
-    if (openCreate === 'receipt' && activeSubTab === 'receipts' && canCreateReceipt) {
-      setIsCreateReceiptOpen(true);
+    if (openCreate === 'receipt' && activeSubTab === 'receipts') {
+      if (canCreateReceipt) setIsCreateReceiptOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
-      setSearchParams(newParams);
-    } else if (openCreate === 'receipt' && !canCreateReceipt) {
+      setSearchParams(newParams, { replace: true });
+    } else if (openCreate === 'issuance' && activeSubTab === 'issuances') {
+      if (canCreateIssuance) setIsCreateIssuanceOpen(true);
       const newParams = new URLSearchParams(searchParams);
       newParams.delete('openCreate');
       setSearchParams(newParams, { replace: true });
     }
-  }, [searchParams, activeSubTab, canCreateReceipt, setSearchParams]);
+  }, [searchParams, activeSubTab, canCreateReceipt, canCreateIssuance, setSearchParams]);
 
   const handleSubTabChange = (subTab: InventorySubTab) => {
     setActiveSubTab(subTab);
@@ -229,7 +232,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
     const boq = item.boqQuantity || 0;
     const used = item.usedQuantity || 0;
 
-    if ((boq > 0 && used >= boq) || (boq === 0 && used > 0)) {
+    if ((boq > 0 && used > boq) || (boq === 0 && used > 0)) {
       return 'over_boq';
     }
     if (boq > 0 && used >= 0.8 * boq && used < boq) {
@@ -263,13 +266,13 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
       />
 
       {/* 2. Thanh Tabs Điều Hướng & Các Nút Hành Động */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 pb-3 gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-slate-200 pb-3 gap-4 overflow-hidden">
         
         {/* Nút bấm chuyển Tab */}
-        <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
+        <div className="flex flex-nowrap gap-2 bg-slate-100 p-1 rounded-xl overflow-x-auto w-full lg:w-auto hide-scrollbar">
           <button
             onClick={() => handleSubTabChange('current')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 ${
               activeSubTab === 'current'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -280,7 +283,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           </button>
           <button
             onClick={() => handleSubTabChange('receipts')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 ${
               activeSubTab === 'receipts'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -291,7 +294,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           </button>
           <button
             onClick={() => handleSubTabChange('issuances')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 ${
               activeSubTab === 'issuances'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
@@ -302,7 +305,7 @@ export const InventoryWorkspace: React.FC<InventoryWorkspaceProps> = ({ projectI
           </button>
           <button
             onClick={() => handleSubTabChange('ledger')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap shrink-0 ${
               activeSubTab === 'ledger'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'

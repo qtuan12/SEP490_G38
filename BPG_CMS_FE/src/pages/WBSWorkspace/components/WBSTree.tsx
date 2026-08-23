@@ -716,7 +716,7 @@ export const WBSTree = () => {
                                                   onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'transparent'}
                                                   onClick={() => {
                                                     setTaskMenuId(null);
-                                                    navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}`);
+                                                    navigate(`/projects/${ph.projectId}?tab=inventory&subTab=issuances&search=${encodeURIComponent(t.name)}&openCreate=issuance`);
                                                   }}
                                                 >
                                                   <Box size={12} style={{ color: 'hsl(var(--success))' }} />
