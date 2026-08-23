@@ -230,7 +230,7 @@ namespace BPG.Application.UnitTests.GoodsReceipts
 
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidUnitQuantity);
-            exception.Which.Message.Should().Be("Đơn vị tính 'Bag' của vật tư [Cement Bag] yêu cầu số lượng nhận phải là số nguyên.");
+            exception.Which.Message.Should().Be("Vật tư [Cement Bag] được quản lý bằng đơn vị gốc 'Kg' (số nguyên). Việc nhận 1.5 Bag sẽ dẫn đến tồn kho lẻ (1.5 Kg), hệ thống không cho phép.");
         }
 
         [Fact]
