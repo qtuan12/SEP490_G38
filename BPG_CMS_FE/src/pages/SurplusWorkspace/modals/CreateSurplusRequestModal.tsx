@@ -49,8 +49,9 @@ export const CreateSurplusRequestModal: React.FC<CreateSurplusRequestModalProps>
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Tạo đề xuất xử lý vật tư thừa"
-      width="md"
+      title="Khởi tạo yêu cầu xử lý vật tư thừa"
+      width="lg"
+      mobileFullScreen
       footer={
         <>
           <Button variant="outline" onClick={handleClose} disabled={submitting}>Hủy</Button>

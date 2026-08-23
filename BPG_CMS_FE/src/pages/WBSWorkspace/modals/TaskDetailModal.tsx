@@ -96,7 +96,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
 
   if (viewingRequest) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Yêu cầu Vật tư" maxWidth="750px">
+      <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Yêu cầu Vật tư" maxWidth="750px" mobileFullScreen>
         <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '16px', borderBottom: '1px solid hsl(var(--border))' }}>
             <button onClick={() => setViewingRequest(null)} className="btn btn-secondary" style={{ padding: '8px' }} title="Quay lại">
@@ -183,7 +183,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   })();
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth={activeForm ? "1100px" : "700px"}>
+    <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết Công việc đang chọn" maxWidth={activeForm ? "1100px" : "700px"} mobileFullScreen>
       <div style={{ display: 'flex', flexDirection: window.innerWidth < 768 ? 'column' : 'row', gap: '24px', alignItems: 'flex-start', transition: 'all 0.3s' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', flex: activeForm ? '1 1 60%' : '1 1 100%' }}>
           <div>
