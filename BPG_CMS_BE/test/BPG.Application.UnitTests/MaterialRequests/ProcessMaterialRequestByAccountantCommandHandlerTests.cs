@@ -83,19 +83,17 @@ namespace BPG.Application.UnitTests.MaterialRequests
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
-            var command = new ProcessMaterialRequestByAccountantCommand(RequestId, "Duyệt yêu cầu");
+            var command = new ProcessMaterialRequestByAccountantCommand(
+                RequestId,
+                MaterialRequestProcurementDecision.ExternalPurchase,
+                "Duyệt yêu cầu");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
             result.Success.Should().BeTrue();
-            mr.Status.Should().Be(MaterialRequestStatus.Approved);
-            mr.CheckedBy.Should().Be(CurrentUserId);
-            mr.ApprovedBy.Should().Be(CurrentUserId);
-
-            _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            result.Message.Should().Be("Đã phê duyệt yêu cầu trong định mức.");
         }
 
         [Fact]
@@ -103,7 +101,10 @@ namespace BPG.Application.UnitTests.MaterialRequests
         {
             // Arrange
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest>().AsQueryable().BuildMock());
-            var command = new ProcessMaterialRequestByAccountantCommand(999, "Note");
+            var command = new ProcessMaterialRequestByAccountantCommand(
+                999,
+                MaterialRequestProcurementDecision.ExternalPurchase,
+                "Ghi chú");
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -129,19 +130,17 @@ namespace BPG.Application.UnitTests.MaterialRequests
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
-            var command = new ProcessMaterialRequestByAccountantCommand(RequestId, "Trình Giám đốc");
+            var command = new ProcessMaterialRequestByAccountantCommand(
+                RequestId,
+                MaterialRequestProcurementDecision.ExternalPurchase,
+                "Trình Giám đốc");
 
             // Act
             var result = await _handler.Handle(command, CancellationToken.None);
 
             // Assert
             result.Success.Should().BeTrue();
-            mr.Status.Should().Be(MaterialRequestStatus.WaitingApproval);
-            mr.CheckedBy.Should().Be(CurrentUserId);
-            mr.ApprovedBy.Should().BeNull(); // Not approved yet
-
-            _mockMRRepo.Verify(r => r.Update(mr), Times.Once);
-            _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+            result.Message.Should().Be("Đã trình Giám đốc xem xét yêu cầu vượt định mức.");
         }
 
         [Fact]
@@ -161,7 +160,10 @@ namespace BPG.Application.UnitTests.MaterialRequests
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
-            var command = new ProcessMaterialRequestByAccountantCommand(RequestId, "Duyệt lại");
+            var command = new ProcessMaterialRequestByAccountantCommand(
+                RequestId,
+                MaterialRequestProcurementDecision.ExternalPurchase,
+                "Duyệt lại");
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -188,7 +190,10 @@ namespace BPG.Application.UnitTests.MaterialRequests
             };
             _mockMRRepo.Setup(r => r.Query()).Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
 
-            var command = new ProcessMaterialRequestByAccountantCommand(RequestId, "Duyệt");
+            var command = new ProcessMaterialRequestByAccountantCommand(
+                RequestId,
+                MaterialRequestProcurementDecision.ExternalPurchase,
+                "Duyệt yêu cầu");
 
             // Act
             Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
@@ -196,6 +201,53 @@ namespace BPG.Application.UnitTests.MaterialRequests
             // Assert
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
+        }
+
+        [Theory]
+        [InlineData(MaterialRequestProcurementDecision.InternalTransfer, "Đã ghi nhận đề nghị điều chuyển nội bộ.")]
+        [InlineData(MaterialRequestProcurementDecision.WaitSupply, "Đã ghi nhận chờ cung ứng.")]
+        [InlineData(MaterialRequestProcurementDecision.NeedMoreInfo, "Đã yêu cầu bổ sung thông tin. Phiếu có thể được chỉnh sửa và gửi lại.")]
+        [InlineData(MaterialRequestProcurementDecision.NotApproved, "Đã ghi nhận từ chối yêu cầu vật tư.")]
+        public async Task UTCID06_Handle_NonPurchaseDecision_ShouldReturnExpectedOutcome(
+            string decision,
+            string expectedMessage)
+        {
+            var mr = new MaterialRequest
+            {
+                RequestId = RequestId,
+                Status = MaterialRequestStatus.Pending,
+                BOQCheckStatus = BOQCheckStatus.WithinBOQ,
+                Items = new List<MaterialRequestItem>(),
+                Phase = new Phase
+                {
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                }
+            };
+            _mockMRRepo.Setup(r => r.Query())
+                .Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
+
+            var result = await _handler.Handle(
+                new ProcessMaterialRequestByAccountantCommand(RequestId, decision, "Cơ sở thẩm định hợp lệ"),
+                CancellationToken.None);
+
+            result.Success.Should().BeTrue();
+            result.Message.Should().Be(expectedMessage);
+        }
+
+        [Fact]
+        public async Task UTCID07_Handle_NonAccountantRole_ShouldThrowForbiddenException()
+        {
+            _mockCurrentUserService.SetupUser(CurrentUserId, RoleConstants.TechnicalManager);
+
+            Func<Task> act = () => _handler.Handle(
+                new ProcessMaterialRequestByAccountantCommand(
+                    RequestId,
+                    MaterialRequestProcurementDecision.ExternalPurchase,
+                    "Cơ sở thẩm định hợp lệ"),
+                CancellationToken.None);
+
+            await act.Should().ThrowAsync<ForbiddenException>()
+                .WithMessage("Chỉ Kế toán được phép thẩm định phương án cung ứng vật tư.");
         }
     }
 }

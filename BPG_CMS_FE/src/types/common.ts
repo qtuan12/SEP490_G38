@@ -142,6 +142,13 @@ export interface MaterialRequestItem {
   explanation?: string;
 }
 
+export type MaterialRequestProcurementDecision =
+  | 'ExternalPurchase'
+  | 'InternalTransfer'
+  | 'WaitSupply'
+  | 'NeedMoreInfo'
+  | 'NotApproved';
+
 export interface MaterialRequest {
   id: string;
   projectId: string;
@@ -162,6 +169,7 @@ export interface MaterialRequest {
   approvedByName?: string;
   accountantNote?: string;
   approvalNote?: string;
+  procurementDecision?: MaterialRequestProcurementDecision;
   rejectionReason?: string;
   createdBy?: number;
 }

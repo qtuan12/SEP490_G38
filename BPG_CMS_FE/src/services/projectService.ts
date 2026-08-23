@@ -1,4 +1,4 @@
-import type { Project, ProjectAccess, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
+import type { Project, ProjectAccess, ProjectMember, PhaseMaterialItem, AcceptanceRecord, WBSPhase, IncidentReport, MaterialRequestItem, MaterialRequest, MaterialRequestProcurementDecision, TaskHistory, WBSTask, DailyLogComment, DailyLog, TaskProgressLog } from '../types/common';
 import { apiClient, USE_MOCK_API } from './api';
 import { userService } from './userService';
 import type { UserProfile } from './authService';
@@ -1734,6 +1734,7 @@ export const projectService = {
       approvedByName: item.approvedByName || undefined,
       accountantNote: item.accountantNote || undefined,
       approvalNote: item.approvalNote || undefined,
+      procurementDecision: item.procurementDecision || undefined,
       rejectionReason: item.accountantNote || item.approvalNote || '',
       status: this.mapBackendStatusToFrontend(item.status),
       items: (item.items || []).map((it: any) => ({
@@ -1934,12 +1935,16 @@ export const projectService = {
     return '';
   },
 
-  async processMaterialRequestByAccountant(requestId: string, note?: string): Promise<MaterialRequest> {
+  async processMaterialRequestByAccountant(
+    requestId: string,
+    decision: MaterialRequestProcurementDecision,
+    note: string,
+  ): Promise<MaterialRequest & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
       const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/accountant-process`, {
-        requestId: parseInt(parsedRequestId),
-        note: note || 'Kế toán xử lý'
+        decision,
+        note,
       });
       if (!res.success) throw new Error(res.message || 'Kế toán không thể xử lý yêu cầu.');
       
@@ -1953,10 +1958,12 @@ export const projectService = {
     if (idx === -1) throw new Error('Không tìm thấy yêu cầu vật tư.');
 
     const request = list[idx];
-    if (request.isOverBOQ) {
-      request.status = 'pending_director'; // Trình Giám đốc duyệt
-    } else {
-      request.status = 'approved'; // Duyệt luôn cấp PO
+    request.procurementDecision = decision;
+    request.accountantNote = note.trim();
+    if (decision === 'ExternalPurchase' && request.isOverBOQ) {
+      request.status = 'pending_director';
+    } else if (decision === 'ExternalPurchase') {
+      request.status = 'approved';
       request.approvedBy = 'Kế toán (Duyệt trong định mức)';
 
       // Auto-add to Phase BOQ if it's a Phase request
@@ -1977,6 +1984,9 @@ export const projectService = {
           setStorage('bpg_wbs_phases', allPhases);
         }
       }
+    } else {
+      request.status = 'rejected';
+      request.rejectionReason = note.trim();
     }
 
     setStorage('bpg_material_requests', list);
@@ -1988,7 +1998,7 @@ export const projectService = {
     if (!USE_MOCK_API) {
       const parsedRequestId = requestId.startsWith('mat-req-') ? requestId.substring(8) : requestId;
       const res = await apiClient.post<ApiResponse<any>>(`/materialrequests/${parsedRequestId}/accountant-process`, {
-        requestId: parseInt(parsedRequestId),
+        decision: 'ExternalPurchase',
         note: note || 'Đã giải ngân chi phí mua ngoài khẩn cấp'
       });
       if (!res.success) throw new Error(res.message || 'Không thể giải ngân.');

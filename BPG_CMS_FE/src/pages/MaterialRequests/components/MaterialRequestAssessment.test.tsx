@@ -66,7 +66,7 @@ describe('MaterialRequestAssessmentItemRow', () => {
     expect(markup).toContain('8 Bao (50kg) khả dụng');
   });
 
-  it('ẩn các card không có dữ liệu thay vì hiện placeholder gây rối', () => {
+  it('giữ đủ bốn vùng cơ sở thẩm định và hiện Không có khi chưa có dữ liệu', () => {
     const markup = renderRow(true, {
       ...assessment,
       activeSupplies: [],
@@ -75,8 +75,9 @@ describe('MaterialRequestAssessmentItemRow', () => {
     });
 
     expect(markup).toContain('Tồn tại dự án');
-    expect(markup).not.toContain('Đang được cung ứng');
-    expect(markup).not.toContain('Nguồn nội bộ khác');
-    expect(markup).not.toContain('Giá mua gần nhất');
+    expect(markup).toContain('Đang được cung ứng');
+    expect(markup).toContain('Nguồn nội bộ khác');
+    expect(markup).toContain('Giá mua gần nhất');
+    expect(markup.match(/Không có/g)).toHaveLength(3);
   });
 });
