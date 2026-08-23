@@ -785,7 +785,7 @@ export const Dashboard: React.FC = () => {
                         <tr>
                           <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))]">Mức độ</th>
                           <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))]">Tên công việc</th>
-                          <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))]">Phase</th>
+                          <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))]">Giai đoạn</th>
                           <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))] text-right">Tiến độ</th>
                           <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))]">Hạn chót</th>
                           <th className="px-4 py-2.5 font-bold border-b border-[hsl(var(--border))]">Người đảm nhận</th>
@@ -891,7 +891,7 @@ export const Dashboard: React.FC = () => {
                         return (
                           <div
                             key={task.taskId}
-                            onClick={() => navigate(`/projects/${numericProjectId}/tasks/${task.taskId}/logs`)}
+                            onClick={() => navigate(`/projects/${numericProjectId}?tab=wbs&taskId=${task.taskId}`)}
                             className={`p-3 rounded border text-xs cursor-pointer hover:shadow-sm transition-all flex justify-between items-center gap-4 ${isAssignedToMe
                               ? 'bg-[hsl(var(--primary-glow)/0.4)] border-[hsl(var(--primary))] font-semibold'
                               : 'bg-[hsl(var(--bg-main))] border-[hsl(var(--border))]'
@@ -910,11 +910,11 @@ export const Dashboard: React.FC = () => {
                                 )}
                               </div>
                               <h4 className="font-bold truncate text-[hsl(var(--text-primary))]">{task.taskName}</h4>
-                              <p className="text-[10px] text-[hsl(var(--text-muted))] mt-0.5">Phase: {task.phaseName}</p>
+                              <p className="text-[10px] text-[hsl(var(--text-muted))] mt-0.5">Giai đoạn: {task.phaseName}</p>
                             </div>
                             <div className="text-right shrink-0">
                               <span className="text-[hsl(var(--primary-hover))] font-bold block">{task.progressPercent}%</span>
-                              <span className="text-[10px] text-[hsl(var(--text-muted))] mt-0.5 block">DL: {new Date(task.endDate).toLocaleDateString('vi-VN')}</span>
+                              <span className="text-[10px] text-[hsl(var(--text-muted))] mt-0.5 block">Hạn: {new Date(task.endDate).toLocaleDateString('vi-VN')}</span>
                             </div>
                           </div>
                         );
@@ -931,7 +931,7 @@ export const Dashboard: React.FC = () => {
                 </h3>
                 <div className="flex-1 flex flex-col justify-between gap-3">
                   <button
-                    onClick={() => navigate(`/projects/${numericProjectId}?tab=dailylogs`)}
+                    onClick={() => navigate(`/projects/${numericProjectId}?tab=logs`)}
                     className="w-full flex items-center justify-between p-3.5 border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] transition-all cursor-pointer rounded-lg text-left outline-none font-bold text-sm"
                   >
                     <div className="flex items-center gap-3">
@@ -964,7 +964,7 @@ export const Dashboard: React.FC = () => {
                   </button>
 
                   <button
-                    onClick={() => navigate(`/projects/${numericProjectId}?tab=drawings`)}
+                    onClick={() => navigate(`/projects/${numericProjectId}/drawing`)}
                     className="w-full flex items-center justify-between p-3.5 border border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] bg-[hsl(var(--bg-main))] transition-all cursor-pointer rounded-lg text-left outline-none font-bold text-sm"
                   >
                     <div className="flex items-center gap-3">

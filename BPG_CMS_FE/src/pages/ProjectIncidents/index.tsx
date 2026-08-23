@@ -36,7 +36,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
   const [loading, setLoading] = useState(true);
   const { connection } = useNotification();
   const [projName, setProjName] = useState(projectName || '');
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const taskIdFilterStr = searchParams.get('taskId');
   const incidentIdParam = searchParams.get('incidentId');
 
@@ -80,6 +80,16 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
       }
     }
   }, [incidentIdParam, incidents]);
+
+  const handleCloseDetail = () => {
+    setIsDetailOpen(false);
+    setSelectedIncident(null);
+    if (searchParams.has('incidentId')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('incidentId');
+      setSearchParams(next, { replace: true });
+    }
+  };
 
   const [error, setError] = useState<string | null>(null);
 
@@ -597,7 +607,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
       {isDetailOpen && selectedIncident && (
         <IncidentDetailModal
           isOpen={isDetailOpen}
-          onClose={() => { setIsDetailOpen(false); setSelectedIncident(null); }}
+          onClose={handleCloseDetail}
           incident={selectedIncident}
           phase={effectivePhase!}
           user={user ? { id: user.id, name: user.name, role: user.role } : null}

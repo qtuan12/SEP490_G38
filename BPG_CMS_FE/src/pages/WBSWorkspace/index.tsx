@@ -223,16 +223,24 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
   // Support opening task detail from URL
   useEffect(() => {
     const queryTaskId = searchParams.get('taskId');
-    if (queryTaskId && tasks.length > 0) {
-      const taskExists = tasks.some(t => t.id === queryTaskId);
-      if (taskExists) {
-        setSelectedTaskId(queryTaskId);
+    if (queryTaskId && allTasks.length > 0) {
+      const cleanId = String(queryTaskId).replace('t-', '');
+      const matched = allTasks.find(t => 
+        t.id === queryTaskId || 
+        t.id === `t-${cleanId}` || 
+        t.id.replace('t-', '') === cleanId
+      );
+      if (matched) {
+        setSelectedTaskId(matched.id);
         setIsDetailOpen(true);
+        if (matched.phaseId) {
+          setExpandedPhases(prev => ({ ...prev, [matched.phaseId]: true }));
+        }
         searchParams.delete('taskId');
         setSearchParams(searchParams, { replace: true });
       }
     }
-  }, [searchParams, tasks, setSearchParams]);
+  }, [searchParams, allTasks, setSearchParams]);
 
   const loadWBSData = async () => {
     await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });

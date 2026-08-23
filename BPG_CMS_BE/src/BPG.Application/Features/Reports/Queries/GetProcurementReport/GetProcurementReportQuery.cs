@@ -119,6 +119,22 @@ public class GetProcurementReportQueryHandler
             .OrderByDescending(d => d.PurchaseDate)
             .ToListAsync(cancellationToken);
 
+        // A technical PO exists as soon as an emergency purchase is submitted and is
+        // always FullyReceived. Until the source request is Approved, that PO must not
+        // influence any monetary valuation in the report.
+        var nonApprovedAutoPoQuery = _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(d => d.AutoPOId.HasValue && d.Status != DirectPurchaseStatus.Approved);
+        nonApprovedAutoPoQuery = request.ProjectId > 0
+            ? nonApprovedAutoPoQuery.Where(d => d.ProjectId == request.ProjectId)
+            : nonApprovedAutoPoQuery.Where(d => accessibleIds.Contains(d.ProjectId));
+        var nonApprovedAutoPoIds = await nonApprovedAutoPoQuery
+            .Select(d => d.AutoPOId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         var supplierIds = pos
             .Where(po => po.SupplierId.HasValue)
             .Select(po => po.SupplierId!.Value)
@@ -255,6 +271,7 @@ public class GetProcurementReportQueryHandler
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.PendingApproval
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Rejected
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                && !nonApprovedAutoPoIds.Contains(p.POId)
                 && (request.ProjectId > 0
                     ? p.PurchaseOrder.ProjectId == request.ProjectId
                     : accessibleIds.Contains(p.PurchaseOrder.ProjectId)));

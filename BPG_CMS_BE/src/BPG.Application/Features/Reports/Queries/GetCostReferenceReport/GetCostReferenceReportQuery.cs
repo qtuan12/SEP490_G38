@@ -1,4 +1,4 @@
-﻿
+
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
@@ -37,6 +37,17 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
             throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền truy cập báo cáo của dự án này.");
         }
 
+        // Every submitted Direct Purchase creates a FullyReceived technical PO before
+        // the payment decision. Exclude all of those POs here; only Approved Direct
+        // Purchases are included below as company expenditure.
+        var autoPoIds = await _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .IgnoreQueryFilters()
+            .Where(d => d.AutoPOId.HasValue)
+            .Select(d => d.AutoPOId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         // PO Cost
         var pos = await _unitOfWork.Repository<PurchaseOrder>()
             .Query()
@@ -46,7 +57,8 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
                 && p.Status != PurchaseOrderStatus.Draft
                 && p.Status != PurchaseOrderStatus.PendingApproval
                 && p.Status != PurchaseOrderStatus.Rejected
-                && p.Status != PurchaseOrderStatus.Cancelled)
+                && p.Status != PurchaseOrderStatus.Cancelled
+                && !autoPoIds.Contains(p.POId))
             .ToListAsync(cancellationToken);
 
         decimal totalPoCost = 0;
@@ -59,7 +71,7 @@ public class GetCostReferenceReportQueryHandler : IRequestHandler<GetCostReferen
         var dps = await _unitOfWork.Repository<DirectPurchaseRequest>()
             .Query()
             .Include(d => d.Items)
-            .Where(d => d.ProjectId == request.ProjectId && d.Status == "Approved")
+            .Where(d => d.ProjectId == request.ProjectId && d.Status == DirectPurchaseStatus.Approved)
             .ToListAsync(cancellationToken);
 
         decimal totalDpCost = 0;

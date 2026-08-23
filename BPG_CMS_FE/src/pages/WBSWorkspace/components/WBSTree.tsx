@@ -423,7 +423,7 @@ export const WBSTree = () => {
 
                             {project?.status !== 'draft' && (
                               <>
-                                {!isFrozen && canEdit && isPL && (
+                                {!isFrozen && canEdit && isTPKTOrPL && (
                                   <div
                                     style={menuItemStyle}
                                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
