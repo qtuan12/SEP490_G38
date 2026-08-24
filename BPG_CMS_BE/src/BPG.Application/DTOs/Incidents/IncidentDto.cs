@@ -16,6 +16,8 @@ public record IncidentDto
     public string IncidentType { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public string Status { get; init; } = string.Empty;
+    public long? LatestAdjustmentId { get; init; }
+    public string? LatestAdjustmentStatus { get; init; }
     public string? DamageDescription { get; init; }
     public decimal? EstimatedMaterialLoss { get; init; }
     public decimal? EstimatedLaborDays { get; init; }

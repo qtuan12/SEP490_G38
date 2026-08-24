@@ -109,7 +109,9 @@ export interface IncidentReport {
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Closed' | 'WaitingStopApproval' | 'WaitingRecoveryPlan' | 'WaitingDirectorApproval';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'UnderResolution' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Resolved' | 'Closed' | 'WaitingStopApproval' | 'WaitingRecoveryPlan' | 'WaitingDirectorApproval';
+  latestAdjustmentId?: number;
+  latestAdjustmentStatus?: string;
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;

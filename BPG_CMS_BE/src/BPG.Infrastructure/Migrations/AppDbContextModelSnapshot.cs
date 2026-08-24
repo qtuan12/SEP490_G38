@@ -634,7 +634,10 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("Incidents");
+                    b.ToTable("Incidents", null, tableBuilder =>
+                        {
+                            tableBuilder.HasTrigger("TR_Incidents_SingleActiveIncidentPerPhase");
+                        });
                 });
 
             modelBuilder.Entity("BPG.Domain.Entities.InventoryAdjustment", b =>
@@ -708,7 +711,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("IncidentId")
                         .IsUnique()
-                        .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0");
+                        .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0 AND [Status] = N'Pending'");
 
                     b.HasIndex("PhaseId");
 

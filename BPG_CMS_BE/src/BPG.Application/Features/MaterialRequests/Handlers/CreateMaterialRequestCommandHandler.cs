@@ -235,7 +235,39 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
             catch (Exception ex)
             {
                 // Log and continue, do not block the request transaction
-                Console.WriteLine($"Error sending notification: {ex.Message}");
+                Console.WriteLine($"Error sending notification to accountant: {ex.Message}");
+            }
+
+            // Gửi thông báo đến Trưởng dự án (Leader) nếu người tạo là Trưởng phòng kỹ thuật (TechnicalManager)
+            if (_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+            {
+                try
+                {
+                    var leaders = await _uow.Repository<ProjectMember>().Query()
+                        .AsNoTracking()
+                        .Where(m => m.ProjectId == request.ProjectId && m.IsLeader && !m.IsDeleted)
+                        .Select(m => m.UserId)
+                        .ToListAsync(cancellationToken);
+
+                    var user = await _uow.Repository<User>().GetByIdAsync(currentUserId, cancellationToken);
+                    var userName = user?.FullName ?? "Trưởng phòng kỹ thuật";
+
+                    foreach (var leaderId in leaders)
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            leaderId,
+                            "Yêu cầu vật tư mới",
+                            $"{userName} vừa tạo yêu cầu vật tư mới cho giai đoạn '{phase.Name}' thuộc dự án '{project.Name}' của bạn.",
+                            NotificationType.Procurement,
+                            $"/projects/{project.ProjectId}/workspace/materialrequests",
+                            materialRequest.RequestId,
+                            cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending notification to project leaders: {ex.Message}");
+                }
             }
 
             return ApiResponse<long>.SuccessResult(materialRequest.RequestId, "Gửi yêu cầu vật tư thành công.");

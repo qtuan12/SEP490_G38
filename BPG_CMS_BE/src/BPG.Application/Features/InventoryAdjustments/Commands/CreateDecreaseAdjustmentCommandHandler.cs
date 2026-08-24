@@ -74,22 +74,24 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     throw new BusinessException("ERR_INVALID_INCIDENT", "Chỉ được liên kết phiếu giảm tồn kho với sự cố vật tư kho.");
                 }
 
-                if (linkedIncident.Status != "WaitingAccountant")
+                if (linkedIncident.Status != IncidentStatus.WaitingAccountant
+                    && linkedIncident.Status != IncidentStatus.UnderResolution)
                 {
                     throw new BusinessException(
                         "ERR_INVALID_INCIDENT_STATUS",
-                        "Chỉ có thể tạo phiếu giảm tồn khi sự cố đang chờ Kế toán xác minh.");
+                        "Chỉ có thể tạo phiếu giảm tồn khi sự cố đang chờ Kế toán xác minh hoặc đang xử lý.");
                 }
 
                 var alreadyHasAdjustment = await _unitOfWork.Repository<InventoryAdjustment>()
                     .AnyAsync(
-                        adjustment => adjustment.IncidentId == request.IncidentId.Value,
+                        adjustment => adjustment.IncidentId == request.IncidentId.Value
+                            && adjustment.Status == InventoryAdjustmentStatus.Pending,
                         cancellationToken);
                 if (alreadyHasAdjustment)
                 {
                     throw new BusinessException(
                         "ERR_INCIDENT_ALREADY_ADJUSTED",
-                        "Sự cố này đã có phiếu giảm tồn liên kết.");
+                        "Sự cố này đã có phiếu giảm tồn đang chờ duyệt.");
                 }
             }
 
@@ -142,7 +144,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             if (linkedIncident != null)
             {
-                linkedIncident.Status = "WaitingDirector";
+                linkedIncident.Status = IncidentStatus.UnderResolution;
                 if (!string.IsNullOrWhiteSpace(request.Description))
                 {
                     linkedIncident.HandlingInstruction = request.Description;
@@ -162,7 +164,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             {
                 throw new BusinessException(
                     "ERR_INCIDENT_ALREADY_ADJUSTED",
-                    "Sự cố này đã có phiếu giảm tồn liên kết.");
+                    "Sự cố này đã có phiếu giảm tồn đang chờ duyệt.");
             }
             catch (DbUpdateConcurrencyException) when (request.IncidentId.HasValue)
             {

@@ -120,6 +120,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<PhaseAcceptance>().HasKey(x => x.AcceptanceId);
         modelBuilder.Entity<TaskDependency>().HasKey(x => x.TaskDependencyId);
         modelBuilder.Entity<Incident>().HasKey(x => x.IncidentId);
+        modelBuilder.Entity<Incident>()
+            .ToTable(tableBuilder => tableBuilder.HasTrigger("TR_Incidents_SingleActiveIncidentPerPhase"));
         modelBuilder.Entity<Comment>().HasKey(x => x.CommentId);
         modelBuilder.Entity<MaterialCategory>().HasKey(x => x.CategoryId);
         modelBuilder.Entity<Unit>().HasKey(x => x.UnitId);
@@ -494,12 +496,11 @@ public class AppDbContext : DbContext
             .Property(i => i.RowVersion)
             .IsRowVersion();
 
-        // One inventory incident can be settled by at most one adjustment. Standalone
-        // adjustments keep IncidentId null and are therefore not affected by this index.
+        // Keep rejected attempts as history while allowing at most one active request.
         modelBuilder.Entity<InventoryAdjustment>()
             .HasIndex(i => i.IncidentId)
             .IsUnique()
-            .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0");
+            .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0 AND [Status] = N'Pending'");
 
         // DirectPurchaseItem - explicit FK to avoid shadow property DirectPurchaseRequestDirectPurchaseId
         modelBuilder.Entity<DirectPurchaseItem>()

@@ -63,6 +63,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
     switch (status) {
       case 'Pending': return isInc ? 'Chờ phê duyệt' : 'Chờ Giám đốc duyệt';
       case 'Approved': return 'Đã duyệt';
+      case 'RevisionRequired': return 'Cần điều chỉnh';
       case 'Rejected': return 'Đã từ chối';
       default: return status;
     }
@@ -71,6 +72,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'Approved': return 'text-[hsl(var(--success))]';
+      case 'RevisionRequired': return 'text-[hsl(var(--danger))]';
       case 'Rejected': return 'text-[hsl(var(--danger))]';
       default: return 'text-amber-600';
     }
@@ -96,7 +98,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
 
   const handleReject = async () => {
     if (!rejectReason) {
-      if (onError) onError('Vui lòng nhập lý do từ chối.');
+      if (onError) onError(isIncrease ? 'Vui lòng nhập lý do từ chối.' : 'Vui lòng nhập nội dung cần điều chỉnh.');
       return;
     }
 
@@ -377,7 +379,7 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
           <div className="mt-4 pt-4 border-t">
             {mode === 'view' ? (
               <div className="flex justify-end gap-2">
-                <Button variant="danger" onClick={() => setMode('reject')}>Từ chối</Button>
+                <Button variant="danger" onClick={() => setMode('reject')}>{isIncrease ? 'Từ chối' : 'Yêu cầu điều chỉnh'}</Button>
                 <Button variant="primary" onClick={handleApproveClick} isLoading={loading}>Phê duyệt</Button>
               </div>
             ) : mode === 'confirmApprove' ? (
@@ -393,18 +395,18 @@ export const ReviewAdjustmentModal: React.FC<Props> = ({ isOpen, onClose, onSucc
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                <label className="text-sm font-semibold text-[hsl(var(--danger))]">Nhập lý do từ chối:</label>
+                <label className="text-sm font-semibold text-[hsl(var(--danger))]">{isIncrease ? 'Nhập lý do từ chối:' : 'Nội dung cần điều chỉnh:'}</label>
                 <textarea
                   className="w-full px-3 py-2 border rounded-lg"
                   rows={3}
                   value={rejectReason}
                   onChange={e => setRejectReason(e.target.value)}
-                  placeholder="Vật tư không hợp lệ..."
+                  placeholder={isIncrease ? 'Vật tư không hợp lệ...' : 'Ví dụ: Bổ sung chứng cứ và kiểm tra lại số lượng hao hụt...'}
                   autoFocus
                 />
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" onClick={() => setMode('view')}>Quay lại</Button>
-                  <Button variant="danger" onClick={handleReject} isLoading={loading}>Xác nhận Từ chối</Button>
+                  <Button variant="danger" onClick={handleReject} isLoading={loading}>{isIncrease ? 'Xác nhận Từ chối' : 'Gửi yêu cầu điều chỉnh'}</Button>
                 </div>
               </div>
             )}

@@ -4,6 +4,7 @@ using BPG.Application.Features.Incidents.Commands.RejectIncident;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.UnitTests.Helpers;
+using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using FluentAssertions;
@@ -110,9 +111,9 @@ public class RejectIncidentCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID05_Handle_InventoryWaitingDirector_ShouldRequireAdjustmentApproval()
+    public async Task UTCID05_Handle_InventoryUnderResolution_ShouldRequireAdjustmentApproval()
     {
-        SetupIncident(InventoryIncident("WaitingDirector"));
+        SetupIncident(InventoryIncident(IncidentStatus.UnderResolution));
         SetRoles(UserRoleConstants.Director);
 
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
