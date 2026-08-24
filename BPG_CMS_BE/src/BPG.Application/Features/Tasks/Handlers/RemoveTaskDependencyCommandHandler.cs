@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
@@ -36,8 +37,10 @@ public class RemoveTaskDependencyCommandHandler : IRequestHandler<RemoveTaskDepe
         if (dep == null)
             throw new NotFoundException("TaskDependency", $"{request.TaskId}-{request.PredecessorTaskId}");
 
-        if (dep.Task?.Phase != null && dep.Task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress && dep.Task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
-            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
+        if (dep.Task?.Phase != null)
+            await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+                _unitOfWork, dep.Task.Phase.Project.ProjectId, dep.Task.Phase.Project.Status,
+                dep.Task.Phase.Project.PauseReason, ct, _currentUserService);
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {

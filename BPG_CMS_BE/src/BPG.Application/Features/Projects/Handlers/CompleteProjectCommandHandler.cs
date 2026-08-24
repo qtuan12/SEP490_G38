@@ -16,6 +16,48 @@ using System.Threading.Tasks;
 
 public class CompleteProjectCommandHandler : IRequestHandler<CompleteProjectCommand, MediatR.Unit>
 {
+    private static readonly string[] TerminalIncidentStatuses =
+    [
+        IncidentStatus.Approved,
+        IncidentStatus.Rejected,
+        IncidentStatus.Resolved,
+        IncidentStatus.Closed
+    ];
+
+    private static readonly string[] TerminalMaterialRequestStatuses =
+    [
+        MaterialRequestStatus.Approved,
+        MaterialRequestStatus.Rejected,
+        MaterialRequestStatus.Cancelled
+    ];
+
+    private static readonly string[] TerminalPurchaseOrderStatuses =
+    [
+        PurchaseOrderStatus.FullyReceived,
+        PurchaseOrderStatus.Closed,
+        PurchaseOrderStatus.Cancelled,
+        PurchaseOrderStatus.Rejected
+    ];
+
+    private static readonly string[] TerminalInventoryAdjustmentStatuses =
+    [
+        InventoryAdjustmentStatus.Approved,
+        InventoryAdjustmentStatus.Rejected,
+        InventoryAdjustmentStatus.Cancelled
+    ];
+
+    private static readonly string[] TerminalDirectPurchaseStatuses =
+    [
+        DirectPurchaseStatus.Approved,
+        DirectPurchaseStatus.Rejected
+    ];
+
+    private static readonly string[] TerminalSurplusTransferStatuses =
+    [
+        SurplusTransferStatus.Received,
+        SurplusTransferStatus.Rejected
+    ];
+
     private readonly IUnitOfWork _uow;
     private readonly INotificationService _notificationService;
     private readonly IRealtimeNotificationSender _realtimeSender;
@@ -43,39 +85,119 @@ public class CompleteProjectCommandHandler : IRequestHandler<CompleteProjectComm
             throw new NotFoundException(nameof(Project), request.ProjectId);
 
         if (project.Status != ProjectStatus.InProgress)
-            throw new BusinessException("ERR_PROJECT_NOT_INPROGRESS", $"Chỉ có thể hoàn thành dự án khi đang ở trạng thái Đang chạy (InProgress). Trạng thái hiện tại: {project.Status}");
+            throw new BusinessException(ErrorCodes.ProjectNotInProgress, $"Chỉ có thể hoàn thành dự án khi đang ở trạng thái Đang chạy (InProgress). Trạng thái hiện tại: {project.Status}");
 
-        // Check if all non-obsolete tasks in the project are 100% completed
-        var uncompletedTasks = await _uow.Repository<ProjectTask>()
+        var phaseCount = await _uow.Repository<Phase>()
             .Query()
-            .Include(t => t.Phase)
+            .AsNoTracking()
+            .CountAsync(phase => phase.ProjectId == request.ProjectId, cancellationToken);
+
+        if (phaseCount == 0)
+            throw new BusinessException(ErrorCodes.ProjectHasNoPhases, "Dự án chưa có giai đoạn thi công nên chưa thể hoàn thành.");
+
+        // Obsolete tasks are no longer part of the valid execution plan. Every
+        // remaining task must be both 100% and in a terminal work status.
+        var uncompletedTaskCount = await _uow.Repository<ProjectTask>()
+            .Query()
+            .AsNoTracking()
             .Where(t => t.Phase.ProjectId == request.ProjectId
                         && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete
-                        && t.ProgressPercent < 100)
-            .ToListAsync(cancellationToken);
+                        && (t.ProgressPercent < 100
+                            || (t.Status != BPG.Domain.Constants.TaskStatus.Completed
+                                && t.Status != BPG.Domain.Constants.TaskStatus.Approved)))
+            .CountAsync(cancellationToken);
 
-        if (uncompletedTasks.Any())
+        if (uncompletedTaskCount > 0)
         {
-            throw new BusinessException("ERR_PROJECT_TASKS_NOT_COMPLETED", $"Dự án còn {uncompletedTasks.Count} công việc chưa hoàn thành 100%. Vui lòng hoàn tất toàn bộ công việc trước khi hoàn thành dự án.");
+            throw new BusinessException(ErrorCodes.ProjectTasksNotCompleted, $"Dự án còn {uncompletedTaskCount} công việc chưa hoàn thành. Mọi công việc còn hiệu lực phải đạt 100% và có trạng thái Hoàn thành/Đã duyệt.");
         }
 
-        // Check if there are any pending/unresolved incidents
-        var pendingIncidents = await _uow.Repository<Incident>()
+        var unacceptedPhaseCount = await _uow.Repository<Phase>()
             .Query()
-            .Where(i => i.ProjectId == request.ProjectId &&
-                        (i.Status == "WaitingReview" ||
-                         i.Status == "WaitingStopApproval" ||
-                         i.Status == "WaitingRecoveryPlan" ||
-                         i.Status == "WaitingDirectorApproval" ||
-                         i.Status == IncidentStatus.WaitingAccountant ||
-                         i.Status == IncidentStatus.UnderResolution ||
-                         i.Status == "Assessing"))
-            .ToListAsync(cancellationToken);
+            .AsNoTracking()
+            .CountAsync(phase => phase.ProjectId == request.ProjectId
+                && phase.Status != PhaseStatus.Approved
+                // A phase whose entire historical WBS was made obsolete by an
+                // incident is retired from the valid execution plan. It cannot be
+                // accepted (there is no active task), so it must not block the
+                // replacement phase from completing the project. Empty draft phases
+                // still block completion because they were never an execution plan.
+                && (!phase.Tasks.Any()
+                    || phase.Tasks.Any(task => task.Status != BPG.Domain.Constants.TaskStatus.Obsolete)),
+                cancellationToken);
 
-        if (pendingIncidents.Any())
-        {
-            throw new BusinessException("ERR_PENDING_INCIDENTS", $"Dự án còn {pendingIncidents.Count} sự cố chưa được xử lý/phê duyệt. Vui lòng giải quyết toàn bộ sự cố trước khi hoàn thành dự án.");
-        }
+        if (unacceptedPhaseCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectPhasesNotAccepted, $"Dự án còn {unacceptedPhaseCount} giai đoạn chưa được nghiệm thu. Vui lòng nghiệm thu toàn bộ giai đoạn trước khi hoàn thành dự án.");
+
+        var pendingIncidentCount = await _uow.Repository<Incident>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(incident => incident.ProjectId == request.ProjectId
+                && !TerminalIncidentStatuses.Contains(incident.Status), cancellationToken);
+
+        if (pendingIncidentCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingIncidents, $"Dự án còn {pendingIncidentCount} sự cố chưa được xử lý/phê duyệt.");
+
+        var pendingMaterialRequestCount = await _uow.Repository<MaterialRequest>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(materialRequest => materialRequest.Phase.ProjectId == request.ProjectId
+                && !TerminalMaterialRequestStatuses.Contains(materialRequest.Status), cancellationToken);
+
+        if (pendingMaterialRequestCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingMaterialRequests, $"Dự án còn {pendingMaterialRequestCount} yêu cầu vật tư chưa xử lý xong.");
+
+        var pendingPurchaseOrderCount = await _uow.Repository<PurchaseOrder>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(po => po.ProjectId == request.ProjectId
+                && !TerminalPurchaseOrderStatuses.Contains(po.Status), cancellationToken);
+
+        if (pendingPurchaseOrderCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingPurchaseOrders, $"Dự án còn {pendingPurchaseOrderCount} đơn mua hàng chưa kết thúc giao/nhận.");
+
+        var pendingGoodsReceiptCount = await _uow.Repository<GoodsReceipt>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(receipt => receipt.PurchaseOrder.ProjectId == request.ProjectId
+                && receipt.Status != GoodsReceiptStatus.Approved
+                && receipt.Status != GoodsReceiptStatus.Cancelled, cancellationToken);
+
+        if (pendingGoodsReceiptCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingGoodsReceipts, $"Dự án còn {pendingGoodsReceiptCount} phiếu nhập kho chưa hoàn tất.");
+
+        var pendingAdjustmentCount = await _uow.Repository<InventoryAdjustment>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(adjustment => adjustment.ProjectId == request.ProjectId
+                && !TerminalInventoryAdjustmentStatuses.Contains(adjustment.Status), cancellationToken);
+
+        if (pendingAdjustmentCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingInventoryAdjustments, $"Dự án còn {pendingAdjustmentCount} phiếu điều chỉnh kho chưa xử lý xong.");
+
+        var pendingDirectPurchaseCount = await _uow.Repository<DirectPurchaseRequest>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(directPurchase => directPurchase.ProjectId == request.ProjectId
+                && !TerminalDirectPurchaseStatuses.Contains(directPurchase.Status), cancellationToken);
+
+        if (pendingDirectPurchaseCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingDirectPurchases, $"Dự án còn {pendingDirectPurchaseCount} phiếu mua khẩn cấp chưa quyết toán xong.");
+
+        var pendingSurplusRequestCount = await _uow.Repository<SurplusRequest>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(surplus => surplus.ProjectId == request.ProjectId
+                && surplus.Status != SurplusRequestStatus.Processed, cancellationToken);
+
+        var pendingSurplusTransferCount = await _uow.Repository<SurplusTransfer>()
+            .Query()
+            .AsNoTracking()
+            .CountAsync(transfer => (transfer.FromProjectId == request.ProjectId || transfer.ToProjectId == request.ProjectId)
+                && !TerminalSurplusTransferStatuses.Contains(transfer.Status), cancellationToken);
+
+        if (pendingSurplusRequestCount + pendingSurplusTransferCount > 0)
+            throw new BusinessException(ErrorCodes.ProjectHasPendingSurplus, $"Dự án còn {pendingSurplusRequestCount} đợt xử lý vật tư thừa và {pendingSurplusTransferCount} phiếu chuyển kho chưa hoàn tất.");
 
         var userId = _currentUserService.UserId;
         var userName = "Hệ thống";

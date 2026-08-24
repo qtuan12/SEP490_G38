@@ -39,6 +39,19 @@ public static class ErrorCodes
     public const string StockFrozen = "BIZ_007";                 // Kho đang bị đóng băng (surplus pending)
     public const string InvalidUnitQuantity = "BIZ_008";         // Số lượng không hợp lệ đối với ĐVT rời rạc
 
+    // ==================== HOÀN THÀNH DỰ ÁN ====================
+    public const string ProjectNotInProgress = "ERR_PROJECT_NOT_INPROGRESS";
+    public const string ProjectHasNoPhases = "ERR_PROJECT_HAS_NO_PHASES";
+    public const string ProjectTasksNotCompleted = "ERR_PROJECT_TASKS_NOT_COMPLETED";
+    public const string ProjectPhasesNotAccepted = "ERR_PROJECT_PHASES_NOT_ACCEPTED";
+    public const string ProjectHasPendingIncidents = "ERR_PENDING_INCIDENTS";
+    public const string ProjectHasPendingMaterialRequests = "ERR_PENDING_MATERIAL_REQUESTS";
+    public const string ProjectHasPendingPurchaseOrders = "ERR_PENDING_PURCHASE_ORDERS";
+    public const string ProjectHasPendingGoodsReceipts = "ERR_PENDING_GOODS_RECEIPTS";
+    public const string ProjectHasPendingInventoryAdjustments = "ERR_PENDING_INVENTORY_ADJUSTMENTS";
+    public const string ProjectHasPendingDirectPurchases = "ERR_PENDING_DIRECT_PURCHASES";
+    public const string ProjectHasPendingSurplus = "ERR_PENDING_SURPLUS";
+
     // ==================== ĐƠN MUA HÀNG (PO) ====================
     public const string PoAlreadyCancelled = "BIZ_009";          // PO đã bị hủy trước đó
     public const string PoCannotCancel = "BIZ_010";              // PO đã nhận hàng hoặc đã đóng, không hủy được
