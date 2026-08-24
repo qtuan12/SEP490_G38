@@ -20,6 +20,12 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../../constants/realtimeEntities';
 import { isPhaseReadyForAcceptance } from '../../utils/phaseAcceptance';
+import type { PhaseAcceptance as PhaseAcceptanceRecord } from '../../types/phaseAcceptance';
+
+type AcceptanceSummary = Pick<
+  PhaseAcceptanceRecord,
+  'isCancelled' | 'acceptedByName' | 'acceptanceDate' | 'cancelledByName' | 'cancelledAt' | 'cancellationReason'
+>;
 
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
@@ -39,7 +45,7 @@ export const PhaseAcceptance: React.FC = () => {
 
   const [searchParams] = useSearchParams();
   const historyId = searchParams.get('historyId');
-  const [historicalAcceptance, setHistoricalAcceptance] = useState<any>(null);
+  const [historicalAcceptance, setHistoricalAcceptance] = useState<PhaseAcceptanceRecord | null>(null);
   const [historicalDocData, setHistoricalDocData] = useState<string | null>(null);
 
   const isViewingHistory = !!historicalDocData;
@@ -50,9 +56,22 @@ export const PhaseAcceptance: React.FC = () => {
   const [activeCreatorName, setActiveCreatorName] = useState<string>('');
   const [activeAcceptanceId, setActiveAcceptanceId] = useState<number | null>(null);
 
+  const displayedAcceptance: AcceptanceSummary | null = isViewingHistory
+    ? historicalAcceptance
+    : isSubmitted && activeAcceptanceId
+      ? {
+          isCancelled: false,
+          acceptedByName: activeCreatorName,
+          acceptanceDate: activeAcceptanceDate,
+        }
+      : null;
+
   const canRevoke = isViewingHistory ? !historicalAcceptance?.isCancelled : isSubmitted;
 
-  const loadData = React.useCallback(async (silent = false) => {
+  const loadData = React.useCallback(async (
+    silent = false,
+    requestedHistoryId: string | null = historyId,
+  ) => {
     if (!projectId || !phaseId) return;
     if (!silent) {
       setLoading(true);
@@ -77,23 +96,23 @@ export const PhaseAcceptance: React.FC = () => {
           projectId: Number(projectId),
           phaseId: Number(phaseId),
         });
-        const activeAcc = res.items.find((x: any) => !x.isCancelled);
+        const activeAcc = res.items.find(x => !x.isCancelled);
         if (activeAcc) {
           setActiveReportContent(activeAcc.reportContent || '');
-          setActiveAcceptanceDate(formatDateOnly(activeAcc.acceptanceDate));
+          setActiveAcceptanceDate(activeAcc.acceptanceDate);
           setActiveCreatorName(activeAcc.acceptedByName || '');
           setActiveAcceptanceId(activeAcc.acceptanceId);
         }
       }
 
-      if (historyId) {
+      if (requestedHistoryId) {
         const res = await phaseAcceptanceService.getPhaseAcceptances({
           pageIndex: 1,
           pageSize: 10,
           projectId: Number(projectId),
           phaseId: Number(phaseId),
         });
-        const targetAcc = res.items.find((x: any) => x.acceptanceId === Number(historyId));
+        const targetAcc = res.items.find(x => x.acceptanceId === Number(requestedHistoryId));
         if (targetAcc) {
           setHistoricalAcceptance(targetAcc);
           setHistoricalDocData(targetAcc.reportContent);
@@ -173,6 +192,7 @@ export const PhaseAcceptance: React.FC = () => {
 
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
+      await loadData(true, String(targetId));
     } catch (err: any) {
       setRevokeError(err.message || 'Có lỗi xảy ra khi hủy nghiệm thu.');
     } finally {
@@ -248,19 +268,19 @@ export const PhaseAcceptance: React.FC = () => {
       {(canManageAcceptance || isViewingHistory || isSubmitted) ? (
         <div className="card flex flex-col gap-5 bg-[hsl(var(--bg-card))]">
 
-          {isViewingHistory && historicalAcceptance && (
-            <div className={`p-4 rounded-xl border ${historicalAcceptance.isCancelled ? 'bg-[hsl(var(--danger-glow))] border-[hsl(var(--danger)/0.2)]' : 'bg-[hsl(var(--success-glow))] border-[hsl(var(--success)/0.2)]'}`}>
-              <h3 className={`text-md font-semibold mb-2 flex items-center gap-2 ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
-                {historicalAcceptance.isCancelled ? 'Biên bản nghiệm thu này đã bị hủy' : 'Biên bản nghiệm thu hợp lệ'}
+          {displayedAcceptance && (
+            <div className={`p-4 rounded-xl border ${displayedAcceptance.isCancelled ? 'bg-[hsl(var(--danger-glow))] border-[hsl(var(--danger)/0.2)]' : 'bg-[hsl(var(--success-glow))] border-[hsl(var(--success)/0.2)]'}`}>
+              <h3 className={`text-md font-semibold mb-2 flex items-center gap-2 ${displayedAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+                {displayedAcceptance.isCancelled ? 'Biên bản nghiệm thu này đã bị hủy' : 'Biên bản nghiệm thu hợp lệ'}
               </h3>
-              <div className={`space-y-1 text-sm ${historicalAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
-                <p><span className="font-medium">Người lập:</span> {historicalAcceptance.acceptedByName}</p>
-                <p><span className="font-medium">Ngày lập:</span> {formatDate(historicalAcceptance.acceptanceDate)}</p>
-                {historicalAcceptance.isCancelled && (
+              <div className={`space-y-1 text-sm ${displayedAcceptance.isCancelled ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+                <p><span className="font-medium">Người lập:</span> {displayedAcceptance.acceptedByName}</p>
+                <p><span className="font-medium">Ngày lập:</span> {formatDate(displayedAcceptance.acceptanceDate)}</p>
+                {displayedAcceptance.isCancelled && (
                   <>
-                    <p><span className="font-medium">Người hủy:</span> {historicalAcceptance.cancelledByName}</p>
-                    <p><span className="font-medium">Ngày hủy:</span> {formatDate(historicalAcceptance.cancelledAt)}</p>
-                    <p><span className="font-medium">Lý do hủy:</span> {historicalAcceptance.cancellationReason}</p>
+                    <p><span className="font-medium">Người hủy:</span> {displayedAcceptance.cancelledByName}</p>
+                    <p><span className="font-medium">Ngày hủy:</span> {displayedAcceptance.cancelledAt ? formatDate(displayedAcceptance.cancelledAt) : ''}</p>
+                    <p><span className="font-medium">Lý do hủy:</span> {displayedAcceptance.cancellationReason}</p>
                   </>
                 )}
               </div>
@@ -268,9 +288,9 @@ export const PhaseAcceptance: React.FC = () => {
           )}
 
           {isViewingHistory && historicalDocData !== null ? (
-            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={formatDateOnly(historicalAcceptance.acceptanceDate)} />
+            <AcceptanceDocument project={project} phase={phase} reportContent={historicalDocData} creatorName={historicalAcceptance?.acceptedByName} acceptanceDate={historicalAcceptance ? formatDateOnly(historicalAcceptance.acceptanceDate) : undefined} />
           ) : isSubmitted ? (
-            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={activeAcceptanceDate || formatDateOnly(new Date().toISOString())} />
+            <AcceptanceDocument project={project} phase={phase} reportContent={activeReportContent || ''} creatorName={activeCreatorName} acceptanceDate={formatDateOnly(activeAcceptanceDate || new Date().toISOString())} />
           ) : (
             <AcceptanceForm
               phase={phase!}

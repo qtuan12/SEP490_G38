@@ -84,6 +84,9 @@ public static class MaterialRequestProcurementDecision
     public static bool IsValid(string? decision) =>
         decision is not null && All.Contains(decision);
 
+    public static bool IsAlternativeSupplyOutcome(string? decision) =>
+        decision == InternalTransfer || decision == WaitSupply;
+
     public static string ResolveTechnicalStatus(string decision, string boqCheckStatus)
     {
         if (!IsValid(decision))
