@@ -415,9 +415,9 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     if (req.type === 'emergency') {
       return <Badge variant="warning" className="text-[0.68rem] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-2 normal-case">Khẩn cấp (Mua ngoài)</Badge>;
     } else if (req.isOverBOQ) {
-      return <Badge variant="danger" className="text-[0.68rem] py-0.5 px-2 normal-case">Vượt định mức</Badge>;
+      return <Badge variant="danger" className="text-[0.68rem] py-0.5 px-2 normal-case">Vượt dự toán</Badge>;
     } else {
-      return <Badge variant="default" className="text-[0.68rem] py-0.5 px-2 normal-case">Trong định mức</Badge>;
+      return <Badge variant="default" className="text-[0.68rem] py-0.5 px-2 normal-case">Trong dự toán</Badge>;
     }
   };
 
@@ -465,7 +465,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
             >
               <option value="">Tất cả Trạng thái</option>
               <option value="pending_accountant">Chờ phê duyệt</option>
-              <option value="pending_director">Chờ phê duyệt vượt định mức</option>
+              <option value="pending_director">Chờ phê duyệt vượt dự toán</option>
               <option value="approved">Đã phê duyệt</option>
               <option value="rejected:InternalTransfer">Đề nghị điều chuyển nội bộ</option>
               <option value="rejected:WaitSupply">Chờ cung ứng</option>
@@ -548,7 +548,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                           setIsDetailOpen(true);
                         }}
                         className="p-1.5 h-auto inline-flex shrink-0 items-center justify-center border-[hsl(var(--border))] hover:border-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]"
-                        title="Xem chi tiết & đối chiếu định mức"
+                        title="Xem chi tiết & đối chiếu dự toán"
                         aria-label="Xem chi tiết yêu cầu vật tư"
                       >
                         <Eye size={14} />
@@ -645,7 +645,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onClose={() => !isSubmittingAction && setActionModalOpen(false)}
           title={
             actionType === 'disburse' ? 'Xác nhận Giải ngân Tạm ứng' :
-                actionType === 'approve' ? 'Xác nhận Phê duyệt Vượt định mức' :
+                actionType === 'approve' ? 'Xác nhận Phê duyệt Vượt dự toán' :
                   actionType === 'cancel' ? 'Hủy yêu cầu vật tư' :
                     'Từ chối Yêu cầu Vật tư'
           }

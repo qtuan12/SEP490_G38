@@ -52,7 +52,7 @@ export const getMaterialRequestBusinessStatus = (
   }
 
   if (request.status === 'pending_director' && request.procurementDecision === 'ExternalPurchase') {
-    return 'Chờ phê duyệt vượt định mức';
+    return 'Chờ phê duyệt vượt dự toán';
   }
 
   if (request.status === 'approved' && request.procurementDecision === 'ExternalPurchase') {
@@ -64,7 +64,7 @@ export const getMaterialRequestBusinessStatus = (
     approved_by_leader: 'Đã được Trưởng dự án duyệt',
     pending_tpkt: 'Chờ Trưởng phòng kỹ thuật',
     pending_accountant: 'Chờ phê duyệt',
-    pending_director: 'Chờ phê duyệt vượt định mức',
+    pending_director: 'Chờ phê duyệt vượt dự toán',
     approved: 'Đã phê duyệt',
     rejected: 'Từ chối',
     cancelled: 'Đã hủy',
@@ -102,7 +102,7 @@ export const getMaterialRequestDetailTableState = (
   const showDynamicBoqComparison = status === 'pending_accountant';
 
   return {
-    comparisonHeader: showDynamicBoqComparison ? 'Tổng yêu cầu vật tư' : 'Định mức',
+    comparisonHeader: showDynamicBoqComparison ? 'Tổng yêu cầu vật tư' : 'Dự toán',
     showDynamicBoqComparison,
     showStatusColumn: showDynamicBoqComparison,
     columnCount: showDynamicBoqComparison ? 6 : 5,

@@ -8,6 +8,7 @@ namespace BPG.Application.DTOs.Inventory
         public string PhaseName { get; set; } = string.Empty;
         public decimal BoqQuantity { get; set; }
         public decimal UsedQuantity { get; set; }
+        public decimal ReceivedQuantity { get; set; }
     }
 
     public class CurrentInventoryDto

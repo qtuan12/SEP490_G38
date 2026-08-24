@@ -651,7 +651,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                             {m.isInPhaseBoq && (
                               <>
                                 <span className="text-slate-300">|</span>
-                                <span>Định mức BOQ:</span>
+                                <span>Dự toán vật tư:</span>
                                 <strong className="text-slate-700 font-semibold">{formatQuantity(m.phaseBoqQuantity ?? 0)} {m.unitName}</strong>
                               </>
                             )}
@@ -668,7 +668,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                               </span>
                             ) : m.quantityLost > 0 ? (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 text-green-700">
-                                Trong định mức
+                                Trong dự toán
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500">

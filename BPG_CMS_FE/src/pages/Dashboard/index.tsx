@@ -226,7 +226,7 @@ export const Dashboard: React.FC = () => {
 
   const statsGeneral = [
     { title: 'Dự án đang chạy', value: metrics ? metrics.activeProjects.toString() : '...', change: `Tổng số: ${metrics?.totalProjects || 0}`, isPositive: true, icon: <Layers size={24} />, color: 'hsl(var(--primary))' },
-    { title: 'Yêu cầu Vật tư chờ duyệt', value: pendingRequestsCount.toString(), change: `${overBOQPendingCount} Vượt định mức`, isPositive: false, icon: <Boxes size={24} />, color: 'hsl(var(--danger))' },
+    { title: 'Yêu cầu Vật tư chờ duyệt', value: pendingRequestsCount.toString(), change: `${overBOQPendingCount} Vượt dự toán`, isPositive: false, icon: <Boxes size={24} />, color: 'hsl(var(--danger))' },
     { title: 'Dự án đã đóng / Tạm dừng', value: metrics ? (metrics.closedProjects + metrics.pausedProjects).toString() : '...', change: `${metrics?.closedProjects || 0} Đóng, ${metrics?.pausedProjects || 0} Tạm dừng`, isPositive: true, icon: <ClipboardList size={24} />, color: 'hsl(var(--success))' },
     { title: 'Tổng số thành viên', value: userCount.toString(), change: 'Cập nhật thời gian thực', isPositive: true, icon: <Users size={24} />, color: 'hsl(var(--primary-hover))' },
   ];
@@ -387,7 +387,7 @@ export const Dashboard: React.FC = () => {
     ].filter(d => d.value > 0) : [];
 
     const statsAccountant = [
-      { title: 'Yêu cầu vật tư chờ soát xét', value: pendingRequestsCount.toString(), change: `${overBOQPendingCount} Vượt định mức`, isPositive: false, icon: <Boxes size={24} />, color: 'hsl(var(--danger))' },
+      { title: 'Yêu cầu vật tư chờ soát xét', value: pendingRequestsCount.toString(), change: `${overBOQPendingCount} Vượt dự toán`, isPositive: false, icon: <Boxes size={24} />, color: 'hsl(var(--danger))' },
       { title: 'Dự án đang thi công', value: metrics ? metrics.activeProjects.toString() : '...', change: `Tổng số: ${metrics?.totalProjects || 0}`, isPositive: true, icon: <Layers size={24} />, color: 'hsl(var(--primary))' },
       { title: 'Dự án tạm dừng/đóng', value: metrics ? (metrics.closedProjects + metrics.pausedProjects).toString() : '...', change: `${metrics?.closedProjects || 0} Đóng, ${metrics?.pausedProjects || 0} Tạm dừng`, isPositive: true, icon: <ClipboardList size={24} />, color: 'hsl(var(--warning))' },
       { title: 'Nhân sự hệ thống', value: userCount.toString(), change: 'Cập nhật thời gian thực', isPositive: true, icon: <Users size={24} />, color: 'hsl(var(--primary-hover))' },
@@ -659,7 +659,7 @@ export const Dashboard: React.FC = () => {
       { title: 'Công việc hoàn thành', value: `${projectExecData.completedTasks} / ${projectExecData.totalTasks}`, change: `${Math.round((projectExecData.completedTasks / Math.max(1, projectExecData.totalTasks)) * 100)}% theo số lượng công việc`, isPositive: true, icon: <CheckSquare size={24} />, color: 'hsl(var(--success))' },
       { title: 'Công việc trễ hạn (Đỏ)', value: projectExecData.delayedTasks.toString(), change: 'Cần giải quyết ngay', isPositive: false, icon: <AlertCircle size={24} />, color: 'hsl(var(--danger))' },
       { title: 'Công việc nguy cơ (Vàng)', value: projectExecData.atRiskTasks.toString(), change: 'Cần theo dõi tiến độ', isPositive: false, icon: <Clock size={24} />, color: 'hsl(var(--warning))' },
-      { title: 'Vật tư vượt định mức', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu vượt BOQ', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
+      { title: 'Vật tư vượt dự toán', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu vượt dự toán', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
     ] : [];
 
     return (
@@ -837,7 +837,7 @@ export const Dashboard: React.FC = () => {
       { title: 'Công việc hoàn thành', value: `${projectExecData.completedTasks} / ${projectExecData.totalTasks}`, change: `${Math.round((projectExecData.completedTasks / Math.max(1, projectExecData.totalTasks)) * 100)}% theo số lượng công việc`, isPositive: true, icon: <CheckSquare size={24} />, color: 'hsl(var(--success))' },
       { title: 'Công việc trễ hạn', value: projectExecData.delayedTasks.toString(), change: 'Cần đẩy nhanh tiến độ', isPositive: false, icon: <AlertCircle size={24} />, color: 'hsl(var(--danger))' },
       { title: 'Công việc nguy cơ', value: projectExecData.atRiskTasks.toString(), change: 'Theo dõi kỹ thuật', isPositive: false, icon: <Clock size={24} />, color: 'hsl(var(--warning))' },
-      { title: 'Vật tư vượt định mức', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu kiểm soát', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
+      { title: 'Vật tư vượt dự toán', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu kiểm soát', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
     ] : [];
 
     const numericProjectId = selectedProjectId.replace('p-', '');

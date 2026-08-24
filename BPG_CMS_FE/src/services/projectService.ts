@@ -689,7 +689,7 @@ export const projectService = {
     const idx = allPhases.findIndex(p => p.id === phaseId);
     if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
     if (allPhases[idx].status === 'frozen') {
-      throw new Error('Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.');
+      throw new Error('Giai đoạn đã nghiệm thu, không thể cập nhật dự toán vật tư.');
     }
     const mockMaterials: PhaseMaterialItem[] = materials.map(m => ({
       materialId: m.materialId,
@@ -1966,7 +1966,7 @@ export const projectService = {
       request.status = 'pending_director';
     } else if (decision === 'ExternalPurchase') {
       request.status = 'approved';
-      request.approvedBy = 'Kế toán (Duyệt trong định mức)';
+      request.approvedBy = 'Kế toán (Duyệt trong dự toán)';
 
       // Auto-add to Phase BOQ if it's a Phase request
       if (!request.taskId && request.phaseId) {
@@ -2120,7 +2120,7 @@ export const projectService = {
         }, 0);
 
         if (existingQty + reqItem.quantity > estQty) {
-          throw new Error(`Số lượng ${reqItem.name} yêu cầu (${existingQty + reqItem.quantity}) vượt quá mức định mức của Task (${estQty}).`);
+          throw new Error(`Số lượng ${reqItem.name} yêu cầu (${existingQty + reqItem.quantity}) vượt quá mức dự toán của Task (${estQty}).`);
         }
       }
     }

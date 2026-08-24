@@ -418,7 +418,7 @@ export const WBSTree = () => {
                               onClick={() => { setPhaseMenuId(null); navigate(`/projects/${projectId}/phases/${ph.id}/boq`); }}
                             >
                               <Box size={13} style={{ color: 'hsl(var(--primary))' }} />
-                              <span>Bảng định mức vật tư</span>
+                              <span>Bảng dự toán vật tư</span>
                             </div>
 
                             {project?.status !== 'draft' && (

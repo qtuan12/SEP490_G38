@@ -100,7 +100,7 @@ export interface CreateDirectPurchaseRequestPayload {
   projectId: number;
   phaseId: number;
   taskId?: number;
-  /** Lý do mua khẩn cấp - cũng là phần giải trình khi phiếu vượt định mức BOQ. */
+  /** Lý do mua khẩn cấp - cũng là phần giải trình khi phiếu vượt dự toán vật tư. */
   reason: string;
   purchaseDate: string;
   items: CreateDirectPurchaseItemInput[];

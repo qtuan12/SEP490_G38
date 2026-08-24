@@ -95,6 +95,19 @@ namespace BPG.Application.Features.Inventory.Handlers
                 })
                 .ToList();
 
+            var receivedByPhase = await _uow.Repository<GoodsReceiptItem>().Query()
+                .Where(gri => gri.Receipt.PurchaseOrder.ProjectId == request.ProjectId
+                    && gri.Receipt.Status == GoodsReceiptStatus.Approved
+                    && gri.Receipt.PurchaseOrder.Request != null)
+                .Select(gri => new {
+                    gri.MaterialId,
+                    PhaseId = gri.Receipt.PurchaseOrder.Request!.PhaseId,
+                    BaseQty = gri.Quantity / (gri.ConversionRate == 0 ? 1 : gri.ConversionRate)
+                })
+                .GroupBy(gri => new { gri.MaterialId, gri.PhaseId })
+                .Select(g => new { g.Key.MaterialId, g.Key.PhaseId, TotalReceived = g.Sum(x => x.BaseQty) })
+                .ToListAsync(cancellationToken);
+
             // The latest supplier comes from actual approved receipts, not merely ordered or cancelled POs.
             var latestReceiptSources = await _uow.Repository<GoodsReceiptItem>().Query()
                 .AsNoTracking()
@@ -172,6 +185,7 @@ namespace BPG.Application.Features.Inventory.Handlers
             // Group phase data by MaterialId
             var boqGroups = boqByPhase.GroupBy(x => x.MaterialId).ToDictionary(g => g.Key, g => g.ToList());
             var usedGroups = usedByPhase.GroupBy(x => x.MaterialId).ToDictionary(g => g.Key, g => g.ToList());
+            var receivedGroups = receivedByPhase.GroupBy(x => x.MaterialId).ToDictionary(g => g.Key, g => g.ToList());
 
             // Populate phase-level usage breakdown in memory
             foreach (var item in inventory)
@@ -189,10 +203,16 @@ namespace BPG.Application.Features.Inventory.Handlers
                     matUseds = null;
                 }
 
+                if (!receivedGroups.TryGetValue(materialId, out var matReceiveds))
+                {
+                    matReceiveds = null;
+                }
+
                 foreach (var phaseId in phaseIds)
                 {
                     decimal boq = matBoqs?.FirstOrDefault(x => x.PhaseId == phaseId)?.TotalBoq ?? 0;
                     decimal used = matUseds?.FirstOrDefault(x => x.PhaseId == phaseId)?.TotalUsed ?? 0;
+                    decimal received = matReceiveds?.FirstOrDefault(x => x.PhaseId == phaseId)?.TotalReceived ?? 0;
                     phases.TryGetValue(phaseId, out var phaseName);
 
                     item.PhaseUsages.Add(new MaterialPhaseUsageDto
@@ -200,7 +220,8 @@ namespace BPG.Application.Features.Inventory.Handlers
                         PhaseId = phaseId,
                         PhaseName = phaseName ?? $"Giai đoạn {phaseId}",
                         BoqQuantity = boq,
-                        UsedQuantity = used
+                        UsedQuantity = used,
+                        ReceivedQuantity = received
                     });
                 }
 

@@ -385,7 +385,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                 }}
               >
                 <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
-                <option value="Hao hụt vật tư trong định mức cho phép">Hao hụt vật tư trong định mức cho phép</option>
+                <option value="Hao hụt vật tư trong dự toán cho phép">Hao hụt vật tư trong dự toán cho phép</option>
                 <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
                 <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
               </select>
@@ -626,7 +626,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                     ).length === 0 ? (
                       <div className="p-3 text-center text-xs text-gray-500">
                         {phaseMaterials.length === 0
-                          ? "Giai đoạn này không có vật tư trong BOQ"
+                          ? "Giai đoạn này không có vật tư trong dự toán"
                           : "Không tìm thấy vật tư phù hợp với từ khóa"}
                       </div>
                     ) : (
