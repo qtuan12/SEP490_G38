@@ -89,7 +89,7 @@ public sealed class GetMaterialRequestAssessmentQueryHandlerTests
         {
             ProjectId = 20L,
             ProjectName = "Biệt thự An Khánh",
-            AvailableQuantity = 15m
+            AvailableQuantity = 18m
         });
         item.LastPurchasePrice.Should().NotBeNull();
         item.LastPurchasePrice!.UnitPrice.Should().Be(198_000m);
@@ -158,7 +158,7 @@ public sealed class GetMaterialRequestAssessmentQueryHandlerTests
         {
             ProjectId = 20L,
             ProjectName = "Nguồn hợp lệ",
-            AvailableQuantity = 10m
+            AvailableQuantity = 14m
         });
     }
 
@@ -228,6 +228,47 @@ public sealed class GetMaterialRequestAssessmentQueryHandlerTests
             CancellationToken.None);
 
         await act.Should().ThrowAsync<NotFoundException>();
+    }
+
+    [Fact]
+    public async Task UTCID09_Handle_FullyReservedSurplusWithPendingTransfer_ShouldReturnUnallocatedPhysicalQuantity()
+    {
+        SetQuery(_requestRepository, new[] { ValidRequest(conversionRate: 1) });
+        var sourceProject = new Project
+        {
+            ProjectId = 20,
+            Name = "Biệt thự An Khánh",
+            Status = ProjectStatus.InProgress
+        };
+        var source = SurplusItem(sourceProject, quantity: 12, processedQuantity: 0);
+        source.Transfers.Add(new SurplusTransfer
+        {
+            TransferQuantity = 5,
+            Status = SurplusTransferStatus.Pending
+        });
+
+        SetQuery(_surplusItemRepository, new[] { source });
+        SetQuery(_inventoryRepository, new[]
+        {
+            new CurrentInventory
+            {
+                ProjectId = 20,
+                MaterialId = MaterialId,
+                Quantity = 12,
+                ReservedQuantity = 12
+            }
+        });
+
+        var result = await _handler.Handle(
+            new GetMaterialRequestAssessmentQuery(RequestId),
+            CancellationToken.None);
+
+        result.Items.Single().InternalSources.Should().ContainSingle().Which.Should().BeEquivalentTo(new
+        {
+            ProjectId = 20L,
+            ProjectName = "Biệt thự An Khánh",
+            AvailableQuantity = 7m
+        });
     }
 
     private static MaterialRequest ValidRequest(decimal conversionRate = 0.02m)

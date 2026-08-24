@@ -130,9 +130,9 @@ public class CreateSurplusLiquidationActionCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID08_Handle_QuantityExceedsAvailableInventory_ShouldThrowInsufficientStock()
+    public async Task UTCID08_Handle_QuantityExceedsPhysicalInventory_ShouldThrowInsufficientStock()
     {
-        SetupInventory(new CurrentInventory { ProjectId = 3, MaterialId = 4, Quantity = 5, ReservedQuantity = 1 });
+        SetupInventory(new CurrentInventory { ProjectId = 3, MaterialId = 4, Quantity = 4, ReservedQuantity = 1 });
 
         Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
 

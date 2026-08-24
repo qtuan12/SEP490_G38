@@ -32,7 +32,7 @@ export const resolveNotificationUrl = (noti: any): string | null => {
           return referenceId ? `/inventory-adjustments?adjustmentId=${referenceId}` : '/inventory-adjustments';
         }
         if (tab === 'inventoryincidents' || tab === 'incidents') {
-          return '/projects';
+          return referenceId ? `/projects/0?tab=incidents&incidentId=${referenceId}` : '/projects';
         }
       }
 
@@ -41,11 +41,8 @@ export const resolveNotificationUrl = (noti: any): string | null => {
         if (tab === 'inventoryadjustments') {
           return `/projects/${projectId}?tab=inventoryadjustments&adjustmentId=${referenceId}`;
         }
-        if (tab === 'incidents') {
+        if (tab === 'incidents' || tab === 'inventoryincidents') {
           return `/projects/${projectId}?tab=incidents&incidentId=${referenceId}`;
-        }
-        if (tab === 'inventoryincidents') {
-          return `/projects/${projectId}?tab=inventoryincidents&incidentId=${referenceId}`;
         }
         if (tab === 'materialrequests') {
           return `/projects/${projectId}?tab=materialrequests&requestId=${referenceId}`;
@@ -108,6 +105,13 @@ export const resolveNotificationUrl = (noti: any): string | null => {
   }
 
   if (referenceType === 'Incident' || referenceType === 'IncidentReported' || referenceType === 'InventoryIncidentReported' || referenceType === 'EmergencyStop') {
+    const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
+    if (projId && referenceId) {
+      return `/projects/${projId}?tab=incidents&incidentId=${referenceId}`;
+    }
+    if (referenceId) {
+      return `/projects/0?tab=incidents&incidentId=${referenceId}`;
+    }
     return `/projects`;
   }
 

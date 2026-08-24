@@ -98,15 +98,29 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                 "Chỉ có thể báo cáo sự cố khi dự án đang thực hiện.");
         }
 
-        var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-            member => member.ProjectId == request.ProjectId && member.UserId == currentUserId,
-            cancellationToken);
-
-        var isManagementRole = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) || _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director);
-
-        if (!isProjectMember && !isManagementRole)
+        if (request.IsEmergency)
         {
-            throw new ForbiddenException("Bạn không có quyền báo cáo sự cố cho dự án này.");
+            var isProjectLeader = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == request.ProjectId && member.UserId == currentUserId && member.IsLeader,
+                cancellationToken);
+
+            if (!isProjectLeader)
+            {
+                throw new ForbiddenException("Chỉ có Trưởng dự án mới được gửi yêu cầu dừng thi công khẩn cấp.");
+            }
+        }
+        else
+        {
+            var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == request.ProjectId && member.UserId == currentUserId,
+                cancellationToken);
+
+            var isManagementRole = _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager) || _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director);
+
+            if (!isProjectMember && !isManagementRole)
+            {
+                throw new ForbiddenException("Bạn không có quyền báo cáo sự cố cho dự án này.");
+            }
         }
 
         long? phaseId = request.PhaseId;
@@ -311,7 +325,9 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                             "🚨 Yêu cầu dừng thi công khẩn cấp",
                             $"Dự án {incident.Project?.Name ?? project.Name} vừa gửi yêu cầu tạm dừng thi công khẩn cấp do sự cố nghiêm trọng.",
                             "EmergencyStop",
-                            $"/projects/{incident.ProjectId}/workspace/incidents"
+                            $"/projects/{incident.ProjectId}/workspace/incidents",
+                            incident.IncidentId,
+                            cancellationToken
                         );
                     }
                 }

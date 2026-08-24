@@ -42,7 +42,6 @@ export interface PhaseBOQImportPreview {
 export interface BOQTemplateRow {
   materialCode: string;
   materialName: string;
-  specification?: string;
   quantity: number;
   unitCode: string;
   unitName: string;

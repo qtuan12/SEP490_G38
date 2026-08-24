@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle, FileCheck2, Info, Calendar, User, Layers, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Calendar, User, Layers, ExternalLink } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
-import type { MaterialRequest, WBSPhase } from '../../../types/common';
+import type { MaterialRequest, MaterialRequestProcurementDecision, WBSPhase } from '../../../types/common';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, Badge, LoadingSpinner } from '../../../components/ui';
 import { formatDate } from '../../../utils/dateHelpers';
@@ -11,6 +11,13 @@ import { MaterialRequestAssessmentItemRow } from '../components/MaterialRequestA
 import { useAuth } from '../../../context/AuthContext';
 import { canViewMaterialRequestAssessment } from '../materialRequestAssessmentPermissions';
 import { formatNumber } from '../../../utils/formatNumber';
+import { MaterialRequestDecisionForm } from '../components/MaterialRequestDecisionForm';
+import {
+  getMaterialRequestBusinessStatus,
+  getMaterialRequestBusinessStatusVariant,
+  getMaterialRequestDetailTableState,
+  getProcurementDecisionLabel,
+} from '../materialRequestDecision';
 
 interface MaterialRequestDetailModalProps {
   isOpen: boolean;
@@ -19,7 +26,11 @@ interface MaterialRequestDetailModalProps {
   isAccountant: boolean;
   isDirector: boolean;
   canManageTechnical?: boolean;
-  handleVerifyRequestByAccountant: (id: string) => void;
+  handleVerifyRequestByAccountant: (
+    id: string,
+    decision: MaterialRequestProcurementDecision,
+    note: string,
+  ) => Promise<boolean>;
   handleDisburseRequestByAccountant: (id: string) => void;
   handleApproveRequestByDirector: (id: string) => void;
   handleRejectRequest: (id: string) => void;
@@ -123,8 +134,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
       // Lũy kế yêu cầu của tất cả các phiếu trong phase (gồm cả phiếu hiện tại) quy đổi về đơn vị BOQ
       const cumulativeQtyInBOQ = parseFloat((totalRequestedInBase * boqCR).toFixed(3));
-      const remainingQtyInBOQ = parseFloat((Math.max(0, boqLimitInBase - totalRequestedInBase) * boqCR).toFixed(3));
-
       return {
         requestItemId: item.requestItemId,
         materialId: item.materialId,
@@ -135,7 +144,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
         boqUnit: boqUnit,
         used: usedQtyInBOQ,
         cumulative: cumulativeQtyInBOQ,
-        remaining: remainingQtyInBOQ,
         isOver: isOver,
         overAmount: overAmount,
         dbIsOver: item.isOverBOQ || false
@@ -148,17 +156,17 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   const getStatusBadge = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
-        return <Badge variant="warning">Chờ Kế toán thẩm định</Badge>;
+        return <Badge variant="warning">{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'pending_director':
-        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ Giám đốc phê duyệt</Badge>;
+        return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'pending_disbursement':
         return <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Chờ tạm ứng</Badge>;
       case 'disbursed':
         return <Badge variant="success">Đã tạm ứng</Badge>;
       case 'approved':
-        return <Badge variant="success">Đã phê duyệt</Badge>;
+        return <Badge variant="success">{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'rejected':
-        return <Badge variant="danger">Từ chối</Badge>;
+        return <Badge variant={getMaterialRequestBusinessStatusVariant(request)}>{getMaterialRequestBusinessStatus(request)}</Badge>;
       case 'cancelled':
         return <Badge variant="default">Đã hủy</Badge>;
       default:
@@ -220,7 +228,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
           {/* Bảng đối chiếu chi tiết vật tư */}
           {(() => {
-            const showStatusColumn = true;
+            const tableState = getMaterialRequestDetailTableState(request.status);
             return (
               <div className="flex flex-col gap-2">
                 <h4 className="text-sm font-bold text-slate-700 m-0 flex items-center gap-1.5">
@@ -234,9 +242,8 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                         <th className="p-3 w-[35%]">Tên vật tư kỹ thuật / Quy cách</th>
                         <th className="p-3 text-center">Số lượng</th>
                         <th className="p-3 text-center">Đơn vị</th>
-                        <th className="p-3 text-center">Lũy kế yêu cầu / Định mức</th>
-                        <th className="p-3 text-center">BOQ còn lại hiện tại</th>
-                        {showStatusColumn && (
+                        <th className="p-3 text-center">{tableState.comparisonHeader}</th>
+                        {tableState.showStatusColumn && (
                           <th className="p-3 text-center w-[160px]">Trạng thái</th>
                         )}
                       </tr>
@@ -250,19 +257,23 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                             <td className="p-3 text-center text-slate-900 font-bold text-sm bg-slate-50/30">{item.requested}</td>
                             <td className="p-3 text-center text-slate-500">{item.unit}</td>
                             <td className="p-3 text-center text-slate-600 font-medium">
-                              <span className={item.cumulative > 0 ? "text-slate-700 font-semibold" : "text-slate-400"}>
-                                {item.cumulative}
-                              </span>
-                              <span className="text-slate-300"> / </span>
-                              <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                                {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong BOQ'}
-                              </span>
+                              {tableState.showDynamicBoqComparison ? (
+                                <>
+                                  <span className={item.cumulative > 0 ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                                    {item.cumulative}
+                                  </span>
+                                  <span className="text-slate-300"> / </span>
+                                  <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
+                                    {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong BOQ'}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
+                                  {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong BOQ'}
+                                </span>
+                              )}
                             </td>
-                            <td className={`p-3 text-center font-semibold ${item.isOver ? 'text-red-600' : 'text-emerald-600'}`}>
-                              {/* {item.boqLimit > 0 ? `${item.remaining.toLocaleString('vi-VN')} ${item.boqUnit}` : '0'} */}
-                              {item.boqLimit > 0? `${formatNumber(item.remaining)} ${item.boqUnit}` : '0'}
-                            </td>
-                            {showStatusColumn && (
+                            {tableState.showStatusColumn && (
                               <td className="p-3 text-center">
                                 {item.isOver ? (
                                   <div className="flex flex-col items-center gap-0.5">
@@ -288,7 +299,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                                 ? assessmentItem.requestItemId === item.requestItemId
                                 : assessmentItem.materialId === item.materialId
                             )}
-                            colSpan={showStatusColumn ? 7 : 6}
+                            colSpan={tableState.columnCount}
                             canView={canViewAssessment}
                             isLoading={assessmentQuery.isLoading}
                             isError={assessmentQuery.isError}
@@ -311,19 +322,21 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                 <div className="font-bold text-slate-700">2. Kế toán thẩm định</div>
                 <div className="mt-1 text-slate-600">{request.checkedByName ? `Đã xử lý bởi ${request.checkedByName}` : 'Chưa xử lý'}</div>
-                {request.accountantNote && <div className="mt-1 text-slate-500 italic">Ghi chú: {request.accountantNote}</div>}
+                {request.procurementDecision && (
+                  <div className="mt-1 text-slate-600">Phương án: {getProcurementDecisionLabel(request.procurementDecision)}</div>
+                )}
+                {request.accountantNote && <div className="mt-1 text-slate-500 italic">Ý kiến: {request.accountantNote}</div>}
               </div>
               <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                <div className="font-bold text-slate-700">3. Giám đốc phê duyệt yêu cầu vượt BOQ</div>
+                <div className="font-bold text-slate-700">3. Giám đốc phê duyệt yêu cầu vượt dự toán</div>
                 <div className="mt-1 text-slate-600">
                   {request.isOverBOQ
                     ? (request.approvedByName ? `Đã xử lý bởi ${request.approvedByName}` : 'Chưa xử lý')
-                    : 'Không áp dụng - yêu cầu trong BOQ'}
+                    : 'Không áp dụng - yêu cầu trong dự toán'}
                 </div>
                 {request.approvalNote && <div className="mt-1 text-slate-500 italic">Ghi chú: {request.approvalNote}</div>}
               </div>
             </div>
-            <p className="text-[11px] text-slate-500 m-0">Lượng BOQ còn lại là số dư tại thời điểm đang xem, đã tính các yêu cầu vật tư đang hiệu lực trong cùng giai đoạn.</p>
           </div>
 
           {request.reason && (
@@ -361,12 +374,12 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
           )}
 
           {request.status === 'rejected' && request.rejectionReason && (
-            <div className="flex flex-col gap-1.5 border border-red-100 rounded-lg p-3 bg-red-50/30">
-              <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
-                <AlertTriangle size={16} />
-                <span>Ý kiến từ chối:</span>
+            <div className="flex flex-col gap-1.5 border border-slate-200 rounded-lg p-3 bg-slate-50/70">
+              <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
+                <Info size={16} />
+                <span>{getMaterialRequestBusinessStatus(request)}:</span>
               </div>
-              <p className="text-sm text-red-600 m-0 leading-relaxed italic">"{request.rejectionReason}"</p>
+              <p className="text-sm text-slate-600 m-0 leading-relaxed italic">"{request.rejectionReason}"</p>
             </div>
           )}
 
@@ -378,6 +391,14 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
               <p className="text-sm text-slate-600 m-0 leading-relaxed italic">"{request.rejectionReason}"</p>
             </div>
+          )}
+
+          {request.status === 'pending_accountant' && isAccountant && (
+            <MaterialRequestDecisionForm
+              requestId={request.id}
+              onSubmitDecision={handleVerifyRequestByAccountant}
+              onCompleted={onClose}
+            />
           )}
 
           <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-2">
@@ -400,32 +421,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                     Hủy yêu cầu
                   </Button>
                 )}
-
-              {request.status === 'pending_accountant' && isAccountant && (
-                <>
-                  <Button
-                    variant="danger"
-                    onClick={() => {
-                      onClose();
-                      handleRejectRequest(request.id);
-                    }}
-                    className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 py-1.5 px-3.5 text-xs font-semibold"
-                  >
-                    Từ chối
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      onClose();
-                      handleVerifyRequestByAccountant(request.id);
-                    }}
-                    className="flex items-center gap-1 py-1.5 px-3.5 text-xs font-semibold"
-                  >
-                    <FileCheck2 size={14} />
-                    <span>{request.isOverBOQ ? 'Trình Giám đốc' : 'Duyệt'}</span>
-                  </Button>
-                </>
-              )}
 
               {request.status === 'pending_disbursement' && isAccountant && (
                 <>

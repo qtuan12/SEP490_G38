@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
 import { projectService } from '../../../services/projectService';
-import { UploadCloud, X, HardHat, Loader2 } from 'lucide-react';
+import { UploadCloud, X, HardHat, Loader2, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { LazyImage } from '../../../utils/imageOptimizer';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
@@ -194,6 +194,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   };
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) addImages(Array.from(e.target.files));
+    e.target.value = '';
   };
   const addImages = (files: File[]) => {
     const remaining = 5 - uploadedFiles.length;
@@ -211,7 +212,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         id: tempId,
         name: file.name,
         url: localUrl,
-        status: 'uploading'
+        status: 'uploading',
+        file,
       };
 
       setUploadedFiles(prev => [...prev, newFileState]);
@@ -233,6 +235,32 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       );
     });
   };
+
+  const retryUpload = (id: string) => {
+    const target = uploadedFiles.find(f => f.id === id);
+    if (!target || !target.file) return;
+
+    setUploadedFiles(prev =>
+      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+    );
+
+    compressAndUploadFile(
+      target.file,
+      'incidents',
+      (uploadedUrl) => {
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
+        );
+      },
+      () => {
+        toast.error(`Không thể tải ảnh ${target.name} lên.`);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+        );
+      }
+    );
+  };
+
   const removeImage = (id: string) => {
     setUploadedFiles(prev => {
       const target = prev.find(f => f.id === id);
@@ -249,7 +277,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   const Icon = branchCfg.icon;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Thi công " width="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lập Báo cáo Sự cố Thi công" width="full" maxWidth="1080px">
 
       {/* ── Banner phân loại ────────────────────────────────────── */}
       <div style={{
@@ -360,47 +388,99 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={() => { if (uploadedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
-                  style={{
-                    border: `2px dashed ${dragging ? branchCfg.color : 'hsl(var(--border))'}`,
-                    borderRadius: '8px',
-                    padding: '16px',
-                    textAlign: 'center',
-                    cursor: uploadedFiles.length >= 5 ? 'not-allowed' : 'pointer',
-                    background: dragging ? branchCfg.bg : 'hsl(var(--bg-card))',
-                    opacity: uploadedFiles.length >= 5 ? 0.6 : 1,
-                    transition: 'all 0.2s',
-                  }}
+                  className={`mt-1 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
+                    dragging
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100/80'
+                  } ${uploadedFiles.length >= 5 ? 'cursor-not-allowed opacity-90' : ''}`}
+                  style={{ padding: uploadedFiles.length > 0 ? '16px' : '24px' }}
                 >
                   <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={uploadedFiles.length >= 5} />
-                  <UploadCloud size={24} style={{ color: 'hsl(var(--text-secondary))', margin: '0 auto 6px' }} />
-                  <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: '0 0 4px' }}>
-                    Kéo thả hoặc click để chọn ảnh
-                  </p>
-                  <span style={{ fontSize: '0.75rem', color: 'hsl(var(--text-muted))' }}>Đã chọn {uploadedFiles.length}/5 ảnh</span>
-                </div>
-                {uploadedFiles.length > 0 && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                    {uploadedFiles.map((file) => (
-                      <div key={file.id} style={{ position: 'relative', width: 60, height: 60, borderRadius: 6, overflow: 'hidden', border: file.status === 'error' ? '1px solid #dc2626' : file.status === 'success' ? '1px solid #16a34a' : '1px solid hsl(var(--border))' }}>
-                        <LazyImage src={file.url} alt={file.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
-                        {file.status === 'uploading' && (
-                          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Loader2 size={12} className="animate-spin" style={{ color: '#fff' }} />
+                  {uploadedFiles.length > 0 ? (
+                    <div>
+                      <div
+                        className="flex flex-wrap items-center justify-center gap-3 my-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {uploadedFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className={`relative w-16 h-16 rounded shadow-sm border overflow-hidden group ${
+                              file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'
+                            }`}
+                          >
+                            <LazyImage src={file.url} alt={file.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                            {file.status === 'uploading' && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <Loader2 size={14} className="animate-spin text-white" />
+                              </div>
+                            )}
+
+                            {file.status === 'error' && (
+                              <>
+                                <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    retryUpload(file.id);
+                                  }}
+                                  className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                                  title="Thử lại upload"
+                                >
+                                  <RotateCcw size={10} />
+                                </button>
+                              </>
+                            )}
+
+                            {file.status === 'success' && (
+                              <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeImage(file.id);
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                              title="Xóa ảnh"
+                            >
+                              <X size={10} />
+                            </button>
                           </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={e => { e.stopPropagation(); removeImage(file.id); }}
-                          style={{ position: 'absolute', top: 2, right: 2, background: '#dc2626', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}
-                        >
-                          <X size={10} color="white" />
-                        </button>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+
+                      {uploadedFiles.length < 5 ? (
+                        <div className="mt-3 text-xs text-blue-600 font-semibold">
+                          <span
+                            className="cursor-pointer hover:underline"
+                            onClick={() => document.getElementById('incident-img-input')?.click()}
+                          >
+                            + Thêm ảnh khác (Đã chọn {uploadedFiles.length}/5 ảnh)
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-xs text-slate-500 font-medium">
+                          Đã đạt tối đa 5/5 ảnh
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-slate-600 mb-0.5">
+                        Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
+                      </p>
+                      <span className="text-xs text-slate-400">
+                        Hỗ trợ tối đa 5 ảnh, dung lượng tối đa 10MB/ảnh
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

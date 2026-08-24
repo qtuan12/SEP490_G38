@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { Button, FormItem } from '../../../components/ui';
 import { incidentService } from '../../../services/incidentService';
-import { UploadCloud, X, Loader2, AlertCircle } from 'lucide-react';
+import { UploadCloud, X, Loader2, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile, type UploadedFileState } from '../../../utils/uploadHelper';
 import { LazyImage } from '../../../utils/imageOptimizer';
@@ -85,7 +85,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
         throw new Error('Hình ảnh đang tải lên.');
       }
       if (uploadedFiles.some(f => f.status === 'error')) {
-        toast.error('Có hình ảnh tải lên bị lỗi. Vui lòng xóa ảnh lỗi và thử lại.');
+        toast.error('Có hình ảnh tải lên bị lỗi. Vui lòng xóa ảnh lỗi hoặc thử lại.');
         throw new Error('Có ảnh tải lên bị lỗi.');
       }
 
@@ -179,6 +179,31 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
     });
   };
 
+  const retryUpload = (id: string) => {
+    const target = uploadedFiles.find(f => f.id === id);
+    if (!target || !target.file) return;
+
+    setUploadedFiles(prev =>
+      prev.map(f => f.id === id ? { ...f, status: 'uploading' } : f)
+    );
+
+    compressAndUploadFile(
+      target.file,
+      'incidents',
+      (uploadedUrl) => {
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'success', url: uploadedUrl } : f)
+        );
+      },
+      () => {
+        toast.error(`Không thể tải ảnh ${target.name} lên.`);
+        setUploadedFiles(prev =>
+          prev.map(f => f.id === id ? { ...f, status: 'error' } : f)
+        );
+      }
+    );
+  };
+
   const removeImage = (id: string) => {
     setUploadedFiles(prev => prev.filter(f => f.id !== id));
   };
@@ -218,7 +243,7 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="🛑 Biên bản Báo cáo Sự cố Công trình & Yêu cầu dừng" width="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="🛑 Biên bản Báo cáo Sự cố Công trình & Yêu cầu dừng" width="xl" maxWidth="950px">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{
           padding: '10px 14px',
@@ -388,26 +413,19 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
             />
           </FormItem>
 
-          <FormItem label="Hình ảnh hiện trường sự cố">
+          <FormItem label="Hình ảnh hiện trường sự cố (Tối đa 5 ảnh)">
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              style={{
-                border: `2px dashed ${dragging ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
-                borderRadius: '8px',
-                padding: '20px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: dragging ? 'hsl(var(--primary-glow))' : 'hsl(var(--bg-card))',
-                transition: 'all 0.2s ease',
-              }}
-              onClick={() => document.getElementById('report-emergency-file')?.click()}
+              onClick={() => { if (uploadedFiles.length < 5) document.getElementById('report-emergency-file')?.click(); }}
+              className={`mt-1 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
+                dragging
+                  ? 'border-red-500 bg-red-50'
+                  : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100/80'
+              } ${uploadedFiles.length >= 5 ? 'cursor-not-allowed opacity-90' : ''}`}
+              style={{ padding: uploadedFiles.length > 0 ? '16px' : '24px', minHeight: '110px' }}
             >
-              <UploadCloud size={32} style={{ margin: '0 auto 8px', color: 'hsl(var(--text-muted))' }} />
-              <p style={{ fontSize: '0.82rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
-                Kéo thả hình ảnh vào đây hoặc click để chọn ảnh (Tối đa 5 ảnh)
-              </p>
               <input
                 type="file"
                 id="report-emergency-file"
@@ -415,74 +433,93 @@ export const ReportEmergencyStopModal: React.FC<ReportEmergencyStopModalProps> =
                 multiple
                 accept="image/*"
                 onChange={handleFileSelect}
+                disabled={uploadedFiles.length >= 5}
               />
-            </div>
 
-            {uploadedFiles.length > 0 && (
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
-                {uploadedFiles.map((fileState) => (
-                  <div key={fileState.id} style={{
-                    position: 'relative',
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '6px',
-                    overflow: 'hidden',
-                    border: fileState.status === 'error' ? '2px solid red' : '1px solid hsl(var(--border))'
-                  }}>
-                    <LazyImage src={fileState.url} alt={fileState.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    
-                    {fileState.status === 'uploading' && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <Loader2 size={20} className="animate-spin text-white" />
+              {uploadedFiles.length > 0 ? (
+                <div>
+                  <div
+                    className="flex flex-wrap items-center justify-center gap-3 my-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {uploadedFiles.map((fileState) => (
+                      <div
+                        key={fileState.id}
+                        className={`relative w-16 h-16 rounded shadow-sm border overflow-hidden group ${
+                          fileState.status === 'error' ? 'border-red-500' : fileState.status === 'success' ? 'border-green-500' : 'border-slate-200'
+                        }`}
+                      >
+                        <LazyImage src={fileState.url} alt={fileState.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                        {fileState.status === 'uploading' && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <Loader2 size={14} className="animate-spin text-white" />
+                          </div>
+                        )}
+
+                        {fileState.status === 'error' && (
+                          <>
+                            <span className="absolute bottom-0 left-0 right-0 bg-red-600 text-white text-[8px] text-center py-0.5 font-bold">Lỗi</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                retryUpload(fileState.id);
+                              }}
+                              className="absolute top-1 left-1 bg-blue-600 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                              title="Thử lại upload"
+                            >
+                              <RotateCcw size={10} />
+                            </button>
+                          </>
+                        )}
+
+                        {fileState.status === 'success' && (
+                          <span className="absolute bottom-0 left-0 right-0 bg-green-600 text-white text-[8px] text-center py-0.5 font-bold">Mới</span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeImage(fileState.id);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 opacity-90 hover:opacity-100 transition-opacity z-10"
+                          title="Xóa ảnh"
+                        >
+                          <X size={10} />
+                        </button>
                       </div>
-                    )}
-
-                    {fileState.status === 'error' && (
-                      <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        backgroundColor: 'rgba(239,68,68,0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <AlertCircle size={20} className="text-white" />
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeImage(fileState.id);
-                      }}
-                      style={{
-                        position: 'absolute',
-                        top: '2px',
-                        right: '2px',
-                        background: 'rgba(0,0,0,0.6)',
-                        color: '#fff',
-                        borderRadius: '50%',
-                        padding: '2px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 10
-                      }}
-                    >
-                      <X size={10} />
-                    </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {uploadedFiles.length < 5 ? (
+                    <div className="mt-3 text-xs text-blue-600 font-semibold">
+                      <span
+                        className="cursor-pointer hover:underline"
+                        onClick={() => document.getElementById('report-emergency-file')?.click()}
+                      >
+                        + Thêm ảnh khác (Đã chọn {uploadedFiles.length}/5 ảnh)
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-xs text-slate-500 font-medium">
+                      Đã đạt tối đa 5/5 ảnh
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <UploadCloud size={32} className="text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-600 mb-0.5">
+                    Kéo thả hình ảnh vào đây hoặc click để chọn ảnh
+                  </p>
+                  <span className="text-xs text-slate-400">
+                    Hỗ trợ tối đa 5 ảnh, dung lượng tối đa 10MB/ảnh
+                  </span>
+                </div>
+              )}
+            </div>
           </FormItem>
 
         </div>

@@ -20,21 +20,8 @@ namespace BPG.Infrastructure.Services
 
         private async Task SendBestEffortAsync(SendNotificationCommand command, CancellationToken ct)
         {
-            try
-            {
-                await _mediator.Send(command, ct);
-            }
-            catch (Exception exception)
-            {
-                // Notifications are a secondary side effect. The business operation may
-                // already be committed, so propagating this error would invite a duplicate retry.
-                _logger.LogError(
-                    exception,
-                    "Could not dispatch notification {NotificationType} for reference {ReferenceType}/{ReferenceId}.",
-                    command.NotificationType,
-                    command.ReferenceType,
-                    command.ReferenceId);
-            }
+            // Không nuốt lỗi ở đây nữa, đẩy trách nhiệm xử lý lỗi (nếu có) lên Handler.
+            await _mediator.Send(command, ct);
         }
 
         public async Task SendNotificationAsync(

@@ -154,7 +154,9 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             "Báo cáo sự cố bị từ chối",
             $"Sự cố bạn báo cáo đã bị từ chối. Lý do: {request.Reason}",
             "IncidentRejected",
-            $"/projects/{incident.ProjectId}/workspace/incidents"
+            $"/projects/{incident.ProjectId}/workspace/incidents",
+            incident.IncidentId,
+            cancellationToken
         );
 
         var dto = _mapper.Map<IncidentDto>(updatedIncident);
@@ -182,12 +184,8 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         {
             var hasPermission = incident.Status switch
             {
-                "WaitingStopApproval" or "WaitingRecoveryPlan" => _currentUserService.IsInAnyRole(
-                    BPG.Domain.Constants.UserRole.Admin,
-                    BPG.Domain.Constants.UserRole.TechnicalManager),
-                "WaitingDirectorApproval" => _currentUserService.IsInAnyRole(
-                    BPG.Domain.Constants.UserRole.Admin,
-                    BPG.Domain.Constants.UserRole.Director),
+                "WaitingStopApproval" or "WaitingRecoveryPlan" => _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager),
+                "WaitingDirectorApproval" => _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Director),
                 _ => throw new BusinessException("ERR_INVALID_STATUS", "Sự cố khẩn cấp không ở trạng thái có thể từ chối.")
             };
 
@@ -201,11 +199,8 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         {
             var hasPermission = incident.Status switch
             {
-                "Reported" => incident.ReportedBy == currentUserId
-                    || _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Admin),
-                "WaitingAccountant" => _currentUserService.IsInAnyRole(
-                    BPG.Domain.Constants.UserRole.Admin,
-                    BPG.Domain.Constants.UserRole.Accountant),
+                "Reported" => incident.ReportedBy == currentUserId,
+                "WaitingAccountant" => _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant),
                 "WaitingDirector" => throw new BusinessException(
                     "ERR_USE_ADJUSTMENT_APPROVAL",
                     "Hãy từ chối phiếu giảm tồn liên kết để hoàn tất sự cố vật tư."),
@@ -221,9 +216,7 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
         if (incident.IncidentType != "Construction" || incident.Status != "WaitingReview")
             throw new BusinessException("ERR_INVALID_STATUS", "Sự cố thi công không ở trạng thái có thể từ chối.");
 
-        if (!_currentUserService.IsInAnyRole(
-                BPG.Domain.Constants.UserRole.Admin,
-                BPG.Domain.Constants.UserRole.TechnicalManager))
+        if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
             throw new BusinessException("ERR_FORBIDDEN", "Bạn không có quyền từ chối sự cố thi công.");
     }
 

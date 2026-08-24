@@ -234,7 +234,22 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             .GroupBy(m => m.MaterialId)
             .ToDictionary(g => g.Key, g => g.Sum(x => x.Quantity / (x.ConversionRate > 0 ? x.ConversionRate : 1m)));
 
-        // Fetch average unit prices from PO items
+        // A Direct Purchase technical PO is FullyReceived before the payment decision.
+        // Do not let pending/rejected emergency purchases affect monetary BOQ values.
+        var nonApprovedAutoPoQuery = _unitOfWork.Repository<DirectPurchaseRequest>()
+            .Query()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(d => d.AutoPOId.HasValue && d.Status != DirectPurchaseStatus.Approved);
+        nonApprovedAutoPoQuery = request.ProjectId > 0
+            ? nonApprovedAutoPoQuery.Where(d => d.ProjectId == request.ProjectId)
+            : nonApprovedAutoPoQuery.Where(d => accessibleIds.Contains(d.ProjectId));
+        var nonApprovedAutoPoIds = await nonApprovedAutoPoQuery
+            .Select(d => d.AutoPOId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        // Fetch average unit prices from financially valid PO items
         var priceQuery = _unitOfWork.Repository<PurchaseOrderItem>()
             .Query()
             .Where(p => p.UnitPrice > 0
@@ -242,6 +257,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.PendingApproval
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Rejected
                 && p.PurchaseOrder.Status != PurchaseOrderStatus.Cancelled
+                && !nonApprovedAutoPoIds.Contains(p.POId)
                 && (request.ProjectId > 0
                     ? p.PurchaseOrder.ProjectId == request.ProjectId
                     : accessibleIds.Contains(p.PurchaseOrder.ProjectId)));

@@ -159,6 +159,20 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     );
                 }
 
+                // Gửi thông báo DB cho người báo cáo sự cố kho (nếu có sự cố liên kết)
+                if (linkedIncident != null && linkedIncident.ReportedBy != _currentUserService.GetRequiredUserId())
+                {
+                    await _notificationService.SendNotificationAsync(
+                        linkedIncident.ReportedBy,
+                        "Báo cáo sự cố vật tư kho bị từ chối",
+                        $"Sự cố vật tư kho bạn báo cáo tại dự án đã bị từ chối do phiếu giảm tồn kho bị từ chối. Lý do: {request.RejectedReason}",
+                        "IncidentRejected",
+                        $"/projects/{linkedIncident.ProjectId}/workspace/incidents",
+                        linkedIncident.IncidentId,
+                        cancellationToken
+                    );
+                }
+
                 // Realtime: broadcast to all members currently viewing this project
                 await _realtimeSender.SendToGroupAsync(
                     HubMethodNames.GroupProject + adjustment.ProjectId,
@@ -294,6 +308,20 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     BPG.Domain.Constants.NotificationType.Procurement,
                     $"/projects/{adjustment.ProjectId}/workspace/inventoryadjustments",
                     adjustment.AdjustmentId,
+                    cancellationToken
+                );
+            }
+
+            // Gửi thông báo DB cho người báo cáo sự cố kho (nếu có sự cố liên kết)
+            if (!isIncrease && linkedIncident != null && linkedIncident.ReportedBy != _currentUserService.GetRequiredUserId())
+            {
+                await _notificationService.SendNotificationAsync(
+                    linkedIncident.ReportedBy,
+                    "Báo cáo sự cố vật tư kho đã được phê duyệt",
+                    $"Sự cố vật tư kho bạn báo cáo tại dự án đã được Giám đốc phê duyệt qua phiếu điều chỉnh giảm tồn kho #{adjustment.AdjustmentId}.",
+                    "IncidentApproved",
+                    $"/projects/{linkedIncident.ProjectId}/workspace/incidents",
+                    linkedIncident.IncidentId,
                     cancellationToken
                 );
             }

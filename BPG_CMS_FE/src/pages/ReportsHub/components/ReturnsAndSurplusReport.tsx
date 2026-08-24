@@ -674,7 +674,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                         </div>
                         <div className="mt-1">
                           <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full text-[10px] font-bold border border-slate-200 dark:border-slate-700">
-                            {a.status}
+                            {a.status === 'Completed' || a.status === 'Approved' ? 'Hoàn thành' : a.status === 'InProgress' ? 'Đang xử lý' : a.status === 'Pending' ? 'Chờ xử lý' : a.status === 'Cancelled' ? 'Đã hủy' : a.status}
                           </span>
                         </div>
                       </td>

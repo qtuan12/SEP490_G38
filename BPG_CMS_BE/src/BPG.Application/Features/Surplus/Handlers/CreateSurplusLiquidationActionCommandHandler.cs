@@ -62,9 +62,8 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
         var inventory = await _uow.Repository<CurrentInventory>().Query()
             .FirstOrDefaultAsync(ci => ci.ProjectId == item.SurplusRequest.ProjectId && ci.MaterialId == item.MaterialId, ct)
             ?? throw new BusinessException(ErrorCodes.InsufficientStock, "Vật tư không tồn tại trong kho dự án.");
-        var availableQuantity = inventory.Quantity - inventory.ReservedQuantity;
-        if (request.LiquidationQuantity > availableQuantity)
-            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho khả dụng để thanh lý. Khả dụng: {availableQuantity.ToString("G29")}, yêu cầu: {request.LiquidationQuantity.ToString("G29")}.");
+        if (request.LiquidationQuantity > inventory.Quantity)
+            throw new BusinessException(ErrorCodes.InsufficientStock, $"Không đủ tồn kho vật lý để thanh lý. Tồn kho hiện tại: {inventory.Quantity.ToString("G29")}, yêu cầu: {request.LiquidationQuantity.ToString("G29")}.");
 
         var liquidation = new SurplusLiquidation
         {
@@ -129,45 +128,46 @@ public class CreateSurplusLiquidationActionCommandHandler : IRequestHandler<Crea
             }
 
             await UpdateBatchStatusIfDoneAsync(item.SurplusRequestId, ct);
+
+            // Notifications
+            var notiTitle = "Thông báo thanh lý vật tư thừa";
+            var notiContent = $"Vật tư thừa từ dự án {item.SurplusRequest.Project.Name} đã được thanh lý.";
+
+            // 1. Notify Accountant (trừ người thực hiện)
+            await _notificationService.SendNotificationToRoleAsync(
+                Domain.Constants.UserRole.Accountant,
+                notiTitle, notiContent,
+                NotificationType.Procurement,
+                excludeUserId: userId,
+                NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+
+            // 2. Notify Technical Manager (trừ người thực hiện)
+            await _notificationService.SendNotificationToRoleAsync(
+                Domain.Constants.UserRole.TechnicalManager,
+                notiTitle, notiContent,
+                NotificationType.Procurement,
+                excludeUserId: userId,
+                NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+
+            // 3. Notify Project Leader (trừ người thực hiện)
+            var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
+                .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader && pm.UserId != userId)
+                .Select(pm => pm.UserId)
+                .FirstOrDefaultAsync(ct);
+            if (projectLeaderId > 0)
+            {
+                await _notificationService.SendNotificationAsync(
+                    projectLeaderId,
+                    notiTitle, notiContent,
+                    NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
+            }
+
             await _uow.CommitTransactionAsync(ct);
         }
         catch
         {
             await _uow.RollbackTransactionAsync(ct);
             throw;
-        }
-
-        // Notifications
-        var notiTitle = "Thông báo thanh lý vật tư thừa";
-        var notiContent = $"Vật tư thừa từ dự án {item.SurplusRequest.Project.Name} đã được thanh lý.";
-
-        // 1. Notify Accountant (trừ người thực hiện)
-        await _notificationService.SendNotificationToRoleAsync(
-            Domain.Constants.UserRole.Accountant,
-            notiTitle, notiContent,
-            NotificationType.Procurement,
-            excludeUserId: userId,
-            NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
-
-        // 2. Notify Technical Manager (trừ người thực hiện)
-        await _notificationService.SendNotificationToRoleAsync(
-            Domain.Constants.UserRole.TechnicalManager,
-            notiTitle, notiContent,
-            NotificationType.Procurement,
-            excludeUserId: userId,
-            NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
-
-        // 3. Notify Project Leader (trừ người thực hiện)
-        var projectLeaderId = await _uow.Repository<ProjectMember>().Query()
-            .Where(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.IsLeader && pm.UserId != userId)
-            .Select(pm => pm.UserId)
-            .FirstOrDefaultAsync(ct);
-        if (projectLeaderId > 0)
-        {
-            await _notificationService.SendNotificationAsync(
-                projectLeaderId,
-                notiTitle, notiContent,
-                NotificationType.Procurement, NotificationLink.ProjectSurplus(item.SurplusRequest.ProjectId), item.SurplusRequestId, ct);
         }
 
         return ApiResponse<long>.SuccessResult(liquidation.SurplusLiquidationId, ResponseMessages.CreateSuccess);

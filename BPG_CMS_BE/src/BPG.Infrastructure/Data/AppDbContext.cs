@@ -333,6 +333,10 @@ public class AppDbContext : DbContext
             .HasForeignKey(m => m.ApprovedBy)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<MaterialRequest>()
+            .Property(m => m.ProcurementDecision)
+            .HasMaxLength(32);
+
         // PurchaseOrderItem - explicit FK to avoid shadow property PurchaseOrderPOId
         modelBuilder.Entity<PurchaseOrderItem>()
             .HasOne(x => x.PurchaseOrder)

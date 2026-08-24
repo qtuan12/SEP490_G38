@@ -216,7 +216,10 @@ public class CreateAndAssessIncidentCommandHandlerTests
             It.Is<Project>(project => project.ProjectId == ProjectId)), Times.Once);
     }
 
-    private void SetupProject(string status = ProjectStatus.InProgress, bool includeCurrentUser = true)
+    private void SetupProject(
+        string status = ProjectStatus.InProgress,
+        bool includeCurrentUser = true,
+        bool isLeader = true)
     {
         _projectRepository.SetupMockData([new Project
         {
@@ -225,7 +228,7 @@ public class CreateAndAssessIncidentCommandHandlerTests
             Status = status
         }]);
         _memberRepository.SetupMockData(includeCurrentUser
-            ? [new ProjectMember { ProjectMemberId = 1, ProjectId = ProjectId, UserId = CurrentUserId }]
+            ? [new ProjectMember { ProjectMemberId = 1, ProjectId = ProjectId, UserId = CurrentUserId, IsLeader = isLeader }]
             : []);
     }
 

@@ -73,7 +73,7 @@ public class GetSurplusRequestListQueryHandler : IRequestHandler<GetSurplusReque
             CreatedAt = sr.CreatedAt,
             CreatedByName = sr.CreatedBy.HasValue && userMap.TryGetValue(sr.CreatedBy.Value, out var n) ? n : "N/A",
             TotalItems = sr.Items.Count,
-            ProcessedItems = sr.Items.Count(i => i.Status == Domain.Constants.SurplusRequestItemStatus.Completed)
+            ProcessedItems = sr.Items.Count(i => i.Status == Domain.Constants.SurplusRequestItemStatus.Completed || i.Status == Domain.Constants.SurplusRequestItemStatus.Cancelled)
         }).ToList();
 
         return new PagedList<SurplusRequestDto>(dtos, pagedEntities.TotalCount, pagedEntities.PageNumber, pagedEntities.PageSize);

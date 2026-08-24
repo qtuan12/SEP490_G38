@@ -175,7 +175,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 if (item.Quantity > remainingQty)
                 {
                     throw new BusinessException("ERR_QUANTITY_EXCEEDED",
-                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material.Name}] (còn thiếu {remainingQty}).");
+                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material?.Name ?? item.MaterialId.ToString()}] (còn thiếu {remainingQty}).");
                 }
 
                 validItems.Add(item);
@@ -280,10 +280,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 _uow.Repository<PurchaseOrder>().Update(po);
 
                 await _uow.SaveChangesAsync(cancellationToken);
-                await _uow.CommitTransactionAsync(cancellationToken);
 
-                try
-                {
                 var actorName = await _uow.Repository<User>().Query()
                     .AsNoTracking()
                     .Where(u => u.UserId == currentUserId)
@@ -300,24 +297,28 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                     goodsReceipt.ReceiptId,
                     cancellationToken);
 
-                // Realtime: broadcast to members viewing this project's inventory workspace
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + project.ProjectId,
-                    HubMethodNames.GoodsReceiptChanged,
-                    goodsReceipt.ReceiptId,
-                    cancellationToken);
+                await _uow.CommitTransactionAsync(cancellationToken);
 
-                // Realtime: broadcast to members viewing global inventory (Project_0)
-                await _realtimeSender.SendToGroupAsync(
-                    HubMethodNames.GroupProject + 0,
-                    HubMethodNames.GoodsReceiptChanged,
-                    goodsReceipt.ReceiptId,
-                    cancellationToken);
+                try
+                {
+                    // Realtime: broadcast to members viewing this project's inventory workspace
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + project.ProjectId,
+                        HubMethodNames.GoodsReceiptChanged,
+                        goodsReceipt.ReceiptId,
+                        cancellationToken);
+
+                    // Realtime: broadcast to members viewing global inventory (Project_0)
+                    await _realtimeSender.SendToGroupAsync(
+                        HubMethodNames.GroupProject + 0,
+                        HubMethodNames.GoodsReceiptChanged,
+                        goodsReceipt.ReceiptId,
+                        cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     _logger?.LogWarning(ex,
-                        "Goods receipt {ReceiptId} was committed, but post-commit notification/realtime failed for project {ProjectId}.",
+                        "Goods receipt {ReceiptId} was committed, but post-commit realtime broadcast failed for project {ProjectId}.",
                         goodsReceipt.ReceiptId,
                         project.ProjectId);
                 }

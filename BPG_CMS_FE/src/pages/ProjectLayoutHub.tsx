@@ -168,10 +168,11 @@ export const ProjectLayoutHub: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabKey>(
     (() => {
-      const tab = searchParams.get('tab') as TabKey;
+      const tab = searchParams.get('tab') as string;
       if (tab === 'inventoryincidents') return 'incidents';
+      if (tab === 'dailylogs') return 'logs';
       const defaultTab = isPWAMode() ? 'logs' : 'wbs';
-      return tab || defaultTab;
+      return (TAB_KEYS as string[]).includes(tab) ? (tab as TabKey) : defaultTab;
     })()
   );
 
@@ -179,11 +180,16 @@ export const ProjectLayoutHub: React.FC = () => {
     let tab = searchParams.get('tab');
     if (tab === 'inventoryincidents') {
       tab = 'incidents';
+    } else if (tab === 'dailylogs') {
+      tab = 'logs';
+    } else if (tab === 'drawings' && projectId) {
+      navigate(`/projects/${projectId}/drawing`, { replace: true });
+      return;
     }
     if (tab && (TAB_KEYS as string[]).includes(tab)) {
       setActiveTab(tab as TabKey);
     }
-  }, [searchParams]);
+  }, [searchParams, projectId, navigate]);
 
   const handleTabChange = (tab: TabKey) => {
     setActiveTab(tab);

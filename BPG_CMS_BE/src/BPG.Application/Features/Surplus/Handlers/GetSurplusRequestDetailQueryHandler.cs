@@ -69,7 +69,7 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
             CreatedAt = sr.CreatedAt,
             CreatedByName = createdByName,
             TotalItems = sr.Items.Count,
-            ProcessedItems = sr.Items.Count(i => i.Status == Domain.Constants.SurplusRequestItemStatus.Completed),
+            ProcessedItems = sr.Items.Count(i => i.Status == Domain.Constants.SurplusRequestItemStatus.Completed || i.Status == Domain.Constants.SurplusRequestItemStatus.Cancelled),
             Items = sr.Items.Select(i =>
             {
                 suppliersByMaterial.TryGetValue(i.MaterialId, out var supplier);
