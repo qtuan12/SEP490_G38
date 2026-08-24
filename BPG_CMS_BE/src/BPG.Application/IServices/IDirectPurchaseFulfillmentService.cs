@@ -37,7 +37,8 @@ namespace BPG.Application.IServices
 
         /// <summary>
         /// Đối chiếu định mức BOQ của Phase và đánh dấu <see cref="ResolvedDirectPurchaseItem.IsOverBOQ"/>.
-        /// Lũy kế gồm Material Request (trừ Rejected/Cancelled) và Direct Purchase đã gửi (trừ Draft).
+        /// Lũy kế gồm Material Request còn hiệu lực hoặc đã ghi nhận điều chuyển nội bộ,
+        /// cùng Direct Purchase đã gửi (trừ Draft).
         /// Trả về true nếu có ít nhất một dòng vượt định mức.
         /// </summary>
         Task<bool> EvaluateBoqAsync(

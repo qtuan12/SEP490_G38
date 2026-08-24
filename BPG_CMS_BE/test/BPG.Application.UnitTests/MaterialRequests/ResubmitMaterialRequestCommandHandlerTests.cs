@@ -343,5 +343,38 @@ namespace BPG.Application.UnitTests.MaterialRequests
             var exception = await act.Should().ThrowAsync<BusinessException>();
             exception.Which.ErrorCode.Should().Be("ERR_PROJECT_NOT_ACTIVE");
         }
+
+        [Theory]
+        [InlineData(MaterialRequestProcurementDecision.InternalTransfer)]
+        [InlineData(MaterialRequestProcurementDecision.WaitSupply)]
+        public async Task UTCID08_Handle_AlternativeSupplyOutcome_ShouldThrowAlreadyResolved(
+            string procurementDecision)
+        {
+            var mr = new MaterialRequest
+            {
+                RequestId = RequestId,
+                CreatedBy = CurrentUserId,
+                Status = MaterialRequestStatus.Rejected,
+                ProcurementDecision = procurementDecision,
+                Phase = new Phase
+                {
+                    PhaseId = PhaseId,
+                    Status = PhaseStatus.InProgress,
+                    Project = new Project { Status = ProjectStatus.InProgress }
+                },
+                Items = new List<MaterialRequestItem>()
+            };
+            _mockMRRepo.Setup(r => r.Query())
+                .Returns(new List<MaterialRequest> { mr }.AsQueryable().BuildMock());
+            var command = new ResubmitMaterialRequestCommand(
+                RequestId,
+                "Sửa",
+                new List<MaterialRequestItemInput> { new("Cát", 15, "Khối") });
+
+            Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_MATERIAL_REQUEST_ALREADY_RESOLVED");
+        }
     }
 }
