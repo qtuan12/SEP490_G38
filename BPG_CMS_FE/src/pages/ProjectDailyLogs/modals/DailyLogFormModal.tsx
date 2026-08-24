@@ -4,13 +4,12 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { UploadCloud, X, AlertCircle, Loader2, Camera, RotateCcw } from 'lucide-react';
+import { UploadCloud, X, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { projectService } from '../../../services/projectService';
 import type { WBSTask, DailyLog, WBSPhase } from '../../../types/common';
 import { Modal, Button, Textarea } from '../../../components/ui';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
-import { CameraCaptureModal } from '../../../components/CameraCaptureModal';
 
 const dailyLogSchema = z.object({
   progress: z.number().min(0).max(100),
@@ -63,10 +62,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const [existingImages, setExistingImages] = useState<string[]>([]);
   // File dragging state
   const [dragging, setDragging] = useState(false);
-  // Chụp ảnh ngay trong trang (getUserMedia) thay vì mở app Camera hệ thống — trên Android,
-  // khi PWA chạy standalone, mở camera hệ thống có thể không trả về đúng cửa sổ app, mất ảnh vừa chụp.
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const supportsInPageCamera = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
   // Find the selected task object
   const currentTask = React.useMemo(() => {
     if (task) return task;
@@ -337,7 +332,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
   const totalImagesCount = existingImages.length + uploadedFiles.length;
 
   return (
-    <>
     <div className={`bg-[hsl(var(--bg-card))] rounded-md ${hideHeader ? '' : 'border border-[hsl(var(--border))] shadow-sm mt-4'} overflow-hidden animate-fade-in`}>
       {!hideHeader && (
         <div className="p-3 bg-blue-50/50 border-b border-[hsl(var(--border))]">
@@ -433,33 +427,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
           {/* Cloudinary Image Upload Box */}
           <div>
             <label className="block text-sm font-medium mb-1.5 text-slate-600">Hình ảnh hiện trường thi công</label>
-            
-            <div className="flex gap-2 mb-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (supportsInPageCamera) {
-                    setCameraOpen(true);
-                  } else {
-                    document.getElementById('log-camera-input')?.click();
-                  }
-                }}
-                disabled={mutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <Camera size={16} />
-                Chụp ảnh
-              </button>
-              <button
-                type="button"
-                onClick={() => document.getElementById('log-image-input')?.click()}
-                disabled={mutation.isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-gray-300 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-gray-700 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <UploadCloud size={16} />
-                Chọn ảnh
-              </button>
-            </div>
 
             <div
               onDragOver={handleDragOver}
@@ -485,16 +452,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
                 onChange={handleFileSelect}
                 disabled={mutation.isPending}
               />
-              <input
-                id="log-camera-input"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileSelect}
-                disabled={mutation.isPending}
-              />
-
               {totalImagesCount > 0 ? (
                 <div className="flex flex-wrap items-center justify-center gap-4 mt-2" onClick={e => e.stopPropagation()}>
                   {/* Existing Images (Edit mode) */}
@@ -631,15 +588,6 @@ export const DailyLogForm: React.FC<DailyLogFormProps> = ({
         </form>
       </div>
     </div>
-    <CameraCaptureModal
-      isOpen={cameraOpen}
-      onClose={() => setCameraOpen(false)}
-      onCapture={(file) => {
-        setCameraOpen(false);
-        addImages([file]);
-      }}
-    />
-    </>
   );
 };
 
