@@ -388,12 +388,14 @@ export const projectService = {
     return projects[idx];
   },
 
-  async activateProject(projectId: string): Promise<Project> {
+  async activateProject(projectId: string): Promise<Project & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`);
       if (!res.success) throw new Error(res.message || 'Không thể kích hoạt dự án.');
-      return this.getProjectById(projectId) as unknown as Project;
+      const project = await this.getProjectById(projectId);
+      if (!project) throw new Error('Không tìm thấy dự án sau khi kích hoạt.');
+      return { ...project, __message: res.message || '' };
     }
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Không tìm thấy dự án.');
@@ -428,12 +430,14 @@ export const projectService = {
     return this.updateProject(projectId, { status: 'paused' });
   },
 
-  async resumeProject(projectId: string): Promise<Project> {
+  async resumeProject(projectId: string): Promise<Project & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`);
       if (!res.success) throw new Error(res.message || 'Không thể tiếp tục dự án.');
-      return this.getProjectById(projectId) as unknown as Project;
+      const project = await this.getProjectById(projectId);
+      if (!project) throw new Error('Không tìm thấy dự án sau khi tiếp tục.');
+      return { ...project, __message: res.message || '' };
     }
     return this.updateProject(projectId, { status: 'inprogress' });
   },

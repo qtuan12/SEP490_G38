@@ -176,8 +176,8 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         handlingInstruction: 'Giám đốc phê duyệt Báo cáo & Kế hoạch khắc phục thiệt hại toàn dự án.',
       }),
     onSuccess: (result) => {
-      console.log(result.message || 'Đã phê duyệt hồ sơ khắc phục và kích hoạt lại dự án.');
-      if (onSuccessAction) onSuccessAction('Phê duyệt hồ sơ khắc phục');
+      console.log(result.message || 'Đã phê duyệt phương án khắc phục. WBS đã được mở khóa cho Trưởng phòng Kỹ thuật.');
+      if (onSuccessAction) onSuccessAction('Đã phê duyệt phương án khắc phục. WBS đã được mở khóa cho Trưởng phòng Kỹ thuật.');
       else {
         queryClient.invalidateQueries({ queryKey: ['incidents'] });
         queryClient.invalidateQueries({ queryKey: ['globalIncidents'] });

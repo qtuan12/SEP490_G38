@@ -50,6 +50,7 @@ import { GlobalInventoryIncidents } from './InventoryAdjustments/components/Glob
 import { isPWAMode } from '../utils/pwaHelpers';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { RoleGroup } from '../auth/roles';
+import toast from 'react-hot-toast';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -336,11 +337,15 @@ export const ProjectLayoutHub: React.FC = () => {
         // Optimistic update UI real-time
         setProject(prev => prev ? { ...prev, status: 'inprogress' } : null);
 
-        if (prevStatus === 'paused') {
-          await projectService.resumeProject(project.id);
-        } else {
-          await projectService.activateProject(project.id);
-        }
+        const result = prevStatus === 'paused'
+          ? await projectService.resumeProject(project.id)
+          : await projectService.activateProject(project.id);
+        toast.success(
+          result.__message
+          || (prevStatus === 'paused'
+            ? 'Tiếp tục dự án thành công.'
+            : 'Kích hoạt dự án thành công.'),
+        );
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         fetchProjectDetails(false);
       } else if (newStatus === 'paused') {
