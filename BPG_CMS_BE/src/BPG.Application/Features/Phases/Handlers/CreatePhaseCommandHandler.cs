@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.Features.Phases.Commands;
 using BPG.Application.IRepositories;
@@ -27,8 +28,8 @@ public class CreatePhaseCommandHandler : IRequestHandler<CreatePhaseCommand, Api
         if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
 
-        if (project.Status != ProjectStatus.InProgress && project.Status != ProjectStatus.Draft)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
+        await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+            _unitOfWork, project.ProjectId, project.Status, project.PauseReason, ct);
 
         if (request.StartDate.HasValue && request.StartDate.Value < project.PlannedStart)
         {

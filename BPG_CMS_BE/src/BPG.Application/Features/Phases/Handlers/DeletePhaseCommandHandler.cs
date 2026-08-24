@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.Features.Phases.Commands;
 using BPG.Application.IRepositories;
@@ -29,8 +30,8 @@ public class DeletePhaseCommandHandler : IRequestHandler<DeletePhaseCommand, Api
         if (phase == null)
             throw new NotFoundException("Phase", request.PhaseId);
 
-        if (phase.Project.Status != ProjectStatus.InProgress && phase.Project.Status != ProjectStatus.Draft)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
+        await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+            _unitOfWork, phase.Project.ProjectId, phase.Project.Status, phase.Project.PauseReason, ct);
 
         if (phase.Status == PhaseStatus.Approved)
         {

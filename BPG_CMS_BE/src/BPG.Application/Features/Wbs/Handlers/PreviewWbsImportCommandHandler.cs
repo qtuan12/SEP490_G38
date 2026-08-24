@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.DTOs.Wbs;
 using BPG.Application.Features.Wbs.Commands;
 using BPG.Application.IRepositories;
@@ -36,8 +37,8 @@ public class PreviewWbsImportCommandHandler : IRequestHandler<PreviewWbsImportCo
         if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
 
-        if (project.Status != ProjectStatus.InProgress && project.Status != ProjectStatus.Draft)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
+        await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+            _uow, project.ProjectId, project.Status, project.PauseReason, cancellationToken, _currentUserService);
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {

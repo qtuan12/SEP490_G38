@@ -16,6 +16,7 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import toast from 'react-hot-toast';
 import { isPhaseReadyForAcceptance as checkPhaseAcceptanceReadiness } from '../../utils/phaseAcceptance';
+import { hasApprovedEmergencyForCurrentPause } from '../../utils/emergencyWbsAccess';
 
 
 interface WBSWorkspaceProps {
@@ -301,14 +302,21 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return checkPhaseAcceptanceReadiness(tasks.filter(t => t.phaseId === phaseId));
   };
 
-  const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
+  const hasApprovedEmergencyIncident = hasApprovedEmergencyForCurrentPause(
+    project?.pauseReason,
+    incidentsList,
+  );
 
   const canEdit = isTPKTOrPL && (
     project?.status !== 'paused' ||
     (isTPKT && hasApprovedEmergencyIncident)
   ) && project?.status !== 'done';
 
-  const canImportWbs = isTPKT && (project?.status === 'draft' || project?.status === 'inprogress');
+  const canImportWbs = isTPKT && (
+    project?.status === 'draft'
+    || project?.status === 'inprogress'
+    || (project?.status === 'paused' && hasApprovedEmergencyIncident)
+  );
 
   // ── Material Request Actions ─────────────────────────
   const handleApproveByLeader = async (requestId: string) => {

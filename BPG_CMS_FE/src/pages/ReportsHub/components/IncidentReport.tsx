@@ -22,6 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
   WaitingRecoveryPlan: 'Chờ lập kế hoạch',
   WaitingDirectorApproval: 'Chờ Giám đốc duyệt',
   WaitingAccountant: 'Chờ kế toán',
+  UnderResolution: 'Đang xử lý tổn thất',
   Approved: 'Đã phê duyệt',
   Resolved: 'Đã giải quyết',
   Closed: 'Đã đóng',

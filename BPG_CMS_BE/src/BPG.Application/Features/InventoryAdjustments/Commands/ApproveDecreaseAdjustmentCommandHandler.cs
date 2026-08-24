@@ -88,17 +88,19 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         "Sự cố liên kết không khớp với phiếu giảm tồn.");
                 }
 
-                if (linkedIncident.Status != "WaitingDirector")
+                if (linkedIncident.Status != IncidentStatus.UnderResolution)
                 {
                     throw new BusinessException(
                         "ERR_INVALID_INCIDENT_STATUS",
-                        "Sự cố liên kết không ở trạng thái chờ Giám đốc duyệt.");
+                        "Sự cố liên kết không ở trạng thái đang xử lý.");
                 }
             }
 
             if (!request.IsApproved)
             {
-                adjustment.Status = InventoryAdjustmentStatus.Rejected;
+                adjustment.Status = !isIncrease && linkedIncident != null
+                    ? InventoryAdjustmentStatus.RevisionRequired
+                    : InventoryAdjustmentStatus.Rejected;
                 adjustment.RejectedReason = request.RejectedReason;
                 adjustment.ApprovedBy = _currentUserService.GetRequiredUserId();
                 adjustment.ApprovedAt = System.DateTime.UtcNow;
@@ -126,9 +128,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
                     if (linkedIncident != null)
                     {
-                        linkedIncident.Status = "Rejected";
-                        linkedIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
-                        linkedIncident.HandlingInstruction = $"Giám đốc đã từ chối phiếu giảm tồn kho liên quan. Lý do: {request.RejectedReason}";
+                        linkedIncident.Status = IncidentStatus.UnderResolution;
                         _unitOfWork.Repository<Incident>().Update(linkedIncident);
                     }
                 }
@@ -143,10 +143,16 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 // Gửi thông báo DB cho người tạo phiếu
                 if (adjustment.CreatedBy.HasValue)
                 {
-                    var notifTitle = isIncrease ? "Phiếu điều chỉnh tăng tồn bị từ chối" : "Phiếu điều chỉnh giảm tồn bị từ chối";
+                    var notifTitle = isIncrease
+                        ? "Phiếu điều chỉnh tăng tồn bị từ chối"
+                        : linkedIncident != null
+                            ? "Phiếu giảm tồn cần điều chỉnh"
+                            : "Phiếu điều chỉnh giảm tồn bị từ chối";
                     var notifBody = isIncrease
                         ? $"Phiếu điều chỉnh tăng tồn #{adjustment.AdjustmentId} đã bị Trưởng phòng kỹ thuật từ chối. Lý do: {request.RejectedReason}"
-                        : $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã bị Giám đốc từ chối. Lý do: {request.RejectedReason}";
+                        : linkedIncident != null
+                            ? $"Phiếu giảm tồn #{adjustment.AdjustmentId} cần điều chỉnh trước khi trình lại Giám đốc. Lý do: {request.RejectedReason}"
+                            : $"Phiếu điều chỉnh giảm tồn #{adjustment.AdjustmentId} đã bị Giám đốc từ chối. Lý do: {request.RejectedReason}";
 
                     await _notificationService.SendNotificationAsync(
                         adjustment.CreatedBy.Value,
@@ -164,9 +170,9 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 {
                     await _notificationService.SendNotificationAsync(
                         linkedIncident.ReportedBy,
-                        "Báo cáo sự cố vật tư kho bị từ chối",
-                        $"Sự cố vật tư kho bạn báo cáo tại dự án đã bị từ chối do phiếu giảm tồn kho bị từ chối. Lý do: {request.RejectedReason}",
-                        "IncidentRejected",
+                        "Phương án giảm tồn cần điều chỉnh",
+                        $"Phiếu giảm tồn liên quan đến sự cố vật tư kho bạn báo cáo cần điều chỉnh. Sự cố vẫn đang được xử lý. Lý do: {request.RejectedReason}",
+                        "IncidentUpdated",
                         $"/projects/{linkedIncident.ProjectId}/workspace/incidents",
                         linkedIncident.IncidentId,
                         cancellationToken
@@ -187,7 +193,11 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                     adjustment.AdjustmentId,
                     cancellationToken);
 
-                return ApiResponse<bool>.SuccessResult(true, isIncrease ? "Đã từ chối phiếu điều chỉnh tăng tồn" : "Đã từ chối phiếu điều chỉnh giảm tồn");
+                return ApiResponse<bool>.SuccessResult(true, isIncrease
+                    ? "Đã từ chối phiếu điều chỉnh tăng tồn"
+                    : linkedIncident != null
+                        ? "Đã yêu cầu điều chỉnh phiếu giảm tồn; sự cố vẫn đang được xử lý"
+                        : "Đã từ chối phiếu điều chỉnh giảm tồn");
             }
 
             // Approve: Update inventory and create transaction
@@ -280,9 +290,9 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
 
             if (!isIncrease && linkedIncident != null)
             {
-                linkedIncident.Status = "Approved";
+                linkedIncident.Status = IncidentStatus.Resolved;
                 linkedIncident.ReviewedBy = _currentUserService.GetRequiredUserId();
-                linkedIncident.HandlingInstruction = "Giám đốc đã phê duyệt phiếu giảm tồn kho liên quan.";
+                linkedIncident.HandlingInstruction = "Tổn thất vật tư đã được xử lý bằng phiếu giảm tồn kho được Giám đốc phê duyệt.";
                 _unitOfWork.Repository<Incident>().Update(linkedIncident);
             }
 
@@ -317,9 +327,9 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             {
                 await _notificationService.SendNotificationAsync(
                     linkedIncident.ReportedBy,
-                    "Báo cáo sự cố vật tư kho đã được phê duyệt",
-                    $"Sự cố vật tư kho bạn báo cáo tại dự án đã được Giám đốc phê duyệt qua phiếu điều chỉnh giảm tồn kho #{adjustment.AdjustmentId}.",
-                    "IncidentApproved",
+                    "Sự cố vật tư kho đã được xử lý",
+                    $"Tổn thất của sự cố vật tư kho bạn báo cáo đã được xử lý qua phiếu điều chỉnh giảm tồn kho #{adjustment.AdjustmentId}.",
+                    "IncidentResolved",
                     $"/projects/{linkedIncident.ProjectId}/workspace/incidents",
                     linkedIncident.IncidentId,
                     cancellationToken

@@ -24,6 +24,7 @@ interface TaskDetailModalProps {
   materialRequests: MaterialRequest[];
   isTPKTOrPL: boolean;
   isTPKT: boolean;
+  canEdit: boolean;
   isPL: boolean;
   isProjectMember: boolean;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
@@ -47,7 +48,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, isPL, isProjectMember,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, canEdit, isPL, isProjectMember,
   onObsolete,
   onReportIncidentOpen,
   onSuccess, onError
@@ -171,7 +172,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   }
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-  const canReportDailyLog = canCreateDailyLog(selectedTask, user, isPL, isProjectMember) && !isParentTask;
+  const isProjectInProgress = project?.status?.toLowerCase() === 'inprogress';
+  const canReportDailyLog = isProjectInProgress
+    && canCreateDailyLog(selectedTask, user, isPL, isProjectMember)
+    && !isParentTask;
 
   const isBlocked = (() => {
     const predIds = selectedTask.predecessorTaskIds;
@@ -390,7 +394,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           )}
 
           {/* Actions */}
-          {project?.status?.toLowerCase() !== 'inprogress' ? (
+          {!isProjectInProgress && !canEdit ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -420,20 +424,22 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       <UserPlus size={16} /><span>Phân công</span>
                     </button>
                   )}
-                  {isTPKT && !isParentTask && (
+                  {isTPKT && isProjectInProgress && !isParentTask && (
                     <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }} disabled={isBlocked}>
                       <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
                     </button>
                   )}
-                  <button onClick={() => {
-                    if (selectedTask.progress > 0) {
-                      setActiveForm(activeForm === 'obsolete' ? null : 'obsolete');
-                    } else {
-                      onObsolete();
-                    }
-                  }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                    {selectedTask.progress > 0 ? <PauseCircle size={16} /> : <Trash2 size={16} />}<span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
-                  </button>
+                  {(isProjectInProgress || selectedTask.progress === 0) && (
+                    <button onClick={() => {
+                      if (selectedTask.progress > 0) {
+                        setActiveForm(activeForm === 'obsolete' ? null : 'obsolete');
+                      } else {
+                        onObsolete();
+                      }
+                    }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                      {selectedTask.progress > 0 ? <PauseCircle size={16} /> : <Trash2 size={16} />}<span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
+                    </button>
+                  )}
                 </>
               )}
               {canReportDailyLog && (
@@ -458,7 +464,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
                 >
                   <AlertCircle size={15} />
-                  <span>Báo cáo Sự cố</span>
+                  <span>Báo cáo sự cố thi công</span>
                 </button>
               )}
               {(!isPL || isParentTask) && (
@@ -551,7 +557,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         </button>
                       )}
                     </div>
-                    {selectedTask.status === 'obsolete' && !isCancelledByIncident && isTPKTOrPL && (
+                    {selectedTask.status === 'obsolete' && !isCancelledByIncident && isTPKTOrPL && isProjectInProgress && (
                       <button 
                         onClick={() => setIsRestoreConfirmOpen(true)} 
                         className="btn" 

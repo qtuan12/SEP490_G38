@@ -362,49 +362,41 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         )}
 
         <FormItem label="Lý do điều chỉnh (*)">
-          {incident ? (
-            <input
-              type="text"
-              className="w-full px-3 py-2 border rounded-lg bg-gray-100 cursor-not-allowed font-medium text-gray-700"
-              value={reason}
-              disabled
-            />
-          ) : (
-            <div className="flex flex-col gap-2">
-              <select
-                className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
-                value={presetReason}
-                onChange={e => {
-                  const val = e.target.value;
-                  setPresetReason(val);
-                  if (val !== 'Khác (Nhập lý do chi tiết)') {
-                    setReason(val);
-                  } else {
-                    setReason(customReason);
-                  }
-                }}
-              >
-                <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
-                <option value="Hao hụt vật tư trong định mức cho phép">Hao hụt vật tư trong định mức cho phép</option>
-                <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
-                <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
-              </select>
+          <div className="flex flex-col gap-2">
+            <select
+              className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
+              value={presetReason}
+              onChange={e => {
+                const val = e.target.value;
+                setPresetReason(val);
+                if (val !== 'Khác (Nhập lý do chi tiết)') {
+                  setReason(val);
+                } else {
+                  setReason(customReason);
+                }
+              }}
+            >
+              <option value="Xử lý sự cố">Xử lý sự cố</option>
+              <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
+              <option value="Hao hụt vật tư trong định mức cho phép">Hao hụt vật tư trong định mức cho phép</option>
+              <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
+              <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
+            </select>
 
-              {presetReason === 'Khác (Nhập lý do chi tiết)' && (
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border rounded-lg animate-fade-in"
-                  value={customReason}
-                  onChange={e => {
-                    setCustomReason(e.target.value);
-                    setReason(e.target.value);
-                  }}
-                  placeholder="Nhập lý do chi tiết cụ thể..."
-                  autoFocus
-                />
-              )}
-            </div>
-          )}
+            {presetReason === 'Khác (Nhập lý do chi tiết)' && (
+              <input
+                type="text"
+                className="w-full px-3 py-2 border rounded-lg animate-fade-in"
+                value={customReason}
+                onChange={e => {
+                  setCustomReason(e.target.value);
+                  setReason(e.target.value);
+                }}
+                placeholder="Nhập lý do chi tiết cụ thể..."
+                autoFocus
+              />
+            )}
+          </div>
         </FormItem>
 
         <FormItem label="Giai đoạn liên quan (*)">
@@ -642,8 +634,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                             <div
                               key={mat.materialId}
                               className={`p-2 px-3 flex items-center justify-between cursor-pointer transition-colors ${isAlreadyAdded
-                                  ? 'bg-gray-50 opacity-60'
-                                  : 'hover:bg-blue-50/80 text-gray-800'
+                                ? 'bg-gray-50 opacity-60'
+                                : 'hover:bg-blue-50/80 text-gray-800'
                                 }`}
                               onClick={() => {
                                 setSelectedMaterialId(mat.materialId);
@@ -739,7 +731,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="ghost" onClick={onClose}>Hủy</Button>
-          <Button type="submit" variant="primary" isLoading={loading}>Tạo Phiếu Trình Duyệt</Button>
+          <Button type="submit" variant="primary" isLoading={loading}>Xác Nhận</Button>
         </div>
       </form>
     </Modal>

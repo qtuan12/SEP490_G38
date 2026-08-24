@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { inventoryAdjustmentService, type InventoryAdjustmentDto } from '../../../services/inventoryAdjustmentService';
 import { formatDateVN } from '../../../utils/inventoryHelpers';
 import { Button, Badge, Pagination } from '../../../components/ui';
-import { Plus, Minus, CheckCircle, XCircle, Clock, Search } from 'lucide-react';
+import { Plus, Minus, CheckCircle, XCircle, Clock, Search, Eye } from 'lucide-react';
 import { CreateIncreaseAdjustmentModal } from './CreateIncreaseAdjustmentModal';
 import { CreateDecreaseAdjustmentModal } from './CreateDecreaseAdjustmentModal';
 import { ReviewAdjustmentModal } from './ReviewAdjustmentModal';
@@ -163,6 +163,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
           </Badge>
         );
       case 'Approved': return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> Đã duyệt</Badge>;
+      case 'RevisionRequired': return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Cần điều chỉnh</Badge>;
       case 'Rejected': return <Badge variant="danger"><XCircle size={12} className="mr-1" /> Từ chối</Badge>;
       default: return <Badge variant="default">{status}</Badge>;
     }
@@ -216,6 +217,7 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
             <option value="" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Tất cả trạng thái</option>
             <option value="Pending" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Chờ duyệt</option>
             <option value="Approved" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Đã duyệt</option>
+            <option value="RevisionRequired" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Cần điều chỉnh</option>
             <option value="Rejected" className="bg-[hsl(var(--bg-card))] text-[hsl(var(--text-primary))]">Từ chối</option>
           </select>
         </div>
@@ -273,9 +275,27 @@ export const AdjustmentList: React.FC<AdjustmentListProps> = ({ projectId }) => 
                     <td className="px-4 py-3">{formatDateVN(item.createdAt)}</td>
                     <td className="px-4 py-3">{item.approverName || '-'}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setReviewId(item.adjustmentId)}>
-                        {item.status === 'Pending' && canUserReview ? 'Duyệt' : 'Xem chi tiết'}
-                      </Button>
+                      {item.status === 'Pending' && canUserReview ? (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium shadow-sm bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary-hover))] text-white"
+                          onClick={() => setReviewId(item.adjustmentId)}
+                        >
+                          <CheckCircle size={14} />
+                          <span>Duyệt</span>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[hsl(var(--border))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--bg-main))] hover:border-[hsl(var(--primary))] transition-all"
+                          onClick={() => setReviewId(item.adjustmentId)}
+                        >
+                          <Eye size={14} />
+                          <span>Xem chi tiết</span>
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 );
