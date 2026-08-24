@@ -78,7 +78,7 @@ public class SurplusController : BaseApiController
 
     [HttpPut("items/{surplusRequestItemId:long}/close")]
     [EnableRateLimiting(RateLimitPolicies.Mutation)]
-    [Authorize(Roles = RolePolicies.TechnicalManager)]
+    [Authorize(Roles = RolePolicies.TechnicalManagerOrSiteEngineer)]
     public async Task<IActionResult> CloseItem(long surplusRequestItemId, [FromBody] CloseSurplusRequestItemBody body, CancellationToken ct)
         => ApiOk(await Mediator.Send(new CloseSurplusRequestItemCommand(surplusRequestItemId, body.Reason), ct));
 
