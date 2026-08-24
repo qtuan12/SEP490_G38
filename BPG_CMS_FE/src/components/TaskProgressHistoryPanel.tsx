@@ -177,9 +177,9 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
           <span style={{
             marginLeft: 'auto',
             fontSize: '0.7rem',
-            fontWeight: 600,
-            padding: '2px 8px',
-            borderRadius: '999px',
+            fontWeight: 700,
+            padding: '2px 7px',
+            borderRadius: '6px',
             backgroundColor: 'hsl(var(--primary-glow))',
             color: 'hsl(var(--primary))'
           }}>
@@ -320,8 +320,16 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
       )}
 
       {limit && logs.length > limit && (
-        <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>
-          ... và {logs.length - limit} lần cập nhật trước đó
+        <div style={{ textAlign: 'center', fontSize: '0.73rem', color: 'hsl(var(--text-muted))', padding: '6px 0' }}>
+          <span style={{
+            display: 'inline-block',
+            padding: '2px 8px',
+            borderRadius: '6px',
+            border: '1px dashed hsl(var(--border))',
+            letterSpacing: '0.01em'
+          }}>
+            ··· và {logs.length - limit} lần cập nhật trước đó
+          </span>
         </div>
       )}
     </div>
