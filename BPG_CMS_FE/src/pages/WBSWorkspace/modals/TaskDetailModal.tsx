@@ -24,6 +24,7 @@ interface TaskDetailModalProps {
   materialRequests: MaterialRequest[];
   isTPKTOrPL: boolean;
   isTPKT: boolean;
+  canEdit: boolean;
   isPL: boolean;
   isProjectMember: boolean;
   onCreateMatReqOpen: (type: 'normal' | 'emergency') => void;
@@ -47,7 +48,7 @@ const getAvatarColor = (userId: string) => {
 };
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
-  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, isPL, isProjectMember,
+  isOpen, onClose, selectedTask, selectedTaskPhase, project, tasks, user, isTPKTOrPL, isTPKT, canEdit, isPL, isProjectMember,
   onObsolete,
   onReportIncidentOpen,
   onSuccess, onError
@@ -87,7 +88,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
       case 'approved_by_leader': return <span className="badge badge-info">Đã tổng hợp</span>;
       case 'pending_accountant': return <span className="badge badge-warning">Chờ phê duyệt</span>;
       case 'pending_disbursement': return <span className="badge badge-warning">Chờ tạm ứng</span>;
-      case 'pending_director': return <span className="badge badge-warning">Chờ duyệt vượt định mức</span>;
+      case 'pending_director': return <span className="badge badge-warning">Chờ duyệt vượt dự toán</span>;
       case 'approved': return <span className="badge badge-success">Đã phê duyệt</span>;
       case 'rejected': return <span className="badge badge-danger">Bị từ chối</span>;
       default: return <span className="badge badge-secondary">{status}</span>;
@@ -171,7 +172,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   }
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-  const canReportDailyLog = canCreateDailyLog(selectedTask, user, isPL, isProjectMember) && !isParentTask;
+  const isProjectInProgress = project?.status?.toLowerCase() === 'inprogress';
+  const canReportDailyLog = isProjectInProgress
+    && canCreateDailyLog(selectedTask, user, isPL, isProjectMember)
+    && !isParentTask;
 
   const isBlocked = (() => {
     const predIds = selectedTask.predecessorTaskIds;
@@ -259,18 +263,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 const start = new Date(selectedTask.startDate);
                 start.setHours(0, 0, 0, 0);
                 const end = new Date(selectedTask.deadline);
-                end.setHours(23, 59, 59, 999);
+                end.setHours(0, 0, 0, 0);
                 const now = new Date();
+                now.setHours(0, 0, 0, 0);
                 
-                const startMs = start.getTime();
-                const endMs = end.getTime();
-                const nowMs = now.getTime();
+                const totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                const elapsedDays = Math.round((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
                 
-                if (endMs > startMs) {
-                  if (nowMs >= endMs) expectedProgress = 100;
-                  else if (nowMs > startMs) {
-                    expectedProgress = Math.round(((nowMs - startMs) / (endMs - startMs)) * 100);
-                  }
+                if (elapsedDays >= totalDays) {
+                  expectedProgress = 100;
+                } else if (elapsedDays > 0) {
+                  expectedProgress = Math.round((elapsedDays / totalDays) * 100);
                 }
               }
               
@@ -295,7 +298,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                     <span>{expectedProgress}%</span>
                   </div>
-                  <div style={{ height: '4px', backgroundColor: 'hsl(var(--border-light))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                  <div style={{ height: '8px', backgroundColor: 'hsl(var(--border-light))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
                     <div style={{ width: `${expectedProgress}%`, height: '100%', backgroundColor: 'hsl(var(--text-muted))', transition: 'width 0.4s ease' }} />
                   </div>
                 </div>
@@ -303,8 +306,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             })()}
           </div>
 
-          {/* Assignee + Start Date + Deadline + Weight */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '16px' }}>
+          {/* Assignee + Start Date + Deadline + Weight + Actual Dates */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
                 <User size={14} />KỸ SƯ PHỤ TRÁCH
@@ -343,18 +346,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>Chưa phân công</strong>
               )}
             </div>
+            
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
-                <Calendar size={14} />NGÀY BẮT ĐẦU
+                <Calendar size={14} />NGÀY BẮT ĐẦU (DỰ KIẾN)
               </span>
               <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.startDate?.split('-').reverse().join('-') || 'Chưa xác định'}</strong>
             </div>
+            
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
                 <Calendar size={14} />HẠN HOÀN THÀNH
               </span>
               <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline?.split('-').reverse().join('-')}</strong>
             </div>
+            
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
                 <TrendingUp size={14} />MỨC ĐỘ QUAN TRỌNG
@@ -368,6 +374,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   return 'Bình thường';
                 })()}
               </strong>
+            </div>
+
+            <div style={{ padding: '12px', backgroundColor: 'hsl(var(--success-glow) / 0.1)', borderRadius: 'var(--radius-sm)', border: '1px dashed hsl(var(--success) / 0.4)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--success))', fontWeight: 600, marginBottom: '6px' }}>
+                <Calendar size={14} />BẮT ĐẦU THỰC TẾ
+              </span>
+              <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.actualStartDate?.split('-').reverse().join('-') || 'Chưa bắt đầu'}</strong>
+            </div>
+
+            <div style={{ padding: '12px', backgroundColor: 'hsl(var(--success-glow) / 0.1)', borderRadius: 'var(--radius-sm)', border: '1px dashed hsl(var(--success) / 0.4)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--success))', fontWeight: 600, marginBottom: '6px' }}>
+                <Calendar size={14} />KẾT THÚC THỰC TẾ
+              </span>
+              <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.actualEndDate?.split('-').reverse().join('-') || 'Chưa hoàn thành'}</strong>
             </div>
           </div>
 
@@ -390,7 +410,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           )}
 
           {/* Actions */}
-          {project?.status?.toLowerCase() !== 'inprogress' ? (
+          {!isProjectInProgress && !canEdit ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
@@ -420,20 +440,22 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       <UserPlus size={16} /><span>Phân công</span>
                     </button>
                   )}
-                  {isTPKT && !isParentTask && (
+                  {isTPKT && isProjectInProgress && !isParentTask && (
                     <button onClick={() => setActiveForm(activeForm === 'adjust' ? null : 'adjust')} className={`btn ${activeForm === 'adjust' ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', borderColor: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))', color: activeForm === 'adjust' ? undefined : 'hsl(var(--primary))' }} disabled={isBlocked}>
                       <TrendingUp size={16} /><span>Điều chỉnh tiến độ trực tiếp</span>
                     </button>
                   )}
-                  <button onClick={() => {
-                    if (selectedTask.progress > 0) {
-                      setActiveForm(activeForm === 'obsolete' ? null : 'obsolete');
-                    } else {
-                      onObsolete();
-                    }
-                  }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
-                    {selectedTask.progress > 0 ? <PauseCircle size={16} /> : <Trash2 size={16} />}<span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
-                  </button>
+                  {(isProjectInProgress || selectedTask.progress === 0) && (
+                    <button onClick={() => {
+                      if (selectedTask.progress > 0) {
+                        setActiveForm(activeForm === 'obsolete' ? null : 'obsolete');
+                      } else {
+                        onObsolete();
+                      }
+                    }} className="btn" style={{ fontSize: '0.85rem', flex: 1, minWidth: '120px', backgroundColor: activeForm === 'obsolete' ? 'hsl(var(--danger))' : 'hsl(var(--bg-main))', color: activeForm === 'obsolete' ? '#fff' : 'hsl(var(--danger))', border: '1px solid hsl(var(--danger) / 0.3)' }}>
+                      {selectedTask.progress > 0 ? <PauseCircle size={16} /> : <Trash2 size={16} />}<span>{selectedTask.progress > 0 ? 'Tạm dừng công việc' : 'Xóa công việc'}</span>
+                    </button>
+                  )}
                 </>
               )}
               {canReportDailyLog && (
@@ -458,7 +480,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   style={{ fontSize: '0.85rem', flex: 1, minWidth: '160px', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center', border: '1px solid hsl(var(--danger))', color: 'hsl(var(--danger))', backgroundColor: 'hsl(var(--danger-glow))' }}
                 >
                   <AlertCircle size={15} />
-                  <span>Báo cáo Sự cố</span>
+                  <span>Báo cáo sự cố thi công</span>
                 </button>
               )}
               {(!isPL || isParentTask) && (
@@ -551,7 +573,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                         </button>
                       )}
                     </div>
-                    {selectedTask.status === 'obsolete' && !isCancelledByIncident && isTPKTOrPL && (
+                    {selectedTask.status === 'obsolete' && !isCancelledByIncident && isTPKTOrPL && isProjectInProgress && (
                       <button 
                         onClick={() => setIsRestoreConfirmOpen(true)} 
                         className="btn" 

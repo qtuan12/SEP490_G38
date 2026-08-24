@@ -3,6 +3,7 @@ import { apiClient, USE_MOCK_API } from './api';
 import { userService } from './userService';
 import type { UserProfile } from './authService';
 import type { PhaseBOQImportPreview, PhaseBOQImportRowInput } from '../types/boqImport';
+import { countsTowardMaterialRequestBOQ } from '../pages/MaterialRequests/materialRequestDecision';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -387,12 +388,14 @@ export const projectService = {
     return projects[idx];
   },
 
-  async activateProject(projectId: string): Promise<Project> {
+  async activateProject(projectId: string): Promise<Project & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/activate`);
       if (!res.success) throw new Error(res.message || 'Không thể kích hoạt dự án.');
-      return this.getProjectById(projectId) as unknown as Project;
+      const project = await this.getProjectById(projectId);
+      if (!project) throw new Error('Không tìm thấy dự án sau khi kích hoạt.');
+      return { ...project, __message: res.message || '' };
     }
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Không tìm thấy dự án.');
@@ -427,12 +430,14 @@ export const projectService = {
     return this.updateProject(projectId, { status: 'paused' });
   },
 
-  async resumeProject(projectId: string): Promise<Project> {
+  async resumeProject(projectId: string): Promise<Project & { __message?: string }> {
     if (!USE_MOCK_API) {
       const parsedId = projectId.startsWith('p-') ? parseInt(projectId.substring(2)) : parseInt(projectId);
       const res = await apiClient.put<ApiResponse<any>>(`/projects/${parsedId}/resume`);
       if (!res.success) throw new Error(res.message || 'Không thể tiếp tục dự án.');
-      return this.getProjectById(projectId) as unknown as Project;
+      const project = await this.getProjectById(projectId);
+      if (!project) throw new Error('Không tìm thấy dự án sau khi tiếp tục.');
+      return { ...project, __message: res.message || '' };
     }
     return this.updateProject(projectId, { status: 'inprogress' });
   },
@@ -689,7 +694,7 @@ export const projectService = {
     const idx = allPhases.findIndex(p => p.id === phaseId);
     if (idx === -1) throw new Error('Không tìm thấy giai đoạn.');
     if (allPhases[idx].status === 'frozen') {
-      throw new Error('Giai đoạn đã nghiệm thu, không thể cập nhật định mức vật tư.');
+      throw new Error('Giai đoạn đã nghiệm thu, không thể cập nhật dự toán vật tư.');
     }
     const mockMaterials: PhaseMaterialItem[] = materials.map(m => ({
       materialId: m.materialId,
@@ -1901,8 +1906,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     let total = 0;
     list.forEach(req => {
-      // Chỉ tính các yêu cầu thuộc phase này và KHÔNG BỊ TỪ CHỐI
-      if (req.phaseId === phaseId && req.status !== 'rejected') {
+      if (req.phaseId === phaseId && countsTowardMaterialRequestBOQ(req)) {
         const item = req.items.find(i => i.name === materialName);
         if (item) {
           total += item.quantity;
@@ -1966,7 +1970,7 @@ export const projectService = {
       request.status = 'pending_director';
     } else if (decision === 'ExternalPurchase') {
       request.status = 'approved';
-      request.approvedBy = 'Kế toán (Duyệt trong định mức)';
+      request.approvedBy = 'Kế toán (Duyệt trong dự toán)';
 
       // Auto-add to Phase BOQ if it's a Phase request
       if (!request.taskId && request.phaseId) {
@@ -2113,14 +2117,15 @@ export const projectService = {
         const estItem = task.estimatedMaterials.find(m => m.name === reqItem.name);
         const estQty = estItem ? estItem.quantity : 0;
 
-        const existingRequests = list.filter(r => r.taskId === task.id && r.id !== request.id && r.status !== 'rejected');
+        const existingRequests = list.filter(r =>
+          r.taskId === task.id && r.id !== request.id && countsTowardMaterialRequestBOQ(r));
         const existingQty = existingRequests.reduce((sum, r) => {
           const matched = r.items.find(i => i.name === reqItem.name);
           return sum + (matched ? matched.quantity : 0);
         }, 0);
 
         if (existingQty + reqItem.quantity > estQty) {
-          throw new Error(`Số lượng ${reqItem.name} yêu cầu (${existingQty + reqItem.quantity}) vượt quá mức định mức của Task (${estQty}).`);
+          throw new Error(`Số lượng ${reqItem.name} yêu cầu (${existingQty + reqItem.quantity}) vượt quá mức dự toán của Task (${estQty}).`);
         }
       }
     }

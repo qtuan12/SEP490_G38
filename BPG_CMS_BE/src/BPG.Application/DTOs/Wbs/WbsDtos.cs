@@ -19,6 +19,8 @@ public record WbsTaskDto
     public string AssignedTo { get; set; } = string.Empty;
     public string AssignedName { get; set; } = string.Empty;
     public decimal? Weight { get; set; }
+    public DateOnly? ActualStartDate { get; set; }
+    public DateOnly? ActualEndDate { get; set; }
     public List<long> PredecessorTaskIds { get; set; } = new();
     
     public bool IsOverdue { get; set; }

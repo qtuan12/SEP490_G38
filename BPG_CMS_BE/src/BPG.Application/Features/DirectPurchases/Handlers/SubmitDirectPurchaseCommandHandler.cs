@@ -165,12 +165,6 @@ namespace BPG.Application.Features.DirectPurchases.Handlers
                     $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) không được sau ngày hôm nay ({todayVn:dd/MM/yyyy}). " +
                     "Phiếu mua trực tiếp chỉ ghi nhận khoản đã mua thực tế.");
 
-            // Chỉ mua khẩn cấp cho vật tư của giai đoạn khi giai đoạn đó đã thực sự bắt đầu.
-            if (dp.Phase.StartDate.HasValue && purchaseDateOnly < dp.Phase.StartDate.Value)
-                throw new BusinessException(ErrorCodes.DpPurchaseDateBeforePhase,
-                    $"Ngày mua ({purchaseDateOnly:dd/MM/yyyy}) phải từ ngày bắt đầu giai đoạn \"{dp.Phase.Name}\" " +
-                    $"({dp.Phase.StartDate.Value:dd/MM/yyyy}) trở đi.");
-
             // ---------- Tính lại định mức BOQ TẠI THỜI ĐIỂM GỬI ----------
             // Phiếu khác có thể đã tiêu thụ hết định mức trong lúc bản nháp nằm chờ.
             var resolved = dp.Items.Select(i => new ResolvedDirectPurchaseItem

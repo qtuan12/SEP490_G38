@@ -109,7 +109,9 @@ export interface IncidentReport {
   reviewerName?: string;
   incidentType: 'Construction' | 'InventoryLoss' | 'InventoryDamage' | 'Delay' | 'Safety' | 'Other';
   description: string;
-  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Closed' | 'WaitingStopApproval' | 'WaitingRecoveryPlan' | 'WaitingDirectorApproval';
+  status: 'Reported' | 'Assessing' | 'WaitingReview' | 'WaitingAccountant' | 'UnderResolution' | 'WaitingDirector' | 'Approved' | 'Rejected' | 'Resolved' | 'Closed' | 'WaitingStopApproval' | 'WaitingRecoveryPlan' | 'WaitingDirectorApproval';
+  latestAdjustmentId?: number;
+  latestAdjustmentStatus?: string;
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;
@@ -198,7 +200,9 @@ export interface WBSTask {
   assignedTo?: string; // userId of engineer
   assignedName?: string; // name of engineer
   startDate?: string;
+  actualStartDate?: string;
   deadline: string;
+  actualEndDate?: string;
   progress: number; // 0 - 100
   history: TaskHistory[];
   status?: 'active' | 'obsolete';

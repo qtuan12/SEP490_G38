@@ -31,7 +31,7 @@ describe('getMaterialRequestBusinessStatus', () => {
 
   it('phân biệt mua ngoài đang chờ Giám đốc và đã được duyệt', () => {
     expect(getMaterialRequestBusinessStatus(requestWith('pending_director', 'ExternalPurchase')))
-      .toBe('Chờ phê duyệt vượt định mức');
+      .toBe('Chờ phê duyệt vượt dự toán');
     expect(getMaterialRequestBusinessStatus(requestWith('approved', 'ExternalPurchase')))
       .toBe('Đã phê duyệt');
   });
@@ -93,9 +93,9 @@ describe('MaterialRequestDetailModal item table state', () => {
     'pending_disbursement',
     'disbursed',
     'received',
-  ] as const)('chỉ hiện định mức khi phiếu ở trạng thái %s', status => {
+  ] as const)('chỉ hiện dự toán khi phiếu ở trạng thái %s', status => {
     expect(getMaterialRequestDetailTableState(status)).toEqual({
-      comparisonHeader: 'Định mức',
+      comparisonHeader: 'Dự toán',
       showDynamicBoqComparison: false,
       showStatusColumn: false,
       columnCount: 5,

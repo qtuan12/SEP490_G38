@@ -119,9 +119,9 @@ export const MaterialRequestTable: React.FC<MaterialRequestTableProps> = ({
                         {req.type === 'emergency' ? (
                           <Badge variant="warning" className="text-[0.65rem] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-2 normal-case">Khẩn cấp (Mua ngoài)</Badge>
                         ) : req.isOverBOQ ? (
-                          <Badge variant="danger" className="text-[0.65rem] py-0.5 px-2 normal-case">Vượt định mức</Badge>
+                          <Badge variant="danger" className="text-[0.65rem] py-0.5 px-2 normal-case">Vượt dự toán</Badge>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.65rem]">Trong định mức</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[0.65rem]">Trong dự toán</span>
                         )}
                       </td>
                       <td className="whitespace-nowrap">{getStatusBadgeMR(req)}</td>

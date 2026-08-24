@@ -137,8 +137,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     filteredInventory.forEach((item, idx) => {
       const status = getItemStatus(item);
       let statusLabel = 'Bình thường';
-      if (status === 'over_boq') statusLabel = 'Đã vượt định mức';
-      else if (status === 'approaching') statusLabel = 'Sắp vượt định mức';
+      if (status === 'over_boq') statusLabel = 'Đã vượt dự toán';
+      else if (status === 'approaching') statusLabel = 'Sắp vượt dự toán';
       else if (status === 'low_stock') statusLabel = 'Tồn kho thấp';
 
       const isEven = idx % 2 === 0;
@@ -255,13 +255,10 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             title="Đã dùng vượt mức kế hoạch dự án. Mọi yêu cầu cấp phát mới cần Giám đốc duyệt."
           >
             <AlertCircle size={12} />
-            <span>Đã vượt định mức</span>
-          </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / Định mức: {formatQty(boq)}
+            <span>Đã vượt dự toán</span>
           </span>
           {boq > 0 && (
-            <div className="w-24 bg-rose-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${Math.round((used / boq) * 100)}% định mức`}>
+            <div className="w-24 bg-rose-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${Math.round((used / boq) * 100)}% dự toán`}>
               <div className="bg-rose-500 h-full rounded-full animate-pulse" style={{ width: '100%' }}></div>
             </div>
           )}
@@ -277,12 +274,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             title="Lượng sử dụng sắp đạt giới hạn trần. Cần kiểm soát xuất kho chặt chẽ."
           >
             <Info size={12} />
-            <span>Sắp vượt định mức ({percent}%)</span>
+            <span>Sắp vượt dự toán</span>
           </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / Định mức: {formatQty(boq)}
-          </span>
-          <div className="w-24 bg-orange-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
+          <div className="w-24 bg-orange-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% dự toán`}>
             <div className="bg-orange-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
           </div>
         </div>
@@ -301,7 +295,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           </span>
 
           {boq > 0 && (
-            <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
+            <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% dự toán`}>
               <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
             </div>
           )}
@@ -315,11 +309,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
           <CheckCircle2 size={12} />
           <span>Bình thường</span>
         </span>
-        <span className="text-[10px] text-slate-400 font-medium">
-          Tồn kho & sử dụng an toàn
-        </span>
         {boq > 0 && (
-          <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% định mức`}>
+          <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% dự toán`}>
             <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
           </div>
         )}
@@ -363,8 +354,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
               className="text-xs text-slate-700 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm"
             >
               <option value="all">Tất cả ({inventoryList.length})</option>
-              <option value="over_boq">Đã vượt định mức ({inventoryList.filter(i => getItemStatus(i) === 'over_boq').length})</option>
-              <option value="approaching">Sắp vượt định mức ({inventoryList.filter(i => getItemStatus(i) === 'approaching').length})</option>
+              <option value="over_boq">Đã vượt dự toán ({inventoryList.filter(i => getItemStatus(i) === 'over_boq').length})</option>
+              <option value="approaching">Sắp vượt dự toán ({inventoryList.filter(i => getItemStatus(i) === 'approaching').length})</option>
               <option value="low_stock">Tồn kho thấp ({inventoryList.filter(i => getItemStatus(i) === 'low_stock').length})</option>
               <option value="stable">Bình thường ({inventoryList.filter(i => getItemStatus(i) === 'stable').length})</option>
             </select>
@@ -476,7 +467,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
 
                             {!item.phaseUsages || item.phaseUsages.length === 0 ? (
                               <span className="text-xs text-slate-400 italic">
-                                Vật tư này chưa được lập định mức hoặc xuất dùng ở giai đoạn nào.
+                                Vật tư này chưa được lập dự toán hoặc xuất dùng ở giai đoạn nào.
                               </span>
                             ) : (
                               <div className="overflow-hidden border border-slate-200 rounded-lg bg-white max-w-3xl shadow-sm">
@@ -484,7 +475,8 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                   <thead className="bg-slate-50 font-semibold text-slate-600 uppercase text-[10px] tracking-wider">
                                     <tr>
                                       <th className="px-3 py-2.5">Tên giai đoạn</th>
-                                      <th className="px-3 py-2.5 text-right">Định mức</th>
+                                      <th className="px-3 py-2.5 text-right">Dự toán</th>
+                                      <th className="px-3 py-2.5 text-right text-indigo-700 bg-indigo-50/50">Đã nhập</th>
                                       <th className="px-3 py-2.5 text-right">Đã xuất dùng</th>
                                       <th className="px-3 py-2.5 text-right">Tỷ lệ</th>
                                       <th className="px-3 py-2.5 text-center">Trạng thái</th>
@@ -504,7 +496,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                       if ((phase.boqQuantity > 0 && phase.usedQuantity >= phase.boqQuantity) || (phase.boqQuantity === 0 && phase.usedQuantity > 0)) {
                                         statusBadge = (
                                           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                                            Vượt định mức
+                                            Vượt dự toán
                                           </span>
                                         );
                                       } else if (phase.boqQuantity > 0 && ratio >= 0.8) {
@@ -522,6 +514,9 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                                           </td>
                                           <td className="px-3 py-2 text-right">
                                             {formatQty(phase.boqQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>
+                                          </td>
+                                          <td className="px-3 py-2 text-right font-medium text-indigo-700">
+                                            {formatQty(phase.receivedQuantity ?? 0)} <span className="text-[10px] text-indigo-400">{item.unitName}</span>
                                           </td>
                                           <td className="px-3 py-2 text-right font-medium text-slate-900">
                                             {formatQty(phase.usedQuantity)} <span className="text-[10px] text-slate-400">{item.unitName}</span>

@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -75,6 +76,13 @@ namespace BPG.Application.Features.MaterialRequests.Commands
                     $"Chỉ có thể gửi lại yêu cầu đang ở trạng thái Từ chối (Rejected). Trạng thái hiện tại: {mr.Status}.");
             }
 
+            if (MaterialRequestProcurementDecision.IsAlternativeSupplyOutcome(mr.ProcurementDecision))
+            {
+                throw new BusinessException(
+                    "ERR_MATERIAL_REQUEST_ALREADY_RESOLVED",
+                    "Yêu cầu đã được ghi nhận phương án điều chuyển hoặc chờ cung ứng, không thể gửi lại.");
+            }
+
             // Kiểm tra phase chưa bị đóng băng
             if (mr.Phase.Status == PhaseStatus.Approved)
             {
@@ -133,12 +141,10 @@ namespace BPG.Application.Features.MaterialRequests.Commands
 
                     // Tính lũy kế số lượng đã yêu cầu ở các phiếu KHÁC (không tính phiếu đang resubmit này)
                     var totalRequestedBeforeInBase = await _uow.Repository<MaterialRequestItem>().Query()
+                        .WhereCountsTowardBOQ()
                         .Where(ri => ri.Request.PhaseId == mr.Phase.PhaseId &&
                                      ri.MaterialId == material.MaterialId &&
-                                     ri.RequestId != mr.RequestId &&
-                                     ri.Request.Status != MaterialRequestStatus.Rejected &&
-                                     ri.Request.Status != MaterialRequestStatus.Cancelled &&
-                                     !ri.Request.IsDeleted)
+                                     ri.RequestId != mr.RequestId)
                         .SumAsync(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate), cancellationToken);
 
                     if (totalRequestedBeforeInBase + qtyInBase > boqLimitInBase)

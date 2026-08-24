@@ -43,12 +43,14 @@ import { AdjustmentList } from './InventoryAdjustments/components/AdjustmentList
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { useSignalREvent } from '../hooks/useSignalREvent';
+import { hasApprovedEmergencyForCurrentPause } from '../utils/emergencyWbsAccess';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { ProjectMaterialRequestsTab } from './MaterialRequests/components/ProjectMaterialRequestsTab';
 import { GlobalInventoryIncidents } from './InventoryAdjustments/components/GlobalInventoryIncidents';
 import { isPWAMode } from '../utils/pwaHelpers';
 import { useProjectAccess } from '../hooks/useProjectAccess';
 import { RoleGroup } from '../auth/roles';
+import toast from 'react-hot-toast';
 
 const cleanPauseReason = (reason: string): string => {
   if (!reason) return "";
@@ -137,31 +139,36 @@ export const ProjectLayoutHub: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [project, setProject] = useState<Project | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectFetchRequestId = useRef(0);
 
   const { data: incidents } = useQuery({
     queryKey: ['projectIncidents', projectId],
     queryFn: () => incidentService.getIncidents(Number(projectId?.replace('p-', ''))),
     enabled: !!projectId
   });
-  const hasApprovedEmergencyIncident = incidents?.some(i => i.isEmergency && i.status === 'Approved') ?? false;
+  const hasApprovedEmergencyIncident = hasApprovedEmergencyForCurrentPause(
+    project?.pauseReason,
+    incidents,
+  );
   const hasUnapprovedEmergencyIncident = incidents?.some(
     i => i.isEmergency && (i.status === 'WaitingStopApproval' || i.status === 'WaitingRecoveryPlan' || i.status === 'WaitingDirectorApproval')
   ) ?? false;
 
   const { hasAnyRole } = useAuth();
-  const { canViewProject, isLoading: isAccessLoading, canManageExecution, canManageTechnical, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
+  const { canViewProject, isLoading: isAccessLoading, canManageExecution, canManageAccounting, canViewReports, canApprove } = useProjectAccess(projectId);
   const { connection } = useNotification();
-  const isTPKT = canManageTechnical;
+  // isTPKT dùng để check role identity (có phải trưởng phòng KT không),
+  // không dùng canManageTechnical vì cái đó = false khi project paused
+  // → sẽ không bao giờ unlock WBS khi có sự cố khẩn cấp được duyệt.
+  const isTPKT = hasAnyRole(RoleGroup.Technical);
   const canEditProject = hasAnyRole(RoleGroup.ProjectManagers);
   const canChangeProjectStatus = hasAnyRole(RoleGroup.ProjectManagers) || hasAnyRole(RoleGroup.Approval);
   // Giám đốc phải thấy tab này để duyệt chi phiếu mua khẩn cấp - mọi phiếu đều qua bước này.
   const canManageDirectPurchase = canManageExecution || canManageAccounting || canApprove;
-
-  const [project, setProject] = useState<Project | null>(null);
-  const [projectError, setProjectError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const projectFetchRequestId = useRef(0);
 
   type TabKey = 'members' | 'wbs' | 'logs' | 'inventory' | 'inventoryadjustments' | 'incidents' | 'inventoryincidents' | 'surplus' | 'purchaseorders' | 'suppliers' | 'directpurchases' | 'materialrequests';
   const TAB_KEYS: TabKey[] = ['members', 'wbs', 'logs', 'inventory', 'inventoryadjustments', 'incidents', 'inventoryincidents', 'surplus', 'purchaseorders', 'suppliers', 'directpurchases', 'materialrequests'];
@@ -248,6 +255,10 @@ export const ProjectLayoutHub: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
       queryClient.invalidateQueries({ queryKey: ['project-access', String(projectId)] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      // Refresh incidents để hasApprovedEmergencyIncident được tính lại ngay
+      // khi giám đốc duyệt kế hoạch sự cố khẩn cấp (không cần reload trang)
+      queryClient.invalidateQueries({ queryKey: ['projectIncidents', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['wbsIncidents', projectId] });
     }, 120);
   };
 
@@ -326,11 +337,15 @@ export const ProjectLayoutHub: React.FC = () => {
         // Optimistic update UI real-time
         setProject(prev => prev ? { ...prev, status: 'inprogress' } : null);
 
-        if (prevStatus === 'paused') {
-          await projectService.resumeProject(project.id);
-        } else {
-          await projectService.activateProject(project.id);
-        }
+        const result = prevStatus === 'paused'
+          ? await projectService.resumeProject(project.id)
+          : await projectService.activateProject(project.id);
+        toast.success(
+          result.__message
+          || (prevStatus === 'paused'
+            ? 'Tiếp tục dự án thành công.'
+            : 'Kích hoạt dự án thành công.'),
+        );
         queryClient.invalidateQueries({ queryKey: ['projects'] });
         fetchProjectDetails(false);
       } else if (newStatus === 'paused') {

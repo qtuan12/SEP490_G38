@@ -243,7 +243,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             SetupIncident(Incident());
             _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>
             {
-                new() { AdjustmentId = 99, IncidentId = IncidentId }
+                new() { AdjustmentId = 99, IncidentId = IncidentId, Status = InventoryAdjustmentStatus.Pending }
             });
 
             var act = async () => await _handler.Handle(
@@ -267,8 +267,35 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 Command(quantity: 2, incidentId: IncidentId),
                 CancellationToken.None);
 
-            incident.Status.Should().Be("WaitingDirector");
+            incident.Status.Should().Be(IncidentStatus.UnderResolution);
             _addedAdjustment!.IncidentId.Should().Be(IncidentId);
+        }
+
+        [Fact]
+        public async Task Handle_IncidentWithRevisionRequiredAdjustment_ShouldAllowNewAttempt()
+        {
+            SetupValidPreconditions();
+            SetupMaterials(Material(isDiscrete: false));
+            SetupInventories(Inventory(quantity: 10));
+            var incident = Incident(status: IncidentStatus.UnderResolution);
+            SetupIncident(incident);
+            _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>
+            {
+                new()
+                {
+                    AdjustmentId = 99,
+                    IncidentId = IncidentId,
+                    Status = InventoryAdjustmentStatus.RevisionRequired
+                }
+            });
+
+            await _handler.Handle(
+                Command(quantity: 2, incidentId: IncidentId),
+                CancellationToken.None);
+
+            _addedAdjustment.Should().NotBeNull();
+            _addedAdjustment!.Status.Should().Be(InventoryAdjustmentStatus.Pending);
+            incident.Status.Should().Be(IncidentStatus.UnderResolution);
         }
 
         [Fact]

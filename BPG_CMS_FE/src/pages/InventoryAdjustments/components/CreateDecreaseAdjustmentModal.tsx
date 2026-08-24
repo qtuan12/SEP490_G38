@@ -384,29 +384,28 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                   }
                 }}
               >
+                <option value="Xử lý sự cố">Xử lý sự cố</option>
                 <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
-                <option value="Hao hụt vật tư trong định mức cho phép">Hao hụt vật tư trong định mức cho phép</option>
+                <option value="Hao hụt vật tư trong dự toán cho phép">Hao hụt vật tư trong dự toán cho phép</option>
                 <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
                 <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
               </select>
-
-              {presetReason === 'Khác (Nhập lý do chi tiết)' && (
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border rounded-lg animate-fade-in"
-                  value={customReason}
-                  onChange={e => {
-                    setCustomReason(e.target.value);
-                    setReason(e.target.value);
-                  }}
-                  placeholder="Nhập lý do chi tiết cụ thể..."
-                  autoFocus
-                />
-              )}
-            </div>
+            {presetReason === 'Khác (Nhập lý do chi tiết)' && (
+              <input
+                type="text"
+                className="w-full px-3 py-2 border rounded-lg animate-fade-in"
+                value={customReason}
+                onChange={e => {
+                  setCustomReason(e.target.value);
+                  setReason(e.target.value);
+                }}
+                placeholder="Nhập lý do chi tiết cụ thể..."
+                autoFocus
+              />
+            )}
+          </div>
           )}
         </FormItem>
-
         <FormItem label="Giai đoạn liên quan (*)">
           <select
             className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium appearance-none' : ''}`}
@@ -626,7 +625,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                     ).length === 0 ? (
                       <div className="p-3 text-center text-xs text-gray-500">
                         {phaseMaterials.length === 0
-                          ? "Giai đoạn này không có vật tư trong BOQ"
+                          ? "Giai đoạn này không có vật tư trong dự toán"
                           : "Không tìm thấy vật tư phù hợp với từ khóa"}
                       </div>
                     ) : (
@@ -642,8 +641,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                             <div
                               key={mat.materialId}
                               className={`p-2 px-3 flex items-center justify-between cursor-pointer transition-colors ${isAlreadyAdded
-                                  ? 'bg-gray-50 opacity-60'
-                                  : 'hover:bg-blue-50/80 text-gray-800'
+                                ? 'bg-gray-50 opacity-60'
+                                : 'hover:bg-blue-50/80 text-gray-800'
                                 }`}
                               onClick={() => {
                                 setSelectedMaterialId(mat.materialId);
@@ -739,7 +738,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="ghost" onClick={onClose}>Hủy</Button>
-          <Button type="submit" variant="primary" isLoading={loading}>Tạo Phiếu Trình Duyệt</Button>
+          <Button type="submit" variant="primary" isLoading={loading}>Xác Nhận</Button>
         </div>
       </form>
     </Modal>

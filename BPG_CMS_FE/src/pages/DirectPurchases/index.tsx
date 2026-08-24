@@ -20,9 +20,9 @@ const STATUS_OPTIONS = [
 ];
 
 const BOQ_CHECK_OPTIONS = [
-  { label: 'Tất cả định mức', value: '' },
-  { label: 'Trong định mức', value: 'WithinBOQ' },
-  { label: 'Vượt định mức', value: 'OverBOQ' },
+  { label: 'Tất cả dự toán', value: '' },
+  { label: 'Trong dự toán', value: 'WithinBOQ' },
+  { label: 'Vượt dự toán', value: 'OverBOQ' },
 ];
 
 const statusVariant: Record<string, 'default' | 'warning' | 'success' | 'danger'> = {

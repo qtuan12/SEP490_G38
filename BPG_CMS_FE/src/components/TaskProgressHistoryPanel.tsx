@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, History, Minus, User } from 'lucide-react';
 import { projectService } from '../services/projectService';
@@ -306,10 +306,26 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                       {formatDate(log.updatedAt)}
                     </span>
                   </div>
-
-                  {log.updateReason && !compact && (
-                    <div className="prose prose-sm max-w-none markdown-body" style={{ margin: '3px 0 0', color: 'hsl(var(--text-secondary))', lineHeight: 1.4, wordBreak: 'break-word', fontSize: '0.85rem' }}>
-                      <ReactMarkdown>{log.updateReason}</ReactMarkdown>
+                  {log.updateReason && (
+                    <div
+                      title={log.updateReason}
+                      style={{
+                        marginTop: '6px',
+                        fontSize: compact ? '0.7rem' : '0.75rem',
+                        color: 'hsl(var(--text-secondary))',
+                        display: '-webkit-box',
+                        WebkitLineClamp: compact ? 1 : 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        lineHeight: '1.4',
+                        background: 'hsl(var(--bg-card))',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid hsl(var(--border) / 0.5)',
+                      }}
+                    >
+                      {log.updateReason}
                     </div>
                   )}
                 </div>

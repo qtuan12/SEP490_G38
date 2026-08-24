@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.Features.Phases.Commands;
 using BPG.Application.Features.Wbs.Services;
@@ -48,13 +49,8 @@ public class ClonePhaseCommandHandler : IRequestHandler<ClonePhaseCommand, ApiRe
         if (source == null)
             throw new NotFoundException("Phase", request.PhaseId);
 
-        if (source.Project.Status != ProjectStatus.InProgress
-            && source.Project.Status != ProjectStatus.Draft)
-        {
-            throw new BusinessException(
-                ErrorCodes.InvalidTransition,
-                "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để nhân bản giai đoạn.");
-        }
+        await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+            _unitOfWork, source.Project.ProjectId, source.Project.Status, source.Project.PauseReason, ct);
 
         var sourceTasks = await _unitOfWork.Repository<ProjectTask>()
             .Query()

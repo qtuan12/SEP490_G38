@@ -5,6 +5,7 @@ export * from './LoadingSpinner';
 export * from './BPGLoadingOverlay';
 export * from './Card';
 export * from './Input';
+export * from './MoneyInput';
 export * from './DateInput';
 export * from './Textarea';
 export * from './Select';

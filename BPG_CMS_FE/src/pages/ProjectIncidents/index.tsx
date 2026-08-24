@@ -131,6 +131,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
           incidentType: dto.incidentType as any,
           description: desc,
           status: dto.status as any,
+          latestAdjustmentId: dto.latestAdjustmentId,
+          latestAdjustmentStatus: dto.latestAdjustmentStatus,
           damageDescription: dto.damageDescription,
           estimatedMaterialLoss: dto.estimatedMaterialLoss,
           estimatedLaborDays: dto.estimatedLaborDays,
@@ -248,8 +250,8 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
         return <Badge variant="danger" className="normal-case">Yêu cầu bổ sung</Badge>;
       case 'WaitingAccountant':
         return <Badge variant="warning" className="normal-case">Chờ Kế toán xác minh</Badge>;
-      case 'WaitingDirector':
-        return <Badge variant="warning" className="normal-case">Chờ Giám đốc duyệt</Badge>;
+      case 'UnderResolution':
+        return <Badge variant="warning" className="normal-case">Đang xử lý tổn thất</Badge>;
       case 'WaitingReview':
         return <Badge variant="info" className="normal-case">Chờ phê duyệt</Badge>;
       case 'WaitingStopApproval':

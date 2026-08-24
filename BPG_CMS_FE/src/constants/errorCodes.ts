@@ -56,7 +56,6 @@ export const ErrorCodes = {
   DpProjectNotActive: 'BIZ_034',
   DpPhaseFrozen: 'BIZ_035',
   DpPurchaseDateInFuture: 'BIZ_036',
-  DpPurchaseDateBeforePhase: 'BIZ_053',
   DpPhaseProjectMismatch: 'BIZ_039',
   DpDuplicateMaterial: 'BIZ_040',
   DpInvalidUnit: 'BIZ_044',
@@ -76,5 +75,4 @@ export const OTP_NEEDS_RESEND_ERRORS: readonly string[] = [
 /** Mã lỗi liên quan tới ô "Ngày mua" khi gửi phiếu mua trực tiếp. */
 export const DP_PURCHASE_DATE_ERRORS: readonly string[] = [
   ErrorCodes.DpPurchaseDateInFuture,
-  ErrorCodes.DpPurchaseDateBeforePhase,
 ];

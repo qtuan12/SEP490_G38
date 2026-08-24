@@ -66,6 +66,8 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             .Include(t => t.Assignees)
                 .ThenInclude(a => a.User)
             .Include(t => t.Dependencies)
+            .Include(t => t.ProgressLogs)
+            .Include(t => t.DailyLogs)
             .Where(t => t.Phase.ProjectId == request.ProjectId)
             .OrderBy(t => t.OrderIndex)
             .ToListAsync(ct);
@@ -104,14 +106,17 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
             // Tự động tính toán % Phase
             // Trọng số bằng số ngày thực hiện
-            var activeTasks = tasks.Where(t => t.PhaseId == phase.PhaseId && t.ParentTaskId == null && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
-            if (activeTasks.Any())
+            var leafTasks = tasks.Where(t => t.PhaseId == phase.PhaseId && !tasks.Any(c => c.ParentTaskId == t.TaskId) && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
+            if (leafTasks.Any())
             {
                 double totalWeightedProgress = 0;
                 double totalWeight = 0;
-                foreach (var t in activeTasks)
+                foreach (var t in leafTasks)
                 {
-                    double weight = CalculateWeight(t, tasks);
+                    var duration = (t.EndDate.ToDateTime(TimeOnly.MinValue) - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+                    double baseWeight = duration > 0 ? duration : 1;
+                    double weight = (t.Weight.HasValue && t.Weight.Value > 0) ? baseWeight * (double)t.Weight.Value : baseWeight;
+                    
                     totalWeightedProgress += t.ProgressPercent * weight;
                     totalWeight += weight;
                 }
@@ -126,23 +131,6 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
         }
 
         return result;
-    }
-
-    private double CalculateWeight(ProjectTask task, List<ProjectTask> allTasks)
-    {
-        var children = allTasks.Where(t => t.ParentTaskId == task.TaskId && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
-        if (children.Any())
-        {
-            return children.Sum(c => CalculateWeight(c, allTasks));
-        }
-        var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-        var baseWeight = duration > 0 ? duration : 1;
-
-        if (task.Weight.HasValue && task.Weight.Value > 0)
-        {
-            return baseWeight * (double)task.Weight.Value;
-        }
-        return baseWeight;
     }
 
     private List<WbsTaskDto> BuildTaskTree(List<ProjectTask> nodes, List<ProjectTask> allTasks, Project project)
@@ -172,6 +160,33 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 OutsourcedTeamContact = node.OutsourcedTeamContact,
                 ObsoleteReason = node.ObsoleteReason
             };
+
+            var firstProgressDate1 = node.ProgressLogs.Where(l => l.NewProgress > 0).OrderBy(l => l.CreatedAt).Select(l => l.CreatedAt).FirstOrDefault();
+            var firstProgressDate2 = node.DailyLogs.Where(l => l.NewProgressPercent > 0).OrderBy(l => l.CreatedAt).Select(l => l.CreatedAt).FirstOrDefault();
+            
+            DateTime? actualStart = null;
+            if (firstProgressDate1 != default && firstProgressDate2 != default) {
+                actualStart = firstProgressDate1 < firstProgressDate2 ? firstProgressDate1 : firstProgressDate2;
+            } else if (firstProgressDate1 != default) {
+                actualStart = firstProgressDate1;
+            } else if (firstProgressDate2 != default) {
+                actualStart = firstProgressDate2;
+            }
+
+            var lastCompleteDate1 = node.ProgressLogs.Where(l => l.NewProgress == 100).OrderByDescending(l => l.CreatedAt).Select(l => l.CreatedAt).FirstOrDefault();
+            var lastCompleteDate2 = node.DailyLogs.Where(l => l.NewProgressPercent == 100).OrderByDescending(l => l.CreatedAt).Select(l => l.CreatedAt).FirstOrDefault();
+
+            DateTime? actualEnd = null;
+            if (lastCompleteDate1 != default && lastCompleteDate2 != default) {
+                actualEnd = lastCompleteDate1 > lastCompleteDate2 ? lastCompleteDate1 : lastCompleteDate2;
+            } else if (lastCompleteDate1 != default) {
+                actualEnd = lastCompleteDate1;
+            } else if (lastCompleteDate2 != default) {
+                actualEnd = lastCompleteDate2;
+            }
+            
+            if (actualStart.HasValue) dto.ActualStartDate = DateOnly.FromDateTime(actualStart.Value);
+            if (actualEnd.HasValue) dto.ActualEndDate = DateOnly.FromDateTime(actualEnd.Value);
 
             var taskDeadline = node.EndDate.ToDateTime(new TimeOnly(23, 59, 59));
             var projectStart = project.PlannedStart.ToDateTime(TimeOnly.MinValue);
@@ -207,6 +222,22 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             if (children.Any())
             {
                 dto.SubTasks = BuildTaskTree(children, allTasks, project);
+
+                // For parent tasks, derive ActualStartDate and ActualEndDate from subtasks
+                var childStarts = dto.SubTasks.Where(c => c.ActualStartDate.HasValue).Select(c => c.ActualStartDate.Value).ToList();
+                if (childStarts.Any())
+                {
+                    dto.ActualStartDate = childStarts.Min();
+                }
+
+                if (dto.ProgressPercent == 100)
+                {
+                    var childEnds = dto.SubTasks.Where(c => c.ActualEndDate.HasValue).Select(c => c.ActualEndDate.Value).ToList();
+                    if (childEnds.Any())
+                    {
+                        dto.ActualEndDate = childEnds.Max();
+                    }
+                }
             }
 
             result.Add(dto);

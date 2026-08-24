@@ -37,13 +37,23 @@ export const getProcurementDecisionLabel = (
   ? 'Từ chối'
   : MATERIAL_REQUEST_DECISION_OPTIONS.find(option => option.value === decision)?.label;
 
+export const getMaterialRequestHandlingPlanLabel = (
+  decision: MaterialRequestProcurementDecision | undefined,
+): string | undefined => {
+  switch (decision) {
+    case 'InternalTransfer': return 'Đề nghị điều chuyển nội bộ';
+    case 'WaitSupply': return 'Chờ cung ứng';
+    default: return undefined;
+  }
+};
+
 export const getMaterialRequestBusinessStatus = (
   request: Pick<MaterialRequest, 'status' | 'procurementDecision'>,
 ): string => {
   if (request.status === 'rejected') {
     switch (request.procurementDecision) {
-      case 'InternalTransfer': return 'Đề nghị điều chuyển nội bộ';
-      case 'WaitSupply': return 'Chờ cung ứng';
+      case 'InternalTransfer':
+      case 'WaitSupply': return 'Đã thẩm định';
       case 'NeedMoreInfo':
       case 'NotApproved': return 'Từ chối';
       case 'ExternalPurchase': return 'Từ chối';
@@ -52,7 +62,7 @@ export const getMaterialRequestBusinessStatus = (
   }
 
   if (request.status === 'pending_director' && request.procurementDecision === 'ExternalPurchase') {
-    return 'Chờ phê duyệt vượt định mức';
+    return 'Chờ phê duyệt vượt dự toán';
   }
 
   if (request.status === 'approved' && request.procurementDecision === 'ExternalPurchase') {
@@ -64,7 +74,7 @@ export const getMaterialRequestBusinessStatus = (
     approved_by_leader: 'Đã được Trưởng dự án duyệt',
     pending_tpkt: 'Chờ Trưởng phòng kỹ thuật',
     pending_accountant: 'Chờ phê duyệt',
-    pending_director: 'Chờ phê duyệt vượt định mức',
+    pending_director: 'Chờ phê duyệt vượt dự toán',
     approved: 'Đã phê duyệt',
     rejected: 'Từ chối',
     cancelled: 'Đã hủy',
@@ -102,7 +112,7 @@ export const getMaterialRequestDetailTableState = (
   const showDynamicBoqComparison = status === 'pending_accountant';
 
   return {
-    comparisonHeader: showDynamicBoqComparison ? 'Tổng yêu cầu vật tư' : 'Định mức',
+    comparisonHeader: showDynamicBoqComparison ? 'Tổng yêu cầu vật tư' : 'Dự toán',
     showDynamicBoqComparison,
     showStatusColumn: showDynamicBoqComparison,
     columnCount: showDynamicBoqComparison ? 6 : 5,
@@ -119,9 +129,14 @@ export type ProjectMaterialRequestStatusFilter =
   | 'rejected:WaitSupply'
   | 'cancelled';
 
-const isAlternativeSupplyOutcome = (
+export const isAlternativeSupplyOutcome = (
   decision: MaterialRequestProcurementDecision | undefined,
 ): boolean => decision === 'InternalTransfer' || decision === 'WaitSupply';
+
+export const countsTowardMaterialRequestBOQ = (
+  request: Pick<MaterialRequest, 'status' | 'procurementDecision'>,
+): boolean => request.status !== 'cancelled'
+  && (request.status !== 'rejected' || request.procurementDecision === 'InternalTransfer');
 
 export const canResubmitProjectMaterialRequest = (
   request: Pick<MaterialRequest, 'status' | 'procurementDecision'>,

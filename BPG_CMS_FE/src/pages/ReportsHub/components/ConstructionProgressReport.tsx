@@ -189,7 +189,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-red-100/60 dark:border-red-900/30 flex items-center justify-between">
             <span>Tình trạng:</span>
             <strong className="text-slate-700 dark:text-slate-200">
-              {(data.scheduleVarianceDays || 0) > 0 ? `Chậm ${data.scheduleVarianceDays} ngày` : 'Theo sát mốc Baseline'}
+              {(data.scheduleVarianceDays || 0) > 0 ? `Chậm ${data.scheduleVarianceDays} ngày` : 'Theo sát mốc dự kiến'}
             </strong>
           </div>
         </div>

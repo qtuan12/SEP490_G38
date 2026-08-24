@@ -84,7 +84,7 @@ public class ProjectsController : BaseApiController
     public async Task<IActionResult> ActivateProject(long id)
     {
         await Mediator.Send(new ActivateProjectCommand(id));
-        return ApiOk("Kich hoat du an thanh cong.");
+        return ApiOk("Kích hoạt dự án thành công.");
     }
 
     [HttpPut("{id}/pause")]
@@ -105,7 +105,7 @@ public class ProjectsController : BaseApiController
     public async Task<IActionResult> ResumeProject(long id)
     {
         await Mediator.Send(new ResumeProjectCommand { ProjectId = id });
-        return ApiOk("Tiep tuc du an thanh cong.");
+        return ApiOk("Tiếp tục dự án thành công.");
     }
 
     [HttpPut("{id}/complete")]

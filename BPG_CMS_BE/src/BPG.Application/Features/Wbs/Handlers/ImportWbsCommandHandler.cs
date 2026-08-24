@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.DTOs.Wbs;
 using BPG.Application.Features.Wbs.Commands;
 using BPG.Application.IRepositories;
@@ -36,19 +37,12 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
         if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
 
-        if (project.Status != ProjectStatus.InProgress && project.Status != ProjectStatus.Draft)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
+        await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+            _uow, project.ProjectId, project.Status, project.PauseReason, cancellationToken, _currentUserService);
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
-            var currentUserId = _currentUserService.GetRequiredUserId();
-            var isProjectLeader = await _uow.Repository<ProjectMember>().Query()
-                .AnyAsync(pm => pm.ProjectId == project.ProjectId && pm.UserId == currentUserId && pm.IsLeader, cancellationToken);
-
-            if (!isProjectLeader)
-            {
-                throw new ForbiddenException("Chỉ Trưởng dự án hoặc Quản lý kỹ thuật mới được phép import WBS.");
-            }
+            throw new ForbiddenException("Chỉ Quản lý kỹ thuật (TPKT) mới được phép import WBS.");
         }
 
         var projectMembers = await _uow.Repository<ProjectMember>().Query()
@@ -186,11 +180,18 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
                 decimal? weight = null;
                 if (!string.IsNullOrWhiteSpace(priorityName))
                 {
-                    var p = priorityName.ToLower();
-                    if (p.Contains("bình thường") || p == "1") weight = 1;
-                    else if (p.Contains("rất quan trọng") || p.Contains("đặc biệt") || p == "4") weight = 4;
-                    else if (p.Contains("quan trọng") || p == "3") weight = 3;
-                    else if (p.Contains("cao") || p == "2") weight = 2;
+                    if (decimal.TryParse(priorityName, out var parsedWeight))
+                    {
+                        weight = parsedWeight;
+                    }
+                    else
+                    {
+                        var p = priorityName.ToLower();
+                        if (p.Contains("bình thường") || p.StartsWith("1")) weight = 1;
+                        else if (p.Contains("rất quan trọng") || p.Contains("đặc biệt") || p.StartsWith("4")) weight = 4;
+                        else if (p.Contains("quan trọng") || p.StartsWith("3")) weight = 3;
+                        else if (p.Contains("cao") || p.StartsWith("2")) weight = 2;
+                    }
                 }
 
                 var task = new ProjectTask
