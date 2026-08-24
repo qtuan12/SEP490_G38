@@ -17,18 +17,18 @@ using BPG.Application.IServices;
 
 namespace BPG.Application.Features.Wbs.Handlers;
 
-public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportWbsResultDto>
+public class PreviewWbsImportCommandHandler : IRequestHandler<PreviewWbsImportCommand, PreviewWbsImportResultDto>
 {
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUserService;
 
-    public ImportWbsCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
+    public PreviewWbsImportCommandHandler(IUnitOfWork uow, ICurrentUserService currentUserService)
     {
         _uow = uow;
         _currentUserService = currentUserService;
     }
 
-    public async Task<ImportWbsResultDto> Handle(ImportWbsCommand request, CancellationToken cancellationToken)
+    public async Task<PreviewWbsImportResultDto> Handle(PreviewWbsImportCommand request, CancellationToken cancellationToken)
     {
         var project = await _uow.Repository<Project>().Query()
             .FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId, cancellationToken);
@@ -36,8 +36,8 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
         if (project == null)
             throw new NotFoundException("Project", request.ProjectId);
 
-        if (project.Status != ProjectStatus.Draft && project.Status != ProjectStatus.InProgress)
-            throw new BusinessException(ErrorCodes.InvalidTransition, "Chỉ được phép import WBS khi dự án ở trạng thái Nháp hoặc Đang hoạt động.");
+        if (project.Status != ProjectStatus.InProgress && project.Status != ProjectStatus.Draft)
+            throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
@@ -54,8 +54,7 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
             .GroupBy(pm => pm.User.Email.ToLower().Trim())
             .ToDictionary(g => g.Key, g => g.First().UserId);
 
-        var result = new ImportWbsResultDto();
-        var phasesToCreate = new List<Phase>();
+        var result = new PreviewWbsImportResultDto();
         
         using var stream = new MemoryStream();
         await request.File.CopyToAsync(stream, cancellationToken);
@@ -66,14 +65,9 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
 
         var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 1;
 
-        int phaseOrder = await _uow.Repository<Phase>().Query()
-            .Where(p => p.ProjectId == request.ProjectId)
-            .Select(p => (int?)p.OrderIndex).MaxAsync(cancellationToken) ?? 0;
-
-        var phasesByCode = new Dictionary<string, Phase>();
-        var tasksByCode = new Dictionary<string, ProjectTask>();
-        // Lưu tạm danh sách predecessorsRaw của mỗi task để resolve sau
-        var taskPredecessorsRawMap = new Dictionary<ProjectTask, string>();
+        var phasesByCode = new Dictionary<string, PreviewWbsPhaseDto>();
+        var tasksByCode = new Dictionary<string, PreviewWbsTaskDto>();
+        var taskPredecessorsRawMap = new Dictionary<PreviewWbsTaskDto, string>();
 
         for (int row = 2; row <= lastRow; row++)
         {
@@ -127,27 +121,24 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
                     continue;
                 }
 
-                phaseOrder++;
-                var phase = new Phase
+                var phase = new PreviewWbsPhaseDto
                 {
-                    ProjectId = project.ProjectId,
+                    WbsCode = wbsCode,
                     Name = name,
                     Description = string.IsNullOrWhiteSpace(desc) ? null : desc,
-                    OrderIndex = phaseOrder,
-                    StartDate = startDate,
-                    EndDate = endDate,
-                    Status = PhaseStatus.Draft,
-                    Tasks = new List<ProjectTask>()
+                    StartDate = startDate.Value,
+                    EndDate = endDate.Value,
+                    Tasks = new List<PreviewWbsTaskDto>()
                 };
-                phasesToCreate.Add(phase);
+                result.Phases.Add(phase);
                 phasesByCode[wbsCode] = phase;
             }
             else if (dotsCount == 1 || dotsCount == 2) // Công việc & Công việc con
             {
                 var parentCode = wbsCode.Substring(0, wbsCode.LastIndexOf('.'));
                 
-                Phase? parentPhase = null;
-                ProjectTask? parentTask = null;
+                PreviewWbsPhaseDto? parentPhase = null;
+                PreviewWbsTaskDto? parentTask = null;
                 
                 if (dotsCount == 1)
                 {
@@ -193,23 +184,19 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
                     }
                 }
 
-                var task = new ProjectTask
+                var task = new PreviewWbsTaskDto
                 {
-                    Phase = dotsCount == 1 ? parentPhase! : parentTask!.Phase,
+                    WbsCode = wbsCode,
                     Name = name,
                     Description = string.IsNullOrWhiteSpace(desc) ? null : desc,
-                    OrderIndex = dotsCount == 1 ? parentPhase!.Tasks.Count + 1 : parentTask!.SubTasks.Count + 1,
                     StartDate = startDate.Value,
                     EndDate = endDate.Value,
-                    Status = BPG.Domain.Constants.TaskStatus.New,
-                    ProgressPercent = 0,
                     Weight = weight,
                     IsOutsourced = isOutsourced,
                     OutsourcedTeamName = isOutsourced && !string.IsNullOrWhiteSpace(outsourcedTeamName) ? outsourcedTeamName : null,
-                    OutsourcedTeamContact = isOutsourced && !string.IsNullOrWhiteSpace(outsourcedTeamContact) ? outsourcedTeamContact : null,
-                    SubTasks = new List<ProjectTask>(),
-                    Assignees = new List<TaskAssignee>(),
-                    Dependencies = new List<TaskDependency>()
+                    Assignees = new List<string>(),
+                    Predecessors = new List<string>(),
+                    SubTasks = new List<PreviewWbsTaskDto>()
                 };
 
                 // Add assignees
@@ -221,9 +208,9 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
                     
                     foreach (var email in emails)
                     {
-                        if (usersByEmail.TryGetValue(email, out var userId))
+                        if (usersByEmail.ContainsKey(email))
                         {
-                            task.Assignees.Add(new TaskAssignee { UserId = userId, AssignedAt = DateTime.UtcNow });
+                            task.Assignees.Add(email);
                         }
                         else
                         {
@@ -264,10 +251,9 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
             {
                 if (tasksByCode.TryGetValue(predCode, out var predTask))
                 {
-                    // Tránh dependency vòng tròn đơn giản
                     if (predTask != task)
                     {
-                        task.Dependencies.Add(new TaskDependency { Predecessor = predTask });
+                        task.Predecessors.Add(predCode);
                     }
                 }
                 else
@@ -285,15 +271,8 @@ public class ImportWbsCommandHandler : IRequestHandler<ImportWbsCommand, ImportW
             return result;
         }
 
-        if (phasesToCreate.Any())
-        {
-            await _uow.Repository<Phase>().AddRangeAsync(phasesToCreate, cancellationToken);
-            await _uow.SaveChangesAsync(cancellationToken);
-            
-            result.PhaseCount = phasesToCreate.Count;
-            result.TaskCount = phasesToCreate.Sum(p => p.Tasks.Count + p.Tasks.Sum(t => t.SubTasks.Count));
-        }
-
+        result.PhaseCount = result.Phases.Count;
+        result.TaskCount = result.Phases.Sum(p => p.Tasks.Count + p.Tasks.Sum(t => t.SubTasks.Count));
         result.SkippedCount = lastRow - 1 - result.PhaseCount - result.TaskCount - result.Errors.Count;
 
         return result;

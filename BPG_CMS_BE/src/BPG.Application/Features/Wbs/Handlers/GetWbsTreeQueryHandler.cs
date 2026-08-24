@@ -104,14 +104,17 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
             // Tự động tính toán % Phase
             // Trọng số bằng số ngày thực hiện
-            var activeTasks = tasks.Where(t => t.PhaseId == phase.PhaseId && t.ParentTaskId == null && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
-            if (activeTasks.Any())
+            var leafTasks = tasks.Where(t => t.PhaseId == phase.PhaseId && !tasks.Any(c => c.ParentTaskId == t.TaskId) && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
+            if (leafTasks.Any())
             {
                 double totalWeightedProgress = 0;
                 double totalWeight = 0;
-                foreach (var t in activeTasks)
+                foreach (var t in leafTasks)
                 {
-                    double weight = CalculateWeight(t, tasks);
+                    var duration = (t.EndDate.ToDateTime(TimeOnly.MinValue) - t.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
+                    double baseWeight = duration > 0 ? duration : 1;
+                    double weight = (t.Weight.HasValue && t.Weight.Value > 0) ? baseWeight * (double)t.Weight.Value : baseWeight;
+                    
                     totalWeightedProgress += t.ProgressPercent * weight;
                     totalWeight += weight;
                 }
@@ -126,23 +129,6 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
         }
 
         return result;
-    }
-
-    private double CalculateWeight(ProjectTask task, List<ProjectTask> allTasks)
-    {
-        var children = allTasks.Where(t => t.ParentTaskId == task.TaskId && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList();
-        if (children.Any())
-        {
-            return children.Sum(c => CalculateWeight(c, allTasks));
-        }
-        var duration = (task.EndDate.ToDateTime(TimeOnly.MinValue) - task.StartDate.ToDateTime(TimeOnly.MinValue)).TotalDays + 1;
-        var baseWeight = duration > 0 ? duration : 1;
-
-        if (task.Weight.HasValue && task.Weight.Value > 0)
-        {
-            return baseWeight * (double)task.Weight.Value;
-        }
-        return baseWeight;
     }
 
     private List<WbsTaskDto> BuildTaskTree(List<ProjectTask> nodes, List<ProjectTask> allTasks, Project project)

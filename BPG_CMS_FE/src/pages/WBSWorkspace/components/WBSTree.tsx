@@ -151,10 +151,8 @@ export const WBSTree = () => {
                   return a.sortOrder - b.sortOrder;
                 });
 
-              const validTopLevelTasks = topLevelTasks.filter(t => t.status !== 'obsolete');
-              const phaseProgress = validTopLevelTasks.length > 0
-                ? Math.round(validTopLevelTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / validTopLevelTasks.length)
-                : 0;
+              // Lấy thẳng tiến độ phase từ BE đã tính chuẩn xác
+              const phaseProgress = (ph as any).progress || 0;
 
               const allPhaseTasks = tasks.filter(t => t.phaseId === ph.id);
               const phaseTasks: WBSTask[] = [];
@@ -522,6 +520,9 @@ export const WBSTree = () => {
                         const isWorkedOn = t.progress > 0 || t.history.length > 0;
                         const isFirstTask = taskIndex === 0;
                         const isLastTask = taskIndex === phaseTasks.length - 1;
+                        
+                        const parentTask = t.parentTaskId ? phaseTasks.find(x => x.id === t.parentTaskId) : null;
+                        const isParentObsolete = parentTask?.status === 'obsolete';
 
                         return (
                           <div
@@ -721,7 +722,7 @@ export const WBSTree = () => {
                             {/* Task actions */}
                             {!isFrozen && (
                               <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                                {isProjectEditable && isTPKTOrPL && (
+                                {isProjectEditable && isTPKTOrPL && !isParentObsolete && (
                                   <button
                                     type="button"
                                     onClick={e => { e.stopPropagation(); setTaskMenuId(null); handleCloneTask(t.id, t.name); }}
