@@ -37,13 +37,23 @@ export const getProcurementDecisionLabel = (
   ? 'Từ chối'
   : MATERIAL_REQUEST_DECISION_OPTIONS.find(option => option.value === decision)?.label;
 
+export const getMaterialRequestHandlingPlanLabel = (
+  decision: MaterialRequestProcurementDecision | undefined,
+): string | undefined => {
+  switch (decision) {
+    case 'InternalTransfer': return 'Đề nghị điều chuyển nội bộ';
+    case 'WaitSupply': return 'Chờ cung ứng';
+    default: return undefined;
+  }
+};
+
 export const getMaterialRequestBusinessStatus = (
   request: Pick<MaterialRequest, 'status' | 'procurementDecision'>,
 ): string => {
   if (request.status === 'rejected') {
     switch (request.procurementDecision) {
-      case 'InternalTransfer': return 'Đề nghị điều chuyển nội bộ';
-      case 'WaitSupply': return 'Chờ cung ứng';
+      case 'InternalTransfer':
+      case 'WaitSupply': return 'Đã thẩm định';
       case 'NeedMoreInfo':
       case 'NotApproved': return 'Từ chối';
       case 'ExternalPurchase': return 'Từ chối';
@@ -119,7 +129,7 @@ export type ProjectMaterialRequestStatusFilter =
   | 'rejected:WaitSupply'
   | 'cancelled';
 
-const isAlternativeSupplyOutcome = (
+export const isAlternativeSupplyOutcome = (
   decision: MaterialRequestProcurementDecision | undefined,
 ): boolean => decision === 'InternalTransfer' || decision === 'WaitSupply';
 

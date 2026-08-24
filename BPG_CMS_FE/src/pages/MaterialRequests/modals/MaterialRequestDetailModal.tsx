@@ -16,7 +16,7 @@ import {
   getMaterialRequestBusinessStatus,
   getMaterialRequestBusinessStatusVariant,
   getMaterialRequestDetailTableState,
-  getProcurementDecisionLabel,
+  getMaterialRequestHandlingPlanLabel,
 } from '../materialRequestDecision';
 
 interface MaterialRequestDetailModalProps {
@@ -153,6 +153,8 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
 
   if (!request) return null;
 
+  const handlingPlan = getMaterialRequestHandlingPlanLabel(request.procurementDecision);
+
   const getStatusBadge = (status: MaterialRequest['status']) => {
     switch (status) {
       case 'pending_accountant':
@@ -220,9 +222,16 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
               <div className="flex items-center gap-2 text-slate-600 text-sm">
                 <CheckCircle size={16} className="text-slate-400" />
-                <span>Trạng thái phiếu:</span>
+                <span>Kết quả xử lý:</span>
                 {getStatusBadge(request.status)}
               </div>
+              {handlingPlan && (
+                <div className="flex items-center gap-2 text-slate-600 text-sm">
+                  <Info size={16} className="text-slate-400" />
+                  <span>Phương án xử lý:</span>
+                  <strong className="text-slate-800 font-semibold">{handlingPlan}</strong>
+                </div>
+              )}
             </div>
           </div>
 
@@ -351,7 +360,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             <div className="flex flex-col gap-1.5 border border-slate-200 rounded-lg p-3 bg-slate-50/70">
               <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
                 <Info size={16} />
-                <span>{getMaterialRequestBusinessStatus(request)}:</span>
+                <span>{handlingPlan || getMaterialRequestBusinessStatus(request)}:</span>
               </div>
               <p className="text-sm text-slate-600 m-0 leading-relaxed italic">"{request.rejectionReason}"</p>
             </div>
@@ -372,10 +381,12 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               requestId={request.id}
               onSubmitDecision={handleVerifyRequestByAccountant}
               onCompleted={onClose}
+              onClose={onClose}
             />
           )}
 
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-2">
+          {!(request.status === 'pending_accountant' && isAccountant) && (
+            <div className="flex justify-between items-center pt-4 border-t border-slate-100 mt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Đóng chi tiết
             </Button>
@@ -446,7 +457,8 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                 </>
               )}
             </div>
-          </div>
+            </div>
+          )}
         </div>
       )}
     </Modal>
