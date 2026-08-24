@@ -34,19 +34,10 @@ const schema = z.object({
   estimatedDamage: z.string().optional(),
   estimatedLaborDays: z.coerce.number({ message: 'Vui lòng nhập số' }).min(0, 'Số ngày không được âm'),
   estimatedDelayDays: z.coerce.number({ message: 'Vui lòng nhập số' }).min(0, 'Số ngày không được âm'),
-  proposedAction: z.enum(['Tạo Rework Task', 'Giảm tiến độ task', 'Khác'], {
+  proposedAction: z.enum(['Tạo Rework Task', 'Giảm tiến độ task'], {
     message: 'Vui lòng chọn đề xuất xử lý'
   }),
-  customProposedAction: z.string().optional(),
   isEmergency: z.boolean().optional(),
-}).superRefine((data, ctx) => {
-  if (data.proposedAction === 'Khác' && (!data.customProposedAction || data.customProposedAction.trim() === '')) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Vui lòng nhập đề xuất xử lý khác',
-      path: ['customProposedAction'],
-    });
-  }
 });
 
 type FormData = z.infer<typeof schema>;
@@ -97,7 +88,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     queryFn: () => projectService.getMembers(projectId),
     enabled: !!projectId && isOpen,
   });
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<any>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<any>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       incidentType: 'Construction',
@@ -109,7 +100,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       estimatedLaborDays: 0,
       estimatedDelayDays: 0,
       proposedAction: 'Tạo Rework Task',
-      customProposedAction: '',
       isEmergency: false,
     },
   });
@@ -152,7 +142,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         estimatedMaterialLoss: 0,
         estimatedLaborDays: data.estimatedLaborDays ?? 0,
         estimatedDelayDays: data.estimatedDelayDays ?? 0,
-        proposedAction: (data as any).proposedAction === 'Khác' ? (data as any).customProposedAction : (data as any).proposedAction,
+        proposedAction: data.proposedAction,
         isEmergency: data.isEmergency ?? false,
       });
     },
@@ -368,7 +358,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     {...register('responsibleParty')}
                     style={{ padding: '8px', cursor: 'pointer' }}
                   >
-                    <option value="">Chọn Người/Tổ đội</option>
+                    <option value="">Chọn Người</option>
                     {members.map(m => (
                       <option key={m.userId} value={m.userName}>
                         {m.userName} {m.userRole === 'subcontractor' ? '(Thầu phụ)' : m.userRole === 'engineer' ? '(Kỹ sư)' : ''}
@@ -388,11 +378,10 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={() => { if (uploadedFiles.length < 5) document.getElementById('incident-img-input')?.click(); }}
-                  className={`mt-1 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${
-                    dragging
-                      ? 'border-amber-500 bg-amber-50'
-                      : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100/80'
-                  } ${uploadedFiles.length >= 5 ? 'cursor-not-allowed opacity-90' : ''}`}
+                  className={`mt-1 border-2 border-dashed rounded-lg text-center cursor-pointer transition-all ${dragging
+                    ? 'border-amber-500 bg-amber-50'
+                    : 'border-slate-300 bg-slate-50/60 hover:bg-slate-100/80'
+                    } ${uploadedFiles.length >= 5 ? 'cursor-not-allowed opacity-90' : ''}`}
                   style={{ padding: uploadedFiles.length > 0 ? '16px' : '24px' }}
                 >
                   <input id="incident-img-input" type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} disabled={uploadedFiles.length >= 5} />
@@ -406,9 +395,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                         {uploadedFiles.map((file) => (
                           <div
                             key={file.id}
-                            className={`relative w-16 h-16 rounded shadow-sm border overflow-hidden group ${
-                              file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'
-                            }`}
+                            className={`relative w-16 h-16 rounded shadow-sm border overflow-hidden group ${file.status === 'error' ? 'border-red-500' : file.status === 'success' ? 'border-green-500' : 'border-slate-200'
+                              }`}
                           >
                             <LazyImage src={file.url} alt={file.name} widthOption={200} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
@@ -544,21 +532,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <select className="input" {...register('proposedAction')}>
                     <option value="Tạo Rework Task">Tạo công việc mới</option>
                     <option value="Giảm tiến độ task">Giảm % tiến độ công việc</option>
-                    <option value="Khác">Khác</option>
                   </select>
                   {(errors as any).proposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).proposedAction?.message)}</span>}
-
-                  {watch('proposedAction') === 'Khác' && (
-                    <div style={{ marginTop: '8px' }}>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="Nhập đề xuất xử lý khác..."
-                        {...register('customProposedAction')}
-                      />
-                      {(errors as any).customProposedAction && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem', display: 'block', marginTop: '4px' }}>{String((errors as any).customProposedAction?.message)}</span>}
-                    </div>
-                  )}
                 </div>
               </div>
 

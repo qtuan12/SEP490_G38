@@ -216,6 +216,185 @@ public class CreateAndAssessIncidentCommandHandlerTests
             It.Is<Project>(project => project.ProjectId == ProjectId)), Times.Once);
     }
 
+    [Theory]
+    [InlineData(IncidentStatus.Reported)]
+    [InlineData(IncidentStatus.WaitingAccountant)]
+    [InlineData(IncidentStatus.UnderResolution)]
+    [InlineData("WaitingDirector")]
+    public async Task Handle_PhaseHasActiveInventoryIncident_ShouldRejectNewIncident(string activeStatus)
+    {
+        SetupProject();
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            PhaseId = PhaseId,
+            IncidentType = "InventoryDamage",
+            Status = activeStatus
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        Func<Task> act = () => _handler.Handle(InventoryCommand(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_ACTIVE_INVENTORY_INCIDENT_EXISTS");
+        _incidentRepository.Verify(repository => repository.AddAsync(
+            It.IsAny<Incident>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(IncidentStatus.Resolved)]
+    [InlineData(IncidentStatus.Closed)]
+    [InlineData(IncidentStatus.Rejected)]
+    [InlineData(IncidentStatus.Approved)]
+    public async Task Handle_PhasePreviousInventoryIncidentIsTerminal_ShouldAllowNewIncident(string terminalStatus)
+    {
+        SetupProject();
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            PhaseId = PhaseId,
+            IncidentType = "InventoryLoss",
+            Status = terminalStatus
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        var result = await _handler.Handle(InventoryCommand(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Status.Should().Be(IncidentStatus.WaitingAccountant);
+    }
+
+    [Fact]
+    public async Task Handle_OtherPhaseHasActiveInventoryIncident_ShouldAllowNewIncident()
+    {
+        SetupProject();
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            PhaseId = PhaseId + 1,
+            IncidentType = "InventoryLoss",
+            Status = IncidentStatus.UnderResolution
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        var result = await _handler.Handle(InventoryCommand(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_ConcurrentInventoryIncidentCreation_ShouldReturnStableBusinessError()
+    {
+        SetupProject();
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _uow.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException(
+                "Trigger rejected duplicate active incident.",
+                new FakeSqlException(51000, "ERR_ACTIVE_INVENTORY_INCIDENT_EXISTS")));
+
+        Func<Task> act = () => _handler.Handle(InventoryCommand(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_ACTIVE_INVENTORY_INCIDENT_EXISTS");
+    }
+
+    [Theory]
+    [InlineData(IncidentStatus.Reported)]
+    [InlineData(IncidentStatus.UnderReview)]
+    [InlineData(IncidentStatus.UnderResolution)]
+    public async Task Handle_PhaseHasActiveConstructionIncident_ShouldRejectNewIncident(string activeStatus)
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            PhaseId = PhaseId,
+            IncidentType = "Construction",
+            Status = activeStatus
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        Func<Task> act = () => _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_ACTIVE_CONSTRUCTION_INCIDENT_EXISTS");
+        _incidentRepository.Verify(repository => repository.AddAsync(
+            It.IsAny<Incident>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(IncidentStatus.Resolved)]
+    [InlineData(IncidentStatus.Closed)]
+    [InlineData(IncidentStatus.Rejected)]
+    [InlineData(IncidentStatus.Approved)]
+    public async Task Handle_PhasePreviousConstructionIncidentIsTerminal_ShouldAllowNewIncident(string terminalStatus)
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            PhaseId = PhaseId,
+            IncidentType = "Construction",
+            Status = terminalStatus
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        var result = await _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Status.Should().Be(IncidentStatus.UnderReview);
+    }
+
+    [Fact]
+    public async Task Handle_OtherPhaseHasActiveConstructionIncident_ShouldAllowNewIncident()
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _incidents.Add(new Incident
+        {
+            IncidentId = 49,
+            ProjectId = ProjectId,
+            PhaseId = PhaseId + 1,
+            IncidentType = "Construction",
+            Status = IncidentStatus.UnderReview
+        });
+        _incidentRepository.SetupMockData(_incidents);
+
+        var result = await _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_ConcurrentConstructionIncidentCreation_ShouldReturnStableBusinessError()
+    {
+        SetupProject();
+        _taskRepository.SetupMockData([new ProjectTask { TaskId = TaskId, PhaseId = PhaseId }]);
+        _phaseRepository.SetupMockData([new Phase { PhaseId = PhaseId, ProjectId = ProjectId }]);
+        _uow.Setup(unit => unit.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException(
+                "Trigger rejected duplicate active incident.",
+                new FakeSqlException(51000, "ERR_ACTIVE_CONSTRUCTION_INCIDENT_EXISTS")));
+
+        Func<Task> act = () => _handler.Handle(ConstructionCommand(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be("ERR_ACTIVE_CONSTRUCTION_INCIDENT_EXISTS");
+    }
+
     private void SetupProject(
         string status = ProjectStatus.InProgress,
         bool includeCurrentUser = true,
@@ -248,4 +427,28 @@ public class CreateAndAssessIncidentCommandHandlerTests
             null,
             null,
             isEmergency);
+
+    private static CreateAndAssessIncidentCommand InventoryCommand()
+        => new(
+            ProjectId,
+            null,
+            PhaseId,
+            "InventoryLoss",
+            "Mất vật tư",
+            "Thiếu 10 bao xi măng",
+            null,
+            null,
+            null,
+            null,
+            false);
+
+    private sealed class FakeSqlException : Exception
+    {
+        public FakeSqlException(int number, string message) : base(message)
+        {
+            Number = number;
+        }
+
+        public int Number { get; }
+    }
 }

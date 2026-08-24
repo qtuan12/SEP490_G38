@@ -44,6 +44,34 @@ public class GetAllIncidentsQueryHandler : IRequestHandler<GetAllIncidentsQuery,
 
         var dtos = _mapper.Map<List<IncidentDto>>(incidents);
 
+        var incidentIds = incidents.Select(incident => incident.IncidentId).ToList();
+        var latestAdjustments = await _unitOfWork.Repository<InventoryAdjustment>()
+            .Query()
+            .Where(adjustment => adjustment.IncidentId.HasValue
+                && incidentIds.Contains(adjustment.IncidentId.Value)
+                && adjustment.AdjustmentType == InventoryAdjustmentType.Decrease)
+            .OrderByDescending(adjustment => adjustment.CreatedAt)
+            .ThenByDescending(adjustment => adjustment.AdjustmentId)
+            .Select(adjustment => new
+            {
+                adjustment.IncidentId,
+                adjustment.AdjustmentId,
+                adjustment.Status
+            })
+            .ToListAsync(cancellationToken);
+
+        var latestByIncident = latestAdjustments
+            .GroupBy(adjustment => adjustment.IncidentId!.Value)
+            .ToDictionary(group => group.Key, group => group.First());
+
+        dtos = dtos.Select(dto => latestByIncident.TryGetValue(dto.IncidentId, out var adjustment)
+            ? dto with
+            {
+                LatestAdjustmentId = adjustment.AdjustmentId,
+                LatestAdjustmentStatus = adjustment.Status
+            }
+            : dto).ToList();
+
         return ApiResponse<List<IncidentDto>>.SuccessResult(dtos);
     }
 }

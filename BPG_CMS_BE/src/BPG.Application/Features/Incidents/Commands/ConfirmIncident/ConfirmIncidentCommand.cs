@@ -25,7 +25,12 @@ public record ConfirmIncidentCommand(
     string? HandlingInstruction,
     string? RecoveryPlanText = null,
     decimal? RecoveryEstimateCost = null,
-    string? Decision = null
+    string? Decision = null,
+    string? ReworkTaskDescription = null,
+    decimal? ReworkTaskWeight = null,
+    bool? IsOutsourced = null,
+    string? OutsourcedTeamName = null,
+    string? OutsourcedTeamContact = null
 ) : IRequest<ApiResponse<IncidentDto>>
 {
 }
@@ -40,7 +45,6 @@ public class ConfirmIncidentCommandValidator : AbstractValidator<ConfirmIncident
             RuleFor(v => v.ReworkTaskName).NotEmpty().WithMessage("ReworkTaskName is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskStartDate).NotNull().WithMessage("ReworkTaskStartDate is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskEndDate).NotNull().WithMessage("ReworkTaskEndDate is required when creating a rework task.");
-            RuleFor(v => v.ReworkAssigneeId).NotNull().WithMessage("ReworkAssigneeId is required when creating a rework task.");
             RuleFor(v => v.ReworkTaskEndDate)
                 .Must((command, endDate) =>
                     !command.ReworkTaskStartDate.HasValue
@@ -268,16 +272,22 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 }
                 else
                 {
-                    // Obsolete all unfinished tasks in the project
-                    var unfinishedTasks = await _unitOfWork.Repository<ProjectTask>()
+                    // An approved emergency recovery plan replaces the execution plan of
+                    // every phase that has not reached a terminal completion state. Mark
+                    // every task in those phases obsolete, including completed parent or
+                    // child tasks, so the replacement WBS starts from a consistent baseline.
+                    var tasksInIncompletePhases = await _unitOfWork.Repository<ProjectTask>()
                         .Query()
                         .Include(t => t.Phase)
-                        .Where(t => t.Phase.ProjectId == incident.ProjectId && t.ProgressPercent < 100 && t.Status != "Obsolete")
+                        .Where(t => t.Phase.ProjectId == incident.ProjectId
+                            && t.Phase.Status != PhaseStatus.Completed
+                            && t.Phase.Status != PhaseStatus.Approved
+                            && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
                         .ToListAsync(cancellationToken);
 
-                    foreach (var task in unfinishedTasks)
+                    foreach (var task in tasksInIncompletePhases)
                     {
-                        task.Status = "Obsolete";
+                        task.Status = BPG.Domain.Constants.TaskStatus.Obsolete;
                         task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố khẩn cấp của dự án: {incident.Description}";
                         _unitOfWork.Repository<ProjectTask>().Update(task);
 
@@ -317,7 +327,13 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                             ParentTaskId = incident.Task.ParentTaskId,
                             IncidentId = incident.IncidentId,
                             Name = request.ReworkTaskName!,
-                            Description = FormatReworkTaskDescription(incident.Description),
+                            Description = !string.IsNullOrWhiteSpace(request.ReworkTaskDescription)
+                                ? request.ReworkTaskDescription.Trim()
+                                : FormatReworkTaskDescription(incident.Description),
+                            Weight = request.ReworkTaskWeight ?? 1,
+                            IsOutsourced = request.IsOutsourced ?? false,
+                            OutsourcedTeamName = request.IsOutsourced == true ? request.OutsourcedTeamName : null,
+                            OutsourcedTeamContact = request.IsOutsourced == true ? request.OutsourcedTeamContact : null,
                             StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
                             EndDate = DateOnly.FromDateTime(request.ReworkTaskEndDate!.Value),
                             Status = "New",
@@ -432,7 +448,13 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                     ParentTaskId = incident.Task.ParentTaskId,
                     IncidentId = incident.IncidentId,
                     Name = request.ReworkTaskName!,
-                    Description = FormatReworkTaskDescription(incident.Description),
+                    Description = !string.IsNullOrWhiteSpace(request.ReworkTaskDescription)
+                        ? request.ReworkTaskDescription.Trim()
+                        : FormatReworkTaskDescription(incident.Description),
+                    Weight = request.ReworkTaskWeight ?? 1,
+                    IsOutsourced = request.IsOutsourced ?? false,
+                    OutsourcedTeamName = request.IsOutsourced == true ? request.OutsourcedTeamName : null,
+                    OutsourcedTeamContact = request.IsOutsourced == true ? request.OutsourcedTeamContact : null,
                     StartDate = DateOnly.FromDateTime(request.ReworkTaskStartDate!.Value),
                     EndDate = DateOnly.FromDateTime(request.ReworkTaskEndDate!.Value),
                     Status = "New",
@@ -522,7 +544,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                         "ERR_USE_ADJUSTMENT_CREATION",
                         "Hãy tạo phiếu giảm tồn liên kết để xác minh sự cố vật tư.");
                 }
-                else if (incident.Status == "WaitingDirector")
+                else if (incident.Status == IncidentStatus.UnderResolution)
                 {
                     throw new BusinessException(
                         "ERR_USE_ADJUSTMENT_APPROVAL",
@@ -724,7 +746,7 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 "WaitingAccountant" => throw new BusinessException(
                     "ERR_USE_ADJUSTMENT_CREATION",
                     "Hãy tạo phiếu giảm tồn liên kết để xác minh sự cố vật tư."),
-                "WaitingDirector" => throw new BusinessException(
+                IncidentStatus.UnderResolution => throw new BusinessException(
                     "ERR_USE_ADJUSTMENT_APPROVAL",
                     "Hãy phê duyệt phiếu giảm tồn liên kết để hoàn tất sự cố vật tư."),
                 _ => throw new BusinessException("ERR_INVALID_STATUS", "Sự cố vật tư không ở trạng thái có thể duyệt.")
@@ -766,17 +788,17 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
         if (incident.Task == null)
             throw new BusinessException("ERR_NO_TASK", "Sự cố không gắn với task nào để làm lại.");
 
-        if (!request.ReworkAssigneeId.HasValue)
-            throw new BusinessException("ERR_INVALID_INPUT", "Người phụ trách công việc làm lại là bắt buộc.");
-
-        var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
-            member => member.ProjectId == incident.ProjectId
-                && member.UserId == request.ReworkAssigneeId.Value,
-            cancellationToken);
-        if (!isProjectMember)
-            throw new BusinessException(
-                "ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
-                "Người phụ trách công việc làm lại không thuộc dự án.");
+        if (request.ReworkAssigneeId.HasValue)
+        {
+            var isProjectMember = await _unitOfWork.Repository<ProjectMember>().AnyAsync(
+                member => member.ProjectId == incident.ProjectId
+                    && member.UserId == request.ReworkAssigneeId.Value,
+                cancellationToken);
+            if (!isProjectMember)
+                throw new BusinessException(
+                    "ERR_TASK_ASSIGNEE_NOT_PROJECT_MEMBER",
+                    "Người phụ trách công việc làm lại không thuộc dự án.");
+        }
     }
 
     private string AppendStatusHistory(

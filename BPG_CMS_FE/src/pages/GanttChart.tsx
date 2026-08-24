@@ -11,6 +11,8 @@ import {
   TrendingUp,
   LayoutGrid,
   List,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useProjectAccess } from '../hooks/useProjectAccess';
@@ -22,6 +24,8 @@ import { TaskDetailModal } from './WBSWorkspace/modals/TaskDetailModal';
 import { ReportIncidentModal } from './Incidents/modals/ReportIncidentModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
+import { incidentService, type IncidentDto } from '../services/incidentService';
+import { hasApprovedEmergencyForCurrentPause } from '../utils/emergencyWbsAccess';
 
 // ── helpers ───────────────────────────────────────────────────────────────
 const formatDate = (s: string) => {
@@ -54,12 +58,15 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [phases, setPhases] = useState<WBSPhase[]>([]);
   const [tasks, setTasks] = useState<WBSTask[]>([]);
+  const [incidents, setIncidents] = useState<IncidentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('Week');
   const [showGrid, setShowGrid] = useState(true);
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const { user } = useAuth();
   const { isTechnicalManager, isProjectLeader, isProjectMember } = useProjectAccess(projectId);
 
@@ -67,15 +74,46 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   const [selectedTaskForDetail, setSelectedTaskForDetail] = useState<WBSTask | null>(null);
   const [isReportIncidentOpen, setIsReportIncidentOpen] = useState(false);
 
+  const toggleFullscreen = useCallback(() => {
+    if (!mainContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      mainContainerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error entering fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen().catch(err => {
+        console.error(`Error exiting fullscreen: ${err.message}`);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      setTimeout(() => {
+        if (ganttContainerRef.current) {
+          gantt.render();
+        }
+      }, 150);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   // ── load data ────────────────────────────────────────────────────────
   const loadGanttData = useCallback(async (silent = false) => {
     if (!projectId) return;
     if (!silent) setLoading(true);
     try {
-      const [projs, pList, tList] = await Promise.all([
+      const [projs, pList, tList, incidentList] = await Promise.all([
         projectService.getProjects(),
         projectService.getPhases(projectId),
-        projectService.getTasks(projectId)
+        projectService.getTasks(projectId),
+        incidentService.getIncidents(Number(projectId.replace(/^p-/, ''))),
       ]);
       setProject(projs.find(p => p.id === projectId) ?? null);
       setPhases(pList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
@@ -84,6 +122,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? i + 1 }))
           .sort((a, b) => a.sortOrder - b.sortOrder)
       );
+      setIncidents(incidentList);
       setError(null);
     } catch (e: any) {
       if (silent) console.error(e);
@@ -101,6 +140,15 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
     () => loadGanttData(true),
     RealtimeEntities.projects,
   );
+
+  const hasApprovedEmergencyIncident = hasApprovedEmergencyForCurrentPause(
+    project?.pauseReason,
+    incidents,
+  );
+  const canEditWbs = (isTechnicalManager || isProjectLeader) && (
+    project?.status !== 'paused'
+    || (isTechnicalManager && hasApprovedEmergencyIncident)
+  ) && project?.status !== 'done';
 
   // ── build DHTMLX data ────────────────────────────────────────────────
   const buildDhtmlxData = useCallback(() => {
@@ -366,17 +414,26 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+    <div
+      ref={mainContainerRef}
+      className={`flex flex-col ${isFullscreen ? 'h-screen w-screen bg-white fixed inset-0 z-50' : 'h-[calc(100vh-64px)]'} overflow-hidden`}
+    >
 
       {/* ── Top bar ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between py-4 px-6 border-b border-[hsl(var(--border))] bg-[hsl(var(--bg-card))] flex-wrap gap-3 shrink-0">
         <div className="flex items-center gap-3.5">
           {!embeddedProjectId && (
             <button
-              onClick={() => navigate(`/projects/${projectId}`)}
+              onClick={() => {
+                if (isFullscreen) {
+                  toggleFullscreen();
+                } else {
+                  navigate(`/projects/${projectId}`);
+                }
+              }}
               className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-transparent cursor-pointer text-[hsl(var(--text-secondary))] text-[0.85rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
             >
-              <ArrowLeft size={15} /><span>Quay lại</span>
+              <ArrowLeft size={15} /><span>{isFullscreen ? 'Thoát toàn màn hình' : 'Quay lại'}</span>
             </button>
           )}
           <div>
@@ -391,13 +448,23 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
         </div>
 
         {/* Actions right */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setShowGrid(!showGrid)}
             className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-white cursor-pointer text-[hsl(var(--text-secondary))] text-[0.82rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
           >
             <List size={15} />
             <span>{showGrid ? 'Thu gọn danh sách' : 'Mở rộng danh sách'}</span>
+          </button>
+
+          {/* Fullscreen toggle button */}
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1.5 py-1.5 px-3.5 border border-[hsl(var(--border))] rounded-sm bg-white cursor-pointer text-[hsl(var(--text-secondary))] text-[0.82rem] font-medium hover:bg-[hsl(var(--bg-main))] transition-colors"
+            title={isFullscreen ? 'Thu nhỏ màn hình (Esc)' : 'Xem toàn màn hình'}
+          >
+            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            <span>{isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
           </button>
 
           {/* View mode switcher */}
@@ -476,6 +543,7 @@ export const GanttChart: React.FC<Props> = ({ embeddedProjectId }) => {
           materialRequests={[]}
           isTPKTOrPL={isTechnicalManager || isProjectLeader}
           isTPKT={isTechnicalManager}
+          canEdit={canEditWbs}
           isPL={isProjectLeader}
           isProjectMember={isProjectMember}
           onCreateMatReqOpen={() => {}}

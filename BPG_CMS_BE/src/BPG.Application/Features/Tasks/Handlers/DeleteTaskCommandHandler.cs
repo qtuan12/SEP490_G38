@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Domain.Exceptions;
 using BPG.Application.Common.Models;
 using BPG.Application.IRepositories;
@@ -36,8 +37,10 @@ public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, ApiRe
         if (task == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
-        if (task.Phase != null && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.InProgress && task.Phase.Project.Status != BPG.Domain.Constants.ProjectStatus.Draft)
-            throw new BusinessException(BPG.Domain.Constants.ErrorCodes.InvalidTransition, "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để thực hiện thao tác này.");
+        if (task.Phase != null)
+            await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+                _unitOfWork, task.Phase.Project.ProjectId, task.Phase.Project.Status,
+                task.Phase.Project.PauseReason, ct, _currentUserService);
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
         {
