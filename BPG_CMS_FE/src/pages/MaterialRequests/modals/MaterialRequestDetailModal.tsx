@@ -312,32 +312,6 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
               </div>
             );
           })()}
-          <div className="flex flex-col gap-2">
-            <h4 className="text-sm font-bold text-slate-700 m-0">Lịch sử xử lý phiếu</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                <div className="font-bold text-slate-700">1. Tạo yêu cầu</div>
-                <div className="mt-1 text-slate-600">{request.requesterName} · {formatDate(request.date)}</div>
-              </div>
-              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                <div className="font-bold text-slate-700">2. Kế toán thẩm định</div>
-                <div className="mt-1 text-slate-600">{request.checkedByName ? `Đã xử lý bởi ${request.checkedByName}` : 'Chưa xử lý'}</div>
-                {request.procurementDecision && (
-                  <div className="mt-1 text-slate-600">Phương án: {getProcurementDecisionLabel(request.procurementDecision)}</div>
-                )}
-                {request.accountantNote && <div className="mt-1 text-slate-500 italic">Ý kiến: {request.accountantNote}</div>}
-              </div>
-              <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
-                <div className="font-bold text-slate-700">3. Giám đốc phê duyệt yêu cầu vượt dự toán</div>
-                <div className="mt-1 text-slate-600">
-                  {request.isOverBOQ
-                    ? (request.approvedByName ? `Đã xử lý bởi ${request.approvedByName}` : 'Chưa xử lý')
-                    : 'Không áp dụng - yêu cầu trong dự toán'}
-                </div>
-                {request.approvalNote && <div className="mt-1 text-slate-500 italic">Ghi chú: {request.approvalNote}</div>}
-              </div>
-            </div>
-          </div>
 
           {request.reason && (
             <div className="flex flex-col gap-1.5">
