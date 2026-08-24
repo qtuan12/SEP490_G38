@@ -57,12 +57,39 @@ public class GetWbsImportTemplateQueryHandler : IRequestHandler<GetWbsImportTemp
         // Example rows
         object[][] examples =
         [
-            ["1", "Phần thô", "Thi công phần thô", "03/09/2026", "21/09/2026", "", "", "", "", "", ""],
-            ["1.1", "Đổ móng", "Đổ bê tông móng", "04/09/2026", "19/09/2026", "3", "x", "Đội xây dựng A", "0987654321", "", ""],
-            ["1.1.1", "Ép cọc", "Ép cọc bê tông", "15/09/2026", "16/09/2026", "2", "", "", "", "kysu17@bpg.com", ""],
-            ["1.1.2", "Đào đất", "Đào đất hố móng", "17/09/2026", "18/09/2026", "1", "", "", "", "kysu10@bpg.com", "1.1.1"],
-            ["1.2", "Xây tường", "Xây tường bao", "20/09/2026", "21/09/2026", "2", "", "", "", "", "1.1"],
-            ["2", "Phần hoàn thiện", "Sơn, lát gạch...", "22/09/2026", "25/09/2026", "", "", "", "", "", ""]
+            ["1", "Phần thô", "Thi công phần thô", "26/08/2026", "05/10/2026", "", "", "", "", "", ""],
+            ["1.1", "Thi công móng", "Thi công toàn bộ hạng mục móng", "26/08/2026", "12/09/2026", "3", "x", "Đội xây dựng A", "0987654321", "kysu17@bpg.com", ""],
+            ["1.1.1", "Ép cọc bê tông", "Thi công ép cọc bê tông", "26/08/2026", "30/08/2026", "2", "", "", "", "kysu10@bpg.com", ""],
+            ["1.1.2", "Đào đất hố móng", "Đào đất và vệ sinh", "31/08/2026", "02/09/2026", "2", "", "", "", "kysu10@bpg.com", "1.1.1"],
+            ["1.1.3", "Lắp dựng cốt thép móng", "Gia công và lắp dựng thép", "02/09/2026", "03/09/2026", "3", "", "", "", "kysu13@bpg.com", "1.1.2"],
+            ["1.1.4", "Lắp dựng cốp pha và đổ bê tông", "Lắp cốp pha, đổ bê tông", "06/09/2026", "07/09/2026", "3", "", "", "", "kysu17@bpg.com", "1.1.3"],
+            ["1.1.5", "Bảo dưỡng bê tông móng", "Bảo dưỡng sau đổ bê tông", "09/09/2026", "10/09/2026", "2", "", "", "", "kysu10@bpg.com", ""],
+            ["1.2", "Xây tường tầng 1", "Xây tường bao và tường ngăn", "13/09/2026", "26/09/2026", "2", "", "", "", "kysu13@bpg.com", ""],
+            ["1.2.1", "Xây tường bao và vách ngăn kỹ thuật", "Xây gạch đặc vách khu vệ sinh, kỹ thuật", "13/09/2026", "21/09/2026", "2", "", "", "", "kysu13@bpg.com", ""],
+            ["1.2.2", "Đổ giằng bê tông, lanh tô cửa", "Gia công đổ bê tông lanh tô cửa sổ, cửa đi", "22/09/2026", "26/09/2026", "2", "", "", "", "kysu10@bpg.com", ""],
+            ["1.3", "Trát hoàn thiện thô", "Trát tường, dầm trần toàn bộ diện tích", "27/09/2026", "05/10/2026", "2", "", "", "", "kysu13@bpg.com", ""],
+            ["1.3.1", "Trát hoàn thiện thô", "Trát tường, dầm trần toàn bộ diện tích", "27/09/2026", "02/10/2026", "2", "", "", "", "kysu13@bpg.com", ""],
+            ["1.3.2", "Chống thấm sàn khu vệ sinh & ban công", "Quét màng chống thấm 2 thành phần, ngâm thử nước", "03/10/2026", "05/10/2026", "3", "", "", "", "kysu17@bpg.com", ""],
+            ["2", "Hệ thống cơ điện & mạng (MEP)", "Thi công toàn bộ hệ thống MEP và CNTT", "06/10/2026", "05/11/2026", "", "", "", "", "", ""],
+            ["2.1", "Hệ thống cấp thoát nước", "Lắp đặt ống cấp nước PPR và thoát nước PVC", "06/10/2026", "13/10/2026", "3", "x", "Đội MEP Minh Đức", "0971234567", "kysu5@bpg.com", ""],
+            ["2.2", "Hệ thống ống luồn dây điện & cáp nguồn", "Đi âm tường và đi trên trần hệ thống ống luồn", "11/10/2026", "13/10/2026", "3", "", "", "", "kysu5@bpg.com", ""],
+            ["2.3", "Hệ thống điều hòa không khí (HVAC)", "Lắp đặt ống đồng, ống gió và dàn lạnh âm trần", "16/10/2026", "18/10/2026", "3", "x", "Nhà thầu Daikin Pro", "0982233445", "kysu9@bpg.com", ""],
+            ["2.4", "Hệ thống phòng cháy chữa cháy (PCCC)", "Đi ống cứu hỏa, đầu sprinkler và cảm biến khói", "16/10/2026", "25/10/2026", "3", "x", "PCCC Thăng Long", "0918776655", "kysu17@bpg.com", ""],
+            ["2.5", "Hệ thống mạng LAN, Camera & Kiểm soát vào ra", "Kéo dây mạng Cat6, lắp đặt tủ Rack & camera", "22/10/2026", "31/10/2026", "2", "x", "IT Solutions Tech", "0905123123", "kysu9@bpg.com", ""],
+            ["3", "Hoàn thiện kiến trúc & nội thất", "Thi công trần, tường, sàn và nội thất văn phòng", "29/10/2026", "18/12/2026", "", "", "", "", "", ""],
+            ["3.1", "Đóng trần thạch cao & trần nhôm", "Lắp khung xương và bắn tấm thạch cao chịu ẩm", "06/11/2026", "18/12/2026", "2", "x", "Thạch cao Vĩnh Tường", "0932112233", "kysu15@bpg.com", ""],
+            ["3.2", "Ốp lát gạch & ốp đá sảnh tiếp tân", "Lát gạch nền vệ sinh, ốp đá trang trí lễ tân", "12/11/2026", "15/11/2026", "2", "", "", "", "kysu13@bpg.com", ""],
+            ["3.3", "Sơn bả tường và trần", "Bả matit 2 lớp và sơn hoàn thiện Dulux 2 lớp phủ", "16/11/2026", "20/11/2026", "2", "x", "Đội sơn Hải Âu", "0977665544", "kysu15@bpg.com", ""],
+            ["3.4", "Lắp đặt vách kính cường lực & cửa ra vào", "Lắp hệ vách nhôm kính xingfa và cửa kính thủy lực", "16/11/2026", "26/11/2026", "3", "x", "Kính Hải Long", "0911223344", "kysu15@bpg.com", ""],
+            ["3.5", "Lắp đặt thiết bị điện, chiếu sáng & vệ sinh", "Gắn đèn LED, công tắc ổ cắm, bồn cầu, lavabo", "25/11/2026", "07/12/2026", "3", "", "", "", "kysu5@bpg.com", ""],
+            ["3.6", "Lắp đặt sàn gỗ / thảm trải sàn văn phòng", "Trải thảm tấm phòng làm việc và lát sàn gỗ phòng GĐ", "06/12/2026", "11/12/2026", "2", "x", "Nội thất Sàn Đẹp", "0944556677", "kysu15@bpg.com", ""],
+            ["3.7", "Lắp đặt đồ gỗ nội thất & module bàn làm việc", "Lắp cụm bàn làm việc, tủ hồ sơ, ghế, quầy lễ tân", "10/12/2026", "18/12/2026", "2", "x", "Nội thất Hòa Phát Pro", "0968998877", "kysu15@bpg.com", ""],
+            ["4", "Kiểm thử, nghiệm thu & bàn giao", "Chạy thử hệ thống, nghiệm thu PCCC và bàn giao", "19/12/2026", "31/12/2026", "", "", "", "", "", ""],
+            ["4.1", "Chạy thử liên động hệ thống MEP & PCCC", "Test tải điện áp, áp lực nước và báo cháy tự động", "19/12/2026", "22/12/2026", "3", "", "", "", "kysu5@bpg.com", ""],
+            ["4.2", "Vệ sinh công nghiệp tổng thể", "Vệ sinh kính, hút bụi thảm, khử mùi sơn văn phòng", "19/12/2026", "25/12/2026", "1", "x", "Clean & Clean Pro", "0909123789", "kysu10@bpg.com", ""],
+            ["4.3", "Nghiệm thu nội bộ & xử lý lỗi (Defect list)", "Kiểm tra chi tiết từng phòng, dặm vá sơn, căn chỉnh cửa", "23/12/2026", "28/12/2026", "2", "", "", "", "kysu17@bpg.com", ""],
+            ["4.4", "Nghiệm thu PCCC với cơ quan chức năng", "Tiếp đoàn kiểm tra và nhận biên bản nghiệm thu", "26/12/2026", "29/12/2026", "3", "x", "PCCC Thăng Long", "0918776655", "kysu17@bpg.com", ""],
+            ["4.5", "Bàn giao chìa khóa & hồ sơ hoàn công CĐT", "Ký biên bản bàn giao và cung cấp hồ sơ bảo hành", "29/12/2026", "31/12/2026", "3", "", "", "", "leader8@bpg.com", ""]
         ];
         
         for (int r = 0; r < examples.Length; r++)

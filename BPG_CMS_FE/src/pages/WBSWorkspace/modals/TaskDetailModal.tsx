@@ -263,18 +263,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 const start = new Date(selectedTask.startDate);
                 start.setHours(0, 0, 0, 0);
                 const end = new Date(selectedTask.deadline);
-                end.setHours(23, 59, 59, 999);
+                end.setHours(0, 0, 0, 0);
                 const now = new Date();
+                now.setHours(0, 0, 0, 0);
                 
-                const startMs = start.getTime();
-                const endMs = end.getTime();
-                const nowMs = now.getTime();
+                const totalDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                const elapsedDays = Math.round((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
                 
-                if (endMs > startMs) {
-                  if (nowMs >= endMs) expectedProgress = 100;
-                  else if (nowMs > startMs) {
-                    expectedProgress = Math.round(((nowMs - startMs) / (endMs - startMs)) * 100);
-                  }
+                if (elapsedDays >= totalDays) {
+                  expectedProgress = 100;
+                } else if (elapsedDays > 0) {
+                  expectedProgress = Math.round((elapsedDays / totalDays) * 100);
                 }
               }
               
@@ -299,7 +298,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                     </div>
                     <span>{expectedProgress}%</span>
                   </div>
-                  <div style={{ height: '4px', backgroundColor: 'hsl(var(--border-light))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                  <div style={{ height: '8px', backgroundColor: 'hsl(var(--border-light))', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
                     <div style={{ width: `${expectedProgress}%`, height: '100%', backgroundColor: 'hsl(var(--text-muted))', transition: 'width 0.4s ease' }} />
                   </div>
                 </div>
@@ -307,8 +306,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             })()}
           </div>
 
-          {/* Assignee + Start Date + Deadline + Weight */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '16px' }}>
+          {/* Assignee + Start Date + Deadline + Weight + Actual Dates */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '16px' }}>
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
                 <User size={14} />KỸ SƯ PHỤ TRÁCH
@@ -347,18 +346,21 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>Chưa phân công</strong>
               )}
             </div>
+            
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
-                <Calendar size={14} />NGÀY BẮT ĐẦU
+                <Calendar size={14} />NGÀY BẮT ĐẦU (DỰ KIẾN)
               </span>
               <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.startDate?.split('-').reverse().join('-') || 'Chưa xác định'}</strong>
             </div>
+            
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
                 <Calendar size={14} />HẠN HOÀN THÀNH
               </span>
               <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.deadline?.split('-').reverse().join('-')}</strong>
             </div>
+            
             <div style={{ padding: '12px', backgroundColor: 'hsl(var(--bg-main))', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--border))' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--text-muted))', fontWeight: 600, marginBottom: '6px' }}>
                 <TrendingUp size={14} />MỨC ĐỘ QUAN TRỌNG
@@ -372,6 +374,20 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   return 'Bình thường';
                 })()}
               </strong>
+            </div>
+
+            <div style={{ padding: '12px', backgroundColor: 'hsl(var(--success-glow) / 0.1)', borderRadius: 'var(--radius-sm)', border: '1px dashed hsl(var(--success) / 0.4)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--success))', fontWeight: 600, marginBottom: '6px' }}>
+                <Calendar size={14} />BẮT ĐẦU THỰC TẾ
+              </span>
+              <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.actualStartDate?.split('-').reverse().join('-') || 'Chưa bắt đầu'}</strong>
+            </div>
+
+            <div style={{ padding: '12px', backgroundColor: 'hsl(var(--success-glow) / 0.1)', borderRadius: 'var(--radius-sm)', border: '1px dashed hsl(var(--success) / 0.4)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'hsl(var(--success))', fontWeight: 600, marginBottom: '6px' }}>
+                <Calendar size={14} />KẾT THÚC THỰC TẾ
+              </span>
+              <strong style={{ fontSize: '0.9rem', color: 'hsl(var(--text-primary))' }}>{selectedTask.actualEndDate?.split('-').reverse().join('-') || 'Chưa hoàn thành'}</strong>
             </div>
           </div>
 

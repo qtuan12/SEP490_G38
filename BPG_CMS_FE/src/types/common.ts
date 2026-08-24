@@ -200,7 +200,9 @@ export interface WBSTask {
   assignedTo?: string; // userId of engineer
   assignedName?: string; // name of engineer
   startDate?: string;
+  actualStartDate?: string;
   deadline: string;
+  actualEndDate?: string;
   progress: number; // 0 - 100
   history: TaskHistory[];
   status?: 'active' | 'obsolete';
