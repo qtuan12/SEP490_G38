@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Modal } from '../../components/ui/Modal';
 import { Button, ConfirmDialog, ImageLightbox } from '../../components/ui';
 import {
@@ -10,7 +11,7 @@ import { materialService } from '../../services/materialService';
 import { projectService } from '../../services/projectService';
 import type { MaterialCatalog, MaterialConversion } from '../../types/material';
 import type { WBSPhase } from '../../types/common';
-import { Plus, Trash2, Upload, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
 import { DP_PURCHASE_DATE_ERRORS } from '../../constants/errorCodes';
@@ -60,6 +61,146 @@ interface UnitOption {
   /** Số đơn vị này trên một đơn vị cơ bản. Đơn vị cơ bản luôn là 1. */
   conversionRate: number;
 }
+
+interface MaterialOption {
+  materialId: number;
+  code: string;
+  name: string;
+  /** Nhãn phụ nối sau tên, vd " — không còn trong BOQ". */
+  suffix?: string;
+}
+
+/**
+ * Ô chọn vật tư có tìm kiếm — danh mục vật tư có thể dài nên cuộn tay khó tìm.
+ * Chỉ hiển thị tên (không kèm mã) cho gọn; mã vật tư vẫn giữ trong tooltip và vẫn dùng để
+ * tìm kiếm, vì người dùng quen tra theo mã lẫn tên.
+ */
+const MaterialSelectCell: React.FC<{
+  value: number;
+  options: MaterialOption[];
+  onChange: (materialId: number) => void;
+  hasError?: boolean;
+}> = ({ value, options, onChange, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  /** Toạ độ dropdown, tính từ nút bấm — cần vì dropdown được portal ra <body>. */
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Dropdown portal ra document.body thay vì nằm trong ô bảng: bảng vật tư có
+   * overflowX: 'auto' để cuộn ngang, mà theo spec CSS thì overflow-y khi đó cũng tự thành
+   * 'auto' — dropdown mở trong ô sẽ bị cắt mất phần vượt ra ngoài khung bảng.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const updatePos = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.max(rect.width, 260);
+      const left = Math.min(rect.left, window.innerWidth - width - 8);
+      setMenuPos({ top: rect.bottom + 4, left: Math.max(8, left), width });
+    };
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+      setQuery('');
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  const selected = options.find(o => o.materialId === value);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = normalizedQuery
+    ? options.filter(o => o.name.toLowerCase().includes(normalizedQuery) || o.code.toLowerCase().includes(normalizedQuery))
+    : options;
+  // Danh mục có thể cả trăm vật tư — không giới hạn số dòng, chỉ giới hạn chiều cao
+  // hiển thị còn khoảng 5 dòng rồi cuộn tiếp, đỡ chiếm hết khung nhìn.
+  const ROW_HEIGHT = 33;
+  const VISIBLE_ROWS = 5;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        title={selected ? `[${selected.code}] ${selected.name}` : undefined}
+        style={{
+          width: '100%', padding: '4px 24px 4px 6px', fontSize: '0.85rem', textAlign: 'left',
+          border: `1px solid ${hasError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+          borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: selected ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+          cursor: 'pointer', position: 'relative', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+      >
+        {selected ? selected.name : '-- Chọn --'}
+        <ChevronDown size={13} style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))', pointerEvents: 'none' }} />
+      </button>
+
+      {open && menuPos && createPortal(
+        <div
+          ref={menuRef}
+          className="dp-material-dropdown"
+          style={{
+            position: 'fixed', top: menuPos.top, left: menuPos.left, width: menuPos.width, zIndex: 3000,
+            background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', maxHeight: '280px',
+          }}
+        >
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Tìm theo tên hoặc mã vật tư..."
+            style={{
+              margin: '6px', padding: '6px 8px', fontSize: '0.85rem',
+              border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)',
+              background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))',
+            }}
+          />
+          <div style={{ overflowY: 'auto', borderTop: '1px solid hsl(var(--border))', maxHeight: `${ROW_HEIGHT * VISIBLE_ROWS}px` }}>
+            {filtered.length === 0 && (
+              <div style={{ padding: '10px', fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textAlign: 'center' }}>
+                Không tìm thấy vật tư phù hợp.
+              </div>
+            )}
+            {filtered.map(o => (
+              <div
+                key={o.materialId}
+                className="dp-material-option"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { onChange(o.materialId); setOpen(false); setQuery(''); }}
+                title={`[${o.code}] ${o.name}`}
+                style={{
+                  padding: '7px 10px', fontSize: '0.85rem', cursor: 'pointer',
+                  background: o.materialId === value ? 'hsl(var(--bg-sidebar))' : undefined,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', boxSizing: 'border-box', height: `${ROW_HEIGHT}px`,
+                }}
+              >
+                {o.name}{o.suffix ?? ''}
+              </div>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
 
 export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, draftId }) => {
   const isEditing = !!draftId;
@@ -824,28 +965,23 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: hasError ? 'hsl(var(--danger-glow))' : warn ? 'hsl(var(--warning) / 0.08)' : undefined }}>
                         <td style={{ ...bodyCellStyle, minWidth: '260px' }}>
-                          <select
-                            value={row.materialId || ''}
-                            onChange={e => updateRowMaterial(i, Number(e.target.value))}
-                            title={row.materialName ? `[${row.materialCode}] ${row.materialName}` : undefined}
-                            style={{ ...selectStyle, padding: '4px 28px 4px 6px', fontSize: '0.85rem' }}
-                          >
-                            <option value="">-- Chọn --</option>
-                            {catalog
+                          <MaterialSelectCell
+                            value={row.materialId}
+                            onChange={materialId => updateRowMaterial(i, materialId)}
+                            hasError={!!materialError}
+                            options={catalog
                               // Chỉ mua khẩn cấp được vật tư đã có trong định mức BOQ của giai đoạn.
                               // Vật tư đang chọn sẵn vẫn giữ lại để phiếu nháp cũ không mất dòng.
                               .filter(m => m.materialId === row.materialId
                                 || (boqItems.some(b => b.materialId === m.materialId)
                                     && !usedMaterialIds.includes(m.materialId)))
-                              .map(m => {
-                                const inBoq = boqItems.some(b => b.materialId === m.materialId);
-                                return (
-                                  <option key={m.materialId} value={m.materialId}>
-                                    [{m.code}] {m.name}{inBoq ? '' : ' — không còn trong BOQ'}
-                                  </option>
-                                );
-                              })}
-                          </select>
+                              .map(m => ({
+                                materialId: m.materialId,
+                                code: m.code,
+                                name: m.name,
+                                suffix: boqItems.some(b => b.materialId === m.materialId) ? undefined : ' — không còn trong BOQ',
+                              }))}
+                          />
                           <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{materialError ?? ''}</div>
                         </td>
                         <td style={{ ...bodyCellStyle, whiteSpace: 'nowrap' }}>
@@ -984,6 +1120,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         }
         .dp-no-spinner {
           -moz-appearance: textfield;
+        }
+        .dp-material-option:hover {
+          background: hsl(var(--bg-hover, var(--bg-sidebar)));
         }
       `}</style>
     </Modal>
