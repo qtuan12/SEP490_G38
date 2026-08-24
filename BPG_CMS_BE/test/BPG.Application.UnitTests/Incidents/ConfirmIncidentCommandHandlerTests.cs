@@ -293,6 +293,70 @@ public class ConfirmIncidentCommandHandlerTests
         exception.Which.ErrorCode.Should().Be("ERR_INCIDENT_ALREADY_PROCESSED");
     }
 
+    [Fact]
+    public async Task UTCID13_Handle_EmergencyDirectorApproval_ShouldObsoleteEveryTaskInIncompletePhases()
+    {
+        var incident = EmergencyIncident("WaitingDirectorApproval");
+        var incompletePhase = new Phase
+        {
+            PhaseId = PhaseId,
+            ProjectId = ProjectId,
+            Status = PhaseStatus.InProgress
+        };
+        var completedPhase = new Phase
+        {
+            PhaseId = PhaseId + 1,
+            ProjectId = ProjectId,
+            Status = PhaseStatus.Completed
+        };
+        var completedParent = incident.Task!;
+        completedParent.Phase = incompletePhase;
+        var completedChild = new ProjectTask
+        {
+            TaskId = TaskId + 1,
+            PhaseId = incompletePhase.PhaseId,
+            Phase = incompletePhase,
+            ParentTaskId = completedParent.TaskId,
+            Name = "Công việc con đã hoàn thành",
+            Status = BPG.Domain.Constants.TaskStatus.Completed,
+            ProgressPercent = 100
+        };
+        var unfinishedTask = new ProjectTask
+        {
+            TaskId = TaskId + 2,
+            PhaseId = incompletePhase.PhaseId,
+            Phase = incompletePhase,
+            Name = "Công việc chưa hoàn thành",
+            Status = BPG.Domain.Constants.TaskStatus.InProgress,
+            ProgressPercent = 50
+        };
+        var taskInCompletedPhase = new ProjectTask
+        {
+            TaskId = TaskId + 3,
+            PhaseId = completedPhase.PhaseId,
+            Phase = completedPhase,
+            Name = "Công việc thuộc phase hoàn thành",
+            Status = BPG.Domain.Constants.TaskStatus.InProgress,
+            ProgressPercent = 50
+        };
+
+        SetupIncident(incident);
+        SetRoles(UserRoleConstants.Director);
+        _phaseRepository.SetupMockData([incompletePhase, completedPhase]);
+        _taskRepository.SetupMockData([completedParent, completedChild, unfinishedTask, taskInCompletedPhase]);
+
+        var result = await _handler.Handle(Command(decision: "Approve"), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        completedParent.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Obsolete);
+        completedChild.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Obsolete);
+        unfinishedTask.Status.Should().Be(BPG.Domain.Constants.TaskStatus.Obsolete);
+        taskInCompletedPhase.Status.Should().Be(BPG.Domain.Constants.TaskStatus.InProgress);
+        _progressLogRepository.Verify(repository => repository.AddAsync(
+            It.IsAny<TaskProgressLog>(),
+            It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
     private void SetupIncident(Incident incident)
         => _incidentRepository.SetupMockData([incident]);
 

@@ -272,16 +272,22 @@ public class ConfirmIncidentCommandHandler : IRequestHandler<ConfirmIncidentComm
                 }
                 else
                 {
-                    // Obsolete all unfinished tasks in the project
-                    var unfinishedTasks = await _unitOfWork.Repository<ProjectTask>()
+                    // An approved emergency recovery plan replaces the execution plan of
+                    // every phase that has not reached a terminal completion state. Mark
+                    // every task in those phases obsolete, including completed parent or
+                    // child tasks, so the replacement WBS starts from a consistent baseline.
+                    var tasksInIncompletePhases = await _unitOfWork.Repository<ProjectTask>()
                         .Query()
                         .Include(t => t.Phase)
-                        .Where(t => t.Phase.ProjectId == incident.ProjectId && t.ProgressPercent < 100 && t.Status != "Obsolete")
+                        .Where(t => t.Phase.ProjectId == incident.ProjectId
+                            && t.Phase.Status != PhaseStatus.Completed
+                            && t.Phase.Status != PhaseStatus.Approved
+                            && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
                         .ToListAsync(cancellationToken);
 
-                    foreach (var task in unfinishedTasks)
+                    foreach (var task in tasksInIncompletePhases)
                     {
-                        task.Status = "Obsolete";
+                        task.Status = BPG.Domain.Constants.TaskStatus.Obsolete;
                         task.ObsoleteReason = $"Tự động hủy (Obsolete) do Sự cố khẩn cấp của dự án: {incident.Description}";
                         _unitOfWork.Repository<ProjectTask>().Update(task);
 
