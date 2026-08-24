@@ -91,11 +91,11 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
     return phases.find(p => p.id === request.phaseId) || null;
   }, [phases, request]);
 
-  // Tính toán đối chiếu định mức cho từng vật tư trong request
+  // Tính toán đối chiếu dự toán cho từng vật tư trong request
   const itemsComparison = useMemo(() => {
     if (!request) return [];
     return request.items.map(item => {
-      // 1. Tìm định mức BOQ gốc của Phase cho vật tư này
+      // 1. Tìm dự toán vật tư gốc của Phase cho vật tư này
       const boqItem = currentPhase?.materials?.find(m => m.name.toLowerCase() === item.name.toLowerCase());
       const boqLimit = boqItem ? boqItem.quantity : 0;
       const boqUnit = boqItem ? boqItem.unit : item.unit;
@@ -125,7 +125,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       const totalRequestedInBase = usedQtyInBase + requestedQtyInBase;
       const isOver = totalRequestedInBase > boqLimitInBase;
 
-      // Quy đổi phần vượt định mức về đơn vị BOQ
+      // Quy đổi phần vượt dự toán về đơn vị BOQ
       const overAmountInBase = isOver ? (totalRequestedInBase - boqLimitInBase) : 0;
       const overAmount = parseFloat((overAmountInBase * boqCR).toFixed(3));
 
@@ -185,7 +185,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
       mobileFullScreen
     >
       {loadingData ? (
-        <LoadingSpinner size="md" label="Đang tải thông tin đối chiếu định mức..." className="py-12" />
+        <LoadingSpinner size="md" label="Đang tải thông tin đối chiếu dự toán..." className="py-12" />
       ) : (
         <div className="flex flex-col gap-6">
           {/* Thông tin chung của phiếu */}
@@ -215,9 +215,9 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                 {request.type === 'emergency' ? (
                   <Badge variant="warning" className="bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)]">Khẩn cấp (Mua ngoài)</Badge>
                 ) : request.isOverBOQ ? (
-                  <Badge variant="danger">Vượt định mức</Badge>
+                  <Badge variant="danger">Vượt dự toán</Badge>
                 ) : (
-                  <Badge variant="success" className="bg-blue-50 text-blue-600 border-blue-200">Trong định mức</Badge>
+                  <Badge variant="success" className="bg-blue-50 text-blue-600 border-blue-200">Trong dự toán</Badge>
                 )}
               </div>
               <div className="flex items-center gap-2 text-slate-600 text-sm">
@@ -273,12 +273,12 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                                   </span>
                                   <span className="text-slate-300"> / </span>
                                   <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                                    {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong BOQ'}
+                                    {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong dự toán'}
                                   </span>
                                 </>
                               ) : (
                                 <span className={item.boqLimit > 0 ? "text-blue-600 font-semibold" : "text-slate-400 font-medium"}>
-                                  {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong BOQ'}
+                                  {item.boqLimit > 0 ? `${item.boqLimit} ${item.boqUnit}` : 'Không có trong dự toán'}
                                 </span>
                               )}
                             </td>
@@ -287,7 +287,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                                 {item.isOver ? (
                                   <div className="flex flex-col items-center gap-0.5">
                                     <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
-                                      Vượt định mức
+                                      Vượt dự toán
                                     </span>
                                     <span className="text-[9px] text-red-500 font-bold">
                                       {/* Vượt {item.overAmount.toLocaleString('vi-VN')} {item.boqUnit} */}
@@ -296,7 +296,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                                   </div>
                                 ) : (
                                   <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 text-green-600 border border-green-100">
-                                    Trong định mức
+                                    Trong dự toán
                                   </span>
                                 )}
                               </td>
@@ -452,7 +452,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                     }}
                     className="bg-blue-600 hover:bg-blue-700 border-none py-1.5 px-3.5 text-xs font-semibold text-white"
                   >
-                    <span>Phê duyệt vượt định mức</span>
+                    <span>Phê duyệt vượt dự toán</span>
                   </Button>
                 </>
               )}

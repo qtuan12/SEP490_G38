@@ -13,7 +13,7 @@ import {
   AlertCircle,
   RotateCcw,
   RefreshCw,
-  Sparkles
+  ChevronDown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
@@ -80,6 +80,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
   const [returnItems, setReturnItems] = useState<ReturnItemInput[]>([]);
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [returnError, setReturnError] = useState<string | null>(null);
+  const [showReturnHistory, setShowReturnHistory] = useState(true);
 
   useEffect(() => {
     if (isOpen && issuanceId) {
@@ -284,7 +285,7 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
           <span>Phiếu Xuất Kho: {detail?.issuanceNo || 'Đang tải...'}</span>
         </div>
       }
-      width={isReturning ? 'xl' : 'lg'}
+      width="xl"
       footer={
         <div className="flex justify-between w-full">
           {isReturning ? (
@@ -344,237 +345,208 @@ export const IssuanceDetailModal: React.FC<IssuanceDetailModalProps> = ({
           <span>{error}</span>
         </div>
       ) : detail ? (
-        <div className={`grid grid-cols-1 ${isReturning ? 'lg:grid-cols-2 gap-6 divide-y lg:divide-y-0 lg:divide-x divide-slate-200' : 'gap-5'} text-left text-sm text-slate-800 transition-all duration-300`}>
+        <div className="space-y-4 text-left text-sm text-slate-800">
 
-          {/* ── COLUMN 1: ISSUANCE DETAIL & RETURN HISTORY ── */}
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-              <span className="text-slate-500 font-medium">Trạng thái phiếu:</span>
-              <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Đã xuất dùng
-              </span>
+          {/* Status strip */}
+          <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+            <span className="text-slate-500 font-medium">Trạng thái phiếu:</span>
+            <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Đã xuất dùng
+            </span>
+          </div>
+
+          {/* Compact Metadata Strip */}
+          <div className="bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Briefcase size={13} className="text-slate-400 shrink-0" />
+              <span className="text-slate-500 shrink-0">Công việc:</span>
+              <span className="font-semibold text-slate-800 truncate">{detail.taskName}</span>
             </div>
-
-            {/* Metadata Card */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-1 gap-3">
-              <div className="flex items-start gap-2.5">
-                <Briefcase size={16} className="text-slate-400 mt-0.5" />
-                <div>
-                  <span className="text-slate-500 text-xs block">Công việc thi công:</span>
-                  <span className="font-semibold text-slate-900">{detail.taskName}</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <FileText size={16} className="text-slate-400 mt-0.5" />
-                <div>
-                  <span className="text-slate-500 text-xs block">Mục đích xuất dùng:</span>
-                  <span className="text-slate-800 font-medium">{detail.purpose}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 border-t border-slate-200 pt-3">
-                <div className="flex items-start gap-2.5">
-                  <Calendar size={16} className="text-slate-400 mt-0.5" />
-                  <div>
-                    <span className="text-slate-500 text-xs block">Ngày lập phiếu:</span>
-                    <span className="text-slate-800 text-xs font-semibold">
-                      {formatDateVN(detail.createdAt)}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <User size={16} className="text-slate-400 mt-0.5" />
-                  <div>
-                    <span className="text-slate-500 text-xs block">Người lập phiếu:</span>
-                    <span className="text-slate-800 text-xs">{detail.createdByName}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <FileText size={13} className="text-slate-400 shrink-0" />
+              <span className="text-slate-500 shrink-0">Mục đích:</span>
+              <span className="font-medium text-slate-700 truncate">{detail.purpose}</span>
             </div>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <Calendar size={13} className="text-slate-400" />
+              <span className="font-semibold text-slate-700">{formatDateVN(detail.createdAt)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <User size={13} className="text-slate-400" />
+              <span className="text-slate-700">{detail.createdByName}</span>
+            </div>
+          </div>
 
-            {/* Items Table */}
-            <div>
-              <h4 className="font-semibold text-slate-700 mb-2">Vật tư xuất kho gốc</h4>
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-xs bg-white">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px]">
-                    <tr>
-                      <th className="px-3 py-2">Tên vật tư</th>
-                      <th className="px-3 py-2 text-right">Số lượng xuất</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {detail.items.map((item: MaterialIssuanceItemDetail) => {
-                      const returnable = returnItems.find(ri => ri.materialId === item.materialId)?.maxReturnableQty ?? 0;
-                      return (
-                        <tr key={item.issuanceItemId} className="hover:bg-slate-50 transition-colors">
+          {/* Return reason — shown inline when returning */}
+          {isReturning && (
+            <FormItem label="Lý do hoàn trả" required error={reasonError ?? undefined}>
+              <textarea
+                rows={2}
+                placeholder='Ví dụ: "Công nhân thi công thừa, mang trả lại kho"'
+                value={reason}
+                onChange={e => { setReason(e.target.value); setReasonError(null); }}
+                disabled={submittingReturn}
+                className="block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-3 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              />
+            </FormItem>
+          )}
+
+          {/* Unified Items Table */}
+          <div>
+            <h4 className="font-semibold text-slate-700 mb-2">
+              {isReturning ? 'Chọn vật tư hoàn trả' : 'Vật tư xuất kho gốc'}
+            </h4>
+            <div className="overflow-x-auto border border-slate-200 rounded-xl">
+              <table className="min-w-full divide-y divide-slate-200 text-left text-xs bg-white">
+                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] sticky top-0">
+                  <tr>
+                    <th className="px-3 py-2">Tên vật tư</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">SL xuất</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">Đã trả</th>
+                    <th className="px-3 py-2 text-right whitespace-nowrap">Có thể trả</th>
+                    {isReturning && <th className="px-3 py-2 text-right whitespace-nowrap w-28">Hoàn đợt này</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {detail.items.map((item: MaterialIssuanceItemDetail) => {
+                    const returnItem = returnItems.find(ri => ri.materialId === item.materialId);
+                    const returnable = returnItem?.maxReturnableQty ?? 0;
+                    const totalReturned = item.quantity - returnable;
+                    return (
+                      <tr key={item.issuanceItemId} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-3 py-2">
+                          <span className="font-semibold text-slate-800 block">{item.materialName}</span>
+                          <span className="text-slate-400 text-[10px] font-mono">{item.materialCode}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold text-slate-900 whitespace-nowrap">
+                          {formatNumber(item.quantity)} <span className="text-slate-500 font-normal">{item.unitName}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          {totalReturned > 0 ? (
+                            <span className="font-semibold text-amber-600">{formatNumber(totalReturned)} <span className="text-slate-400 font-normal">{item.unitName}</span></span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          {returnable > 0 ? (
+                            <span className="font-medium text-slate-600">{formatQuantity(returnable)} <span className="text-slate-400 font-normal">{item.unitName}</span></span>
+                          ) : (
+                            <span className="text-emerald-500 text-[10px] font-semibold">Đã trả hết</span>
+                          )}
+                        </td>
+                        {isReturning && (
                           <td className="px-3 py-2">
-                            <span className="font-semibold text-slate-800 block">{item.materialName}</span>
-                            <span className="text-slate-400 text-[10px] font-mono">{item.materialCode}</span>
+                            {returnable > 0 ? (
+                              <div>
+                                <Input
+                                  type="number"
+                                  step={returnItem?.isDiscrete ? 1 : 'any'}
+                                  disabled={submittingReturn}
+                                  placeholder="0"
+                                  value={returnItem?.quantity ?? ''}
+                                  onChange={e => {
+                                    const idx = returnItems.findIndex(ri => ri.materialId === item.materialId);
+                                    if (idx >= 0) handleQtyChange(idx, e.target.value, returnable, returnItem?.isDiscrete ?? false);
+                                  }}
+                                  error={!!returnItem?.error}
+                                  className="text-right w-full"
+                                />
+                                {returnItem?.error && (
+                                  <p className="text-red-600 text-[10px] mt-0.5 text-right">{returnItem.error}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 text-[10px]">—</span>
+                            )}
                           </td>
-                          <td className="px-3 py-2 text-right font-medium text-slate-900">
-                            <div className="flex flex-col items-end">
-                              <span className="font-semibold text-slate-900">
-                                {formatNumber(item.quantity)} <span className="text-slate-500 font-normal">{item.unitName}</span>
-                              </span>
-                              {returnable < item.quantity && (
-                                <span className="block text-[10px] text-amber-600 font-semibold">
-                                  (Còn có thể trả: {formatQuantity(returnable)} {item.unitName})
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
+          </div>
 
-            {/* Return History */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-slate-700 flex items-center gap-1.5">
-                  <RotateCcw size={15} className="text-amber-500" />
-                  <span>Phiếu hoàn trả liên kết</span>
-                  {returns.length > 0 && (
-                    <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
-                      {returns.length}
-                    </span>
-                  )}
-                </h4>
+          {/* Return form errors */}
+          {isReturning && returnError && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-1.5">
+              <AlertCircle size={14} className="shrink-0" />
+              <span>{returnError}</span>
+            </div>
+          )}
+
+          {/* Return History — Collapsible */}
+          <div>
+            <div
+              className="flex items-center justify-between mb-2 cursor-pointer select-none group"
+              onClick={() => setShowReturnHistory(prev => !prev)}
+            >
+              <h4 className="font-semibold text-slate-700 flex items-center gap-1.5">
+                <RotateCcw size={15} className="text-amber-500" />
+                <span>Phiếu hoàn trả liên kết</span>
+                {returns.length > 0 && (
+                  <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                    {returns.length}
+                  </span>
+                )}
+              </h4>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={refreshReturnsOnly}
+                  onClick={(e) => { e.stopPropagation(); refreshReturnsOnly(); }}
                   disabled={loadingReturns}
                   className="text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   <RefreshCw size={13} className={loadingReturns ? 'animate-spin' : ''} />
                 </button>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${showReturnHistory ? 'rotate-180' : ''}`} />
               </div>
-
-              {loadingReturns ? (
-                <div className="text-slate-400 text-xs flex items-center gap-1.5 py-4 justify-center bg-slate-50 border border-slate-200 border-dashed rounded-xl">
-                  <Loader2 size={14} className="animate-spin text-amber-500" />
-                  <span>Đang cập nhật lịch sử hoàn trả...</span>
-                </div>
-              ) : returns.length === 0 ? (
-                <div className="text-slate-400 text-xs italic py-4 text-center bg-slate-50 border border-slate-200 border-dashed rounded-xl">
-                  Chưa có phiếu hoàn trả nào cho phiếu xuất này.
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[150px]">
-                  <table className="min-w-full divide-y divide-slate-200 text-left text-[11px] bg-white">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
-                      <tr>
-                        <th className="px-2.5 py-1.5">Mã phiếu</th>
-                        <th className="px-2.5 py-1.5">Lý do</th>
-                        <th className="px-2.5 py-1.5 text-right">Vật tư trả</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {returns.map(r => (
-                        <tr key={r.materialReturnId} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-2.5 py-1.5 font-mono font-semibold text-amber-600">{r.returnNo}</td>
-                          <td className="px-2.5 py-1.5 max-w-[150px] truncate text-slate-600" title={r.reason}>{r.reason}</td>
-                          <td className="px-2.5 py-1.5 text-right font-medium text-slate-500">
-                            {r.items?.map(ri => (
-                              <div key={ri.returnItemId} className="text-xs font-medium text-slate-900">
-                                {formatNumber(ri.quantity)} {ri.unitName} - <span className="text-slate-400 font-normal">{ri.materialName}</span>
-                              </div>
-                            )) || `${r.totalItems} vật tư`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* ── COLUMN 2: SIDE-BY-SIDE RETURN FORM ── */}
-          {isReturning && (
-            <div className="pt-5 lg:pt-0 lg:pl-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
-                <h3 className="text-amber-600 font-bold flex items-center gap-1.5">
-                  <Sparkles size={16} />
-                  Nhập Phiếu Hoàn Trả
-                </h3>
-                <span className="text-xs text-slate-500 font-mono">PTra-Auto</span>
-              </div>
-
-              <div className="space-y-4">
-                {/* Lý do hoàn trả */}
-                <FormItem label="Lý do hoàn trả" required error={reasonError ?? undefined}>
-                  <textarea
-                    rows={2}
-                    placeholder='Ví dụ: "Công nhân thi công thừa, mang trả lại kho"'
-                    value={reason}
-                    onChange={e => { setReason(e.target.value); setReasonError(null); }}
-                    disabled={submittingReturn}
-                    className="block w-full rounded-md shadow-sm sm:text-sm pl-3 pr-3 py-2 border border-gray-300 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                  />
-                </FormItem>
-
-                {/* List of items to return */}
-                <div className="space-y-2">
-                  <label className="text-xs text-slate-500 font-semibold uppercase">Số lượng hoàn trả thực tế</label>
-                  <div className="rounded-xl border border-slate-200 divide-y divide-slate-200 bg-slate-50 overflow-hidden">
-                    {returnItems.map((item, idx) => {
-                      const isDisable = item.maxReturnableQty <= 0;
-                      if (isDisable) return null; // Only show items that are returnable to keep it basic and easy to use
-
-                      return (
-                        <div
-                          key={item.materialId}
-                          className={`p-3 grid grid-cols-[1.5fr_1fr_1.2fr] items-center gap-2.5 text-xs bg-white`}
-                        >
-                          {/* Vật tư & Mã */}
-                          <div>
-                            <p className="font-semibold text-slate-800">{item.materialName}</p>
-                            <span className="text-[10px] text-slate-400 font-mono">{item.materialCode}</span>
-                          </div>
-
-                          {/* Khả dụng còn lại */}
-                          <div className="text-slate-500">
-                            Tối đa: <span className="font-semibold text-slate-700">{formatQuantity(item.maxReturnableQty)}</span> {item.unitName}
-                          </div>
-
-                          {/* Input số lượng trả */}
-                          <div>
-                            <Input
-                              type="number"
-                              step={item.isDiscrete ? 1 : 'any'}
-                              disabled={submittingReturn}
-                              placeholder="Nhập..."
-                              value={item.quantity}
-                              onChange={e => handleQtyChange(idx, e.target.value, item.maxReturnableQty, item.isDiscrete)}
-                              error={!!item.error}
-                              className="text-right"
-                            />
-                            {item.error && (
-                              <p className="text-red-600 text-[10px] mt-1 text-right">
-                                {item.error}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+            {showReturnHistory && (
+              <>
+                {loadingReturns ? (
+                  <div className="text-slate-400 text-xs flex items-center gap-1.5 py-4 justify-center bg-slate-50 border border-slate-200 border-dashed rounded-xl">
+                    <Loader2 size={14} className="animate-spin text-amber-500" />
+                    <span>Đang cập nhật lịch sử hoàn trả...</span>
                   </div>
-                </div>
-
-                {/* Return form errors */}
-                {returnError && (
-                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs flex items-center gap-1.5">
-                    <AlertCircle size={14} className="shrink-0" />
-                    <span>{returnError}</span>
+                ) : returns.length === 0 ? (
+                  <div className="text-slate-400 text-xs italic py-4 text-center bg-slate-50 border border-slate-200 border-dashed rounded-xl">
+                    Chưa có phiếu hoàn trả nào cho phiếu xuất này.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-[200px] overflow-y-auto">
+                    <table className="min-w-full divide-y divide-slate-200 text-left text-[11px] bg-white">
+                      <thead className="bg-slate-50 text-slate-500 font-semibold uppercase sticky top-0">
+                        <tr>
+                          <th className="px-2.5 py-1.5">Mã phiếu</th>
+                          <th className="px-2.5 py-1.5">Lý do</th>
+                          <th className="px-2.5 py-1.5 text-right">Vật tư trả</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {returns.map(r => (
+                          <tr key={r.materialReturnId} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-2.5 py-1.5 font-mono font-semibold text-amber-600">{r.returnNo}</td>
+                            <td className="px-2.5 py-1.5 max-w-[200px] truncate text-slate-600" title={r.reason}>{r.reason}</td>
+                            <td className="px-2.5 py-1.5 text-right font-medium text-slate-500">
+                              {r.items?.map(ri => (
+                                <div key={ri.returnItemId} className="text-xs font-medium text-slate-900">
+                                  {formatNumber(ri.quantity)} {ri.unitName} - <span className="text-slate-400 font-normal">{ri.materialName}</span>
+                                </div>
+                              )) || `${r.totalItems} vật tư`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
         </div>
       ) : null}

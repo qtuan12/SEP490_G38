@@ -307,11 +307,7 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                     </span>
                   </div>
 
-                  {log.updateReason && !compact && (
-                    <div className="prose prose-sm max-w-none markdown-body" style={{ margin: '3px 0 0', color: 'hsl(var(--text-secondary))', lineHeight: 1.4, wordBreak: 'break-word', fontSize: '0.85rem' }}>
-                      <ReactMarkdown>{log.updateReason}</ReactMarkdown>
-                    </div>
-                  )}
+
                 </div>
               </div>
             );

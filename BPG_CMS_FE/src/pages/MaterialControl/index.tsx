@@ -214,7 +214,7 @@ export const MaterialControl: React.FC = () => {
         <div>
           <h2 style={{ margin: 0, fontSize: '1.4rem', color: 'hsl(var(--text-primary))' }}>Kiểm soát & Phê duyệt Vật tư</h2>
           <div style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', marginTop: '4px' }}>
-            Không gian soát xét đề xuất vật tư của Kế toán & Phê duyệt vượt định mức của Giám đốc
+            Không gian soát xét đề xuất vật tư của Kế toán & Phê duyệt vượt dự toán của Giám đốc
           </div>
         </div>
       </div>
@@ -249,7 +249,7 @@ export const MaterialControl: React.FC = () => {
             options={[
               { label: 'Tất cả Trạng thái', value: '' },
               { label: 'Chờ phê duyệt', value: 'pending_accountant' },
-              { label: 'Chờ phê duyệt vượt định mức', value: 'pending_director' },
+              { label: 'Chờ phê duyệt vượt dự toán', value: 'pending_director' },
               { label: 'Đã phê duyệt', value: 'approved' },
               { label: 'Đã kết thúc thẩm định', value: 'rejected' },
             ]}
@@ -291,7 +291,7 @@ export const MaterialControl: React.FC = () => {
           onClose={() => setActionModalOpen(false)}
           title={
             actionType === 'disburse' ? 'Giải ngân yêu cầu vật tư khẩn cấp' :
-                actionType === 'approve' ? 'Phê duyệt yêu cầu vượt định mức' :
+                actionType === 'approve' ? 'Phê duyệt yêu cầu vượt dự toán' :
                   'Từ chối yêu cầu vật tư'
           }
           width="sm"
@@ -299,7 +299,7 @@ export const MaterialControl: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))', margin: 0 }}>
               {actionType === 'disburse' ? 'Xác nhận giải ngân chi phí mua ngoài khẩn cấp cho dự án.' :
-                  actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt định mức.' :
+                  actionType === 'approve' ? 'Phê duyệt yêu cầu vật tư vượt dự toán.' :
                     'Vui lòng nhập lý do từ chối yêu cầu vật tư này.'}
             </p>
 

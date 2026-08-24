@@ -76,7 +76,7 @@ export const parseBOQExcelFile = async (file: File): Promise<ParsedBOQWorkbook> 
   if (!headerRowNumber) {
     return {
       rows: [],
-      errors: ['Không tìm thấy đủ các cột bắt buộc: Mã vật tư, Số lượng định mức, Mã ĐVT.'],
+      errors: ['Không tìm thấy đủ các cột bắt buộc: Mã vật tư, Số lượng dự toán, Mã ĐVT.'],
     };
   }
 
@@ -100,7 +100,7 @@ export const parseBOQExcelFile = async (file: File): Promise<ParsedBOQWorkbook> 
     const quantity = parseQuantity(quantityCell);
     if (!materialCode) errors.push(`Dòng ${rowNumber}: thiếu Mã vật tư.`);
     if (!unitCode) errors.push(`Dòng ${rowNumber}: thiếu Mã ĐVT.`);
-    if (quantity === null) errors.push(`Dòng ${rowNumber}: Số lượng định mức không phải là số hợp lệ.`);
+    if (quantity === null) errors.push(`Dòng ${rowNumber}: Số lượng dự toán không phải là số hợp lệ.`);
     if (!materialCode || !unitCode || quantity === null) continue;
 
     rows.push({ rowNumber, materialCode, quantity, unitCode });
@@ -137,7 +137,7 @@ export const downloadBOQImportTemplate = async (
   });
 
   const sheet = workbook.addWorksheet('BOQ', { views: [{ state: 'frozen', ySplit: 1 }] });
-  const headers = ['STT', 'Mã vật tư*', 'Tên vật tư', 'Số lượng định mức*', 'Mã ĐVT*', 'Tên ĐVT'];
+  const headers = ['STT', 'Mã vật tư*', 'Tên vật tư', 'Số lượng dự toán*', 'Mã ĐVT*', 'Tên ĐVT'];
   sheet.addRow(headers);
   sheet.columns = [
     { width: 8 }, { width: 18 }, { width: 34 },
