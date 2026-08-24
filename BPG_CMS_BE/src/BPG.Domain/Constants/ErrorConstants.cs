@@ -86,9 +86,8 @@ public static class ErrorCodes
     public const string DpProjectNotActive = "BIZ_034";          // Dự án không ở trạng thái đang thi công
     public const string DpPhaseFrozen = "BIZ_035";               // Giai đoạn đã nghiệm thu, bị đóng băng
     public const string DpPurchaseDateInFuture = "BIZ_036";      // Ngày mua ở tương lai
-    // BIZ_037, BIZ_038 (ngày mua so với ngày bắt đầu dự án / ngày kết thúc giai đoạn) đã bỏ.
-    // Không tái sử dụng mã.
-    public const string DpPurchaseDateBeforePhase = "BIZ_053"; // Ngày mua trước ngày bắt đầu giai đoạn
+    // BIZ_037, BIZ_038 (ngày mua so với ngày bắt đầu dự án / ngày kết thúc giai đoạn),
+    // BIZ_053 (ngày mua trước ngày bắt đầu giai đoạn) đã bỏ. Không tái sử dụng mã.
     public const string DpPhaseProjectMismatch = "BIZ_039";      // Giai đoạn không thuộc dự án đã chọn
     public const string DpDuplicateMaterial = "BIZ_040";         // Vật tư bị khai báo trùng trong phiếu
     public const string DpInvalidUnit = "BIZ_044";               // ĐVT không thuộc đơn vị cơ bản/quy đổi của vật tư
