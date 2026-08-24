@@ -622,7 +622,7 @@ export const CreatePOPage: React.FC = () => {
         <div className="glass-panel p-6">
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
             {isRequestLocked ? (
-              <>Yêu cầu vật tư <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(đã chọn từ tab Yêu cầu vật tư)</span></>
+              <>Yêu cầu vật tư</>
             ) : (
               <>Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span></>
             )}
