@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, History, Minus, User } from 'lucide-react';
 import { projectService } from '../services/projectService';

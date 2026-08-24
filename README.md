@@ -7,7 +7,7 @@
 [![Database](https://img.shields.io/badge/database-SQL%20Server-CC2927)](docker-compose.yml)
 [![Architecture](https://img.shields.io/badge/architecture-Clean%20Architecture%20%2B%20CQRS-1F6FEB)](#architecture)
 [![CI](https://img.shields.io/badge/CI-build%20%2B%20test-success)](.github/workflows/ci.yml)
-[![License](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
+
 
 > SEP490 Capstone Project, FPT University, Group 38.
 
@@ -376,9 +376,7 @@ Developed by **SEP490_G38**, FPT University:
 - Nguyen Bao Long, Member
 - Nguyen Thanh Tam, Supervisor
 
-## 17. License
 
-This repository is licensed under the [MIT License](LICENSE). Third-party products, libraries, trademarks, customer information, and uploaded content remain subject to their respective licenses and ownership terms.
 
 ---
 
