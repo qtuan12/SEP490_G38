@@ -13,6 +13,7 @@ import { canViewMaterialRequestAssessment } from '../materialRequestAssessmentPe
 import { formatNumber } from '../../../utils/formatNumber';
 import { MaterialRequestDecisionForm } from '../components/MaterialRequestDecisionForm';
 import {
+  countsTowardMaterialRequestBOQ,
   getMaterialRequestBusinessStatus,
   getMaterialRequestBusinessStatusVariant,
   getMaterialRequestDetailTableState,
@@ -111,8 +112,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
         if (
           r.phaseId === request.phaseId &&
           r.id !== request.id &&
-          r.status !== 'rejected' &&
-          r.status !== 'cancelled'
+          countsTowardMaterialRequestBOQ(r)
         ) {
           const matchItem = r.items.find(i => i.name.toLowerCase() === item.name.toLowerCase());
           if (matchItem) {

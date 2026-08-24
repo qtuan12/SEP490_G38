@@ -50,14 +50,13 @@ namespace BPG.Application.Common.Helpers
                         decimal boqLimitInBase = boq.Quantity / (boq.ConversionRate == 0 ? 1m : boq.ConversionRate);
                         decimal itemQtyInBase = item.Quantity / (item.ConversionRate == 0 ? 1m : item.ConversionRate);
 
-                        // Tính tổng lượng đã được yêu cầu của các phiếu khác (loại trừ Cancelled/Rejected/chính phiếu đang xét)
+                        // Tính tổng lượng đã giữ chỗ BOQ của các phiếu khác.
+                        // InternalTransfer vẫn tính dù trạng thái kỹ thuật là Rejected.
                         decimal alreadyUsed = await itemRepo.Query()
+                            .WhereCountsTowardBOQ()
                             .Where(ri => ri.Request.PhaseId == phaseId
                                       && ri.MaterialId == item.MaterialId
-                                      && ri.RequestId != sibling.RequestId
-                                      && ri.Request.Status != MaterialRequestStatus.Rejected
-                                      && ri.Request.Status != MaterialRequestStatus.Cancelled
-                                      && !ri.Request.IsDeleted)
+                                      && ri.RequestId != sibling.RequestId)
                             .SumAsync(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate), ct);
 
                         isOver = (alreadyUsed + itemQtyInBase) > boqLimitInBase;

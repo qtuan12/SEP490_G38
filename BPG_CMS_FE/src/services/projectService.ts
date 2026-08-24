@@ -3,6 +3,7 @@ import { apiClient, USE_MOCK_API } from './api';
 import { userService } from './userService';
 import type { UserProfile } from './authService';
 import type { PhaseBOQImportPreview, PhaseBOQImportRowInput } from '../types/boqImport';
+import { countsTowardMaterialRequestBOQ } from '../pages/MaterialRequests/materialRequestDecision';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -1901,8 +1902,7 @@ export const projectService = {
     const list = getStorage<MaterialRequest>('bpg_material_requests', DEFAULT_MATERIAL_REQUESTS);
     let total = 0;
     list.forEach(req => {
-      // Chỉ tính các yêu cầu thuộc phase này và KHÔNG BỊ TỪ CHỐI
-      if (req.phaseId === phaseId && req.status !== 'rejected') {
+      if (req.phaseId === phaseId && countsTowardMaterialRequestBOQ(req)) {
         const item = req.items.find(i => i.name === materialName);
         if (item) {
           total += item.quantity;
@@ -2113,7 +2113,8 @@ export const projectService = {
         const estItem = task.estimatedMaterials.find(m => m.name === reqItem.name);
         const estQty = estItem ? estItem.quantity : 0;
 
-        const existingRequests = list.filter(r => r.taskId === task.id && r.id !== request.id && r.status !== 'rejected');
+        const existingRequests = list.filter(r =>
+          r.taskId === task.id && r.id !== request.id && countsTowardMaterialRequestBOQ(r));
         const existingQty = existingRequests.reduce((sum, r) => {
           const matched = r.items.find(i => i.name === reqItem.name);
           return sum + (matched ? matched.quantity : 0);

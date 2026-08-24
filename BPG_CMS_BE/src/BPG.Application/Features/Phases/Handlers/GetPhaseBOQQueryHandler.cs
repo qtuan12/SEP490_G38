@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.DTOs.Phases;
 using BPG.Application.Features.Phases.Queries;
 using BPG.Application.IRepositories;
@@ -27,20 +28,18 @@ public class GetPhaseBOQQueryHandler : IRequestHandler<GetPhaseBOQQuery, List<Ph
 
         var materialIds = boqItems.Select(b => b.MaterialId).Distinct().ToList();
 
-        // Sum from approved material requests
+        // InternalTransfer giữ chỗ định mức dù trạng thái kỹ thuật là Rejected.
         var mrConsumedMap = await _uow.Repository<MaterialRequestItem>().Query()
+            .WhereCountsTowardBOQ()
             .Where(ri => ri.Request.PhaseId == request.PhaseId &&
-                         materialIds.Contains(ri.MaterialId) &&
-                         ri.Request.Status != MaterialRequestStatus.Rejected &&
-                         ri.Request.Status != MaterialRequestStatus.Cancelled &&
-                         !ri.Request.IsDeleted)
+                         materialIds.Contains(ri.MaterialId))
             .GroupBy(ri => ri.MaterialId)
             .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate)) })
             .ToListAsync(ct);
 
         // Lũy kế từ Direct Purchase: chỉ loại Draft (chưa gửi nên chưa nhập kho).
         // Phiếu Rejected VẪN tính - từ chối chỉ nghĩa là không hoàn tiền, vật tư đã nhập kho.
-        // Khác với Material Request ở trên: MR bị từ chối thì thật sự không có vật tư nào được mua.
+        // Material Request bị từ chối thường không tính, riêng InternalTransfer vẫn giữ chỗ BOQ.
         var dpConsumedMap = await _uow.Repository<DirectPurchaseItem>().Query()
             .Where(di => di.DirectPurchaseRequest.PhaseId == request.PhaseId &&
                          materialIds.Contains(di.MaterialId) &&

@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.DTOs.DirectPurchases;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
@@ -124,13 +125,11 @@ namespace BPG.Application.Features.DirectPurchases.Services
                 .AsNoTracking()
                 .ToListAsync(ct);
 
-            // Lũy kế từ Material Request: phiếu bị từ chối/hủy KHÔNG phát sinh vật tư nào.
+            // InternalTransfer giữ chỗ định mức dù trạng thái kỹ thuật là Rejected.
             var mrConsumed = await _uow.Repository<MaterialRequestItem>().Query()
+                .WhereCountsTowardBOQ()
                 .Where(ri => ri.Request.PhaseId == phaseId &&
-                             materialIds.Contains(ri.MaterialId) &&
-                             ri.Request.Status != MaterialRequestStatus.Rejected &&
-                             ri.Request.Status != MaterialRequestStatus.Cancelled &&
-                             !ri.Request.IsDeleted)
+                             materialIds.Contains(ri.MaterialId))
                 .GroupBy(ri => ri.MaterialId)
                 .Select(g => new { MaterialId = g.Key, TotalBase = g.Sum(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate)) })
                 .ToListAsync(ct);

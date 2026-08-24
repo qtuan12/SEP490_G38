@@ -1,4 +1,5 @@
 using MediatR;
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.Features.MaterialRequests.Commands;
 using BPG.Application.IRepositories;
@@ -155,11 +156,9 @@ namespace BPG.Application.Features.MaterialRequests.Handlers
 
                     // Tính lũy kế số lượng đã yêu cầu của các phiếu đang xử lý/đã duyệt trước đó
                     var totalRequestedBeforeInBase = await _uow.Repository<MaterialRequestItem>().Query()
+                        .WhereCountsTowardBOQ()
                         .Where(ri => ri.Request.PhaseId == request.PhaseId && 
-                                     ri.MaterialId == material.MaterialId &&
-                                     ri.Request.Status != MaterialRequestStatus.Rejected &&
-                                     ri.Request.Status != MaterialRequestStatus.Cancelled &&
-                                     !ri.Request.IsDeleted)
+                                     ri.MaterialId == material.MaterialId)
                         .SumAsync(ri => ri.Quantity / (ri.ConversionRate == 0 ? 1m : ri.ConversionRate), cancellationToken);
 
                     // So sánh tổng yêu cầu (trước đó + đợt này) với định mức BOQ

@@ -133,6 +133,11 @@ export const isAlternativeSupplyOutcome = (
   decision: MaterialRequestProcurementDecision | undefined,
 ): boolean => decision === 'InternalTransfer' || decision === 'WaitSupply';
 
+export const countsTowardMaterialRequestBOQ = (
+  request: Pick<MaterialRequest, 'status' | 'procurementDecision'>,
+): boolean => request.status !== 'cancelled'
+  && (request.status !== 'rejected' || request.procurementDecision === 'InternalTransfer');
+
 export const canResubmitProjectMaterialRequest = (
   request: Pick<MaterialRequest, 'status' | 'procurementDecision'>,
 ): boolean => request.status === 'rejected'
