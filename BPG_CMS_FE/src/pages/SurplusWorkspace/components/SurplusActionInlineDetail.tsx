@@ -130,7 +130,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
         <div key={r.surplusReturnSupplierId} className="border border-purple-100 dark:border-purple-900/50 bg-purple-50/50 dark:bg-purple-950/30 rounded-lg px-4 py-3 text-sm">
           <div className="flex justify-between flex-wrap gap-2">
             <span className="font-semibold text-slate-700 dark:text-slate-200">
-              #{r.surplusReturnSupplierId} — Nhà cung cấp: {r.supplierName || 'Không xác định'}
+              Nhà cung cấp: {r.supplierName || 'Không xác định'}
             </span>
             <span className="text-slate-500 dark:text-slate-400">{formatDateVN(r.createdAt)}</span>
           </div>
@@ -164,8 +164,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
           <div key={t.surplusTransferId} className="border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/30 rounded-lg px-4 py-3 text-sm">
             <div className="flex justify-between flex-wrap gap-2 items-start">
               <div>
-                <span className="font-semibold text-slate-700 dark:text-slate-200">Phiếu chuyển kho #{t.surplusTransferId}</span>
-                <span className="text-slate-500 dark:text-slate-400 ml-2">
+                <span className="text-slate-500 dark:text-slate-400">
                   Dự án gửi: <strong className="text-slate-700 dark:text-slate-200">{t.fromProjectName}</strong> → Dự án nhận: <strong className="text-slate-700 dark:text-slate-200">{t.toProjectName}</strong>
                 </span>
               </div>
@@ -237,7 +236,7 @@ export const SurplusActionInlineDetail: React.FC<SurplusActionInlineDetailProps>
         <div key={l.surplusLiquidationId} className="border border-orange-100 dark:border-orange-900/50 bg-orange-50/50 dark:bg-orange-950/30 rounded-lg px-4 py-3 text-sm">
           <div className="flex justify-between flex-wrap gap-2">
             <span className="font-semibold text-slate-700 dark:text-slate-200">
-              #{l.surplusLiquidationId} — Khách hàng: {l.buyerName}
+              Khách hàng: {l.buyerName}
             </span>
             <span className="text-slate-500 dark:text-slate-400">{formatDateVN(l.createdAt)}</span>
           </div>
