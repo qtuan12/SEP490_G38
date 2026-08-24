@@ -306,8 +306,28 @@ export const TaskProgressHistoryPanel: React.FC<TaskProgressHistoryPanelProps> =
                       {formatDate(log.updatedAt)}
                     </span>
                   </div>
-
-
+                  {log.updateReason && (
+                    <div
+                      title={log.updateReason}
+                      style={{
+                        marginTop: '6px',
+                        fontSize: compact ? '0.7rem' : '0.75rem',
+                        color: 'hsl(var(--text-secondary))',
+                        display: '-webkit-box',
+                        WebkitLineClamp: compact ? 1 : 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        lineHeight: '1.4',
+                        background: 'hsl(var(--bg-card))',
+                        padding: '4px 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid hsl(var(--border) / 0.5)',
+                      }}
+                    >
+                      {log.updateReason}
+                    </div>
+                  )}
                 </div>
               </div>
             );

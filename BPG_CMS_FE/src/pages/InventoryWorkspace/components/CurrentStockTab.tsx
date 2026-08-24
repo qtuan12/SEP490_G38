@@ -257,9 +257,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             <AlertCircle size={12} />
             <span>Đã vượt dự toán</span>
           </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / Dự toán: {formatQty(boq)}
-          </span>
           {boq > 0 && (
             <div className="w-24 bg-rose-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${Math.round((used / boq) * 100)}% dự toán`}>
               <div className="bg-rose-500 h-full rounded-full animate-pulse" style={{ width: '100%' }}></div>
@@ -277,10 +274,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
             title="Lượng sử dụng sắp đạt giới hạn trần. Cần kiểm soát xuất kho chặt chẽ."
           >
             <Info size={12} />
-            <span>Sắp vượt dự toán ({percent}%)</span>
-          </span>
-          <span className="text-[10px] text-slate-400 font-medium">
-            Đã dùng: {formatQty(used)} / Dự toán: {formatQty(boq)}
+            <span>Sắp vượt dự toán</span>
           </span>
           <div className="w-24 bg-orange-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% dự toán`}>
             <div className="bg-orange-500 h-full rounded-full" style={{ width: `${percent}%` }}></div>
@@ -314,9 +308,6 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
           <CheckCircle2 size={12} />
           <span>Bình thường</span>
-        </span>
-        <span className="text-[10px] text-slate-400 font-medium">
-          Tồn kho & sử dụng an toàn
         </span>
         {boq > 0 && (
           <div className="w-24 bg-slate-100 h-1 rounded-full overflow-hidden mt-1" title={`Đã dùng ${percent}% dự toán`}>
