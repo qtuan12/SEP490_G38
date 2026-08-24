@@ -11,9 +11,10 @@ import {
   AlertTriangle,
   Clock,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Eye
 } from 'lucide-react';
-import { Badge } from '../../../components/ui';
+import { Badge, Button } from '../../../components/ui';
 import { useNotification } from '../../../context/NotificationContext';
 import { useSignalREvent } from '../../../hooks/useSignalREvent';
 import { useRealtimeDataRefresh } from '../../../hooks/useRealtimeDataRefresh';
@@ -106,6 +107,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           incidentType: dto.incidentType as any,
           description: desc,
           status: dto.status as any,
+          latestAdjustmentId: dto.latestAdjustmentId,
+          latestAdjustmentStatus: dto.latestAdjustmentStatus,
           damageDescription: dto.damageDescription,
           estimatedMaterialLoss: dto.estimatedMaterialLoss,
           estimatedLaborDays: dto.estimatedLaborDays,
@@ -234,8 +237,8 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
         return <Badge className="normal-case bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-50">Báo cáo mới</Badge>;
       case 'WaitingAccountant':
         return <Badge className="normal-case bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-50">Chờ Kế toán xác minh</Badge>;
-      case 'WaitingDirector':
-        return <Badge className="normal-case bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-50">Chờ Giám đốc duyệt</Badge>;
+      case 'UnderResolution':
+        return <Badge className="normal-case bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-50">Đang xử lý tổn thất</Badge>;
       case 'Approved':
       case 'Confirmed':
       case 'Closed':
@@ -276,7 +279,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           <div>
             <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">CHỜ XỬ LÝ</span>
             <strong className="text-[1.4rem] font-bold">
-              {visibleIncidents.filter(i => !['Approved', 'Confirmed', 'Closed', 'Rejected'].includes(i.status)).length}
+              {visibleIncidents.filter(i => !['Approved', 'Confirmed', 'Resolved', 'Closed', 'Rejected'].includes(i.status)).length}
             </strong>
           </div>
         </div>
@@ -288,7 +291,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
           <div>
             <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ XỬ LÝ</span>
             <strong className="text-[1.4rem] font-bold">
-              {visibleIncidents.filter(i => ['Approved', 'Confirmed', 'Closed'].includes(i.status)).length}
+              {visibleIncidents.filter(i => ['Approved', 'Confirmed', 'Resolved', 'Closed'].includes(i.status)).length}
             </strong>
           </div>
         </div>
@@ -339,11 +342,18 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
                         {loadingRowAction === inc.id ? (
                           <Loader2 size={16} className="animate-spin text-[hsl(var(--primary))]" />
                         ) : (
-                          <>
-                            <button className="text-[hsl(var(--primary))] hover:underline text-sm font-medium px-2 py-1">
-                              Xem
-                            </button>
-                          </>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-[hsl(var(--border))] text-[hsl(var(--text-primary))] hover:bg-[hsl(var(--bg-main))] hover:border-[hsl(var(--primary))]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRowClick(inc);
+                            }}
+                          >
+                            <Eye size={14} />
+                            <span>Xem</span>
+                          </Button>
                         )}
                       </div>
                     </td>
@@ -379,7 +389,7 @@ export const GlobalInventoryIncidents: React.FC<GlobalInventoryIncidentsProps> =
             if (msg) toast.success(msg);
             scheduleRealtimeRefresh();
           }}
-          projectId={projectId}
+          projectId={Number(selectedIncident.projectId)}
           incident={selectedIncident}
         />
       )}

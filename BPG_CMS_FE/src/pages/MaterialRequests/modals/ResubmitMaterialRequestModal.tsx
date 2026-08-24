@@ -12,6 +12,7 @@ import type { MaterialRequest, WBSPhase } from '../../../types/common';
 import { Modal } from '../../../../src/components/ui/Modal';
 import { SearchSelect } from '../../../../src/components/ui/SearchSelect';
 import { isDiscreteUnit } from '../../../../src/utils/unitHelpers';
+import { countsTowardMaterialRequestBOQ } from '../materialRequestDecision';
 
 const requestItemSchema = z.object({
   name: z.string().min(1, 'Vui lòng chọn vật tư.'),
@@ -138,7 +139,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
     const map = new Map<string, { name: string; quantity: number; unit: string; conversionRate?: number }>();
     allMaterialRequests.forEach(r => {
       // Bỏ qua chính yêu cầu đang sửa để không bị trùng lắp dữ liệu cũ
-      if (r.id !== request.id && r.phaseId === request.phaseId && !r.taskId && r.status !== 'rejected') {
+      if (r.id !== request.id && r.phaseId === request.phaseId && !r.taskId && countsTowardMaterialRequestBOQ(r)) {
         r.items.forEach(item => {
           const existing = map.get(item.name);
           if (existing) {
@@ -224,7 +225,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
     let sumInBase = 0;
     allMaterialRequests.forEach(r => {
       // Bỏ qua chính yêu cầu đang sửa đổi để không cộng dồn số lượng cũ
-      if (r.id !== request.id && r.phaseId === request.phaseId && r.status !== 'rejected' && r.status !== 'cancelled') {
+      if (r.id !== request.id && r.phaseId === request.phaseId && countsTowardMaterialRequestBOQ(r)) {
         if (task && r.taskId) {
           const item = r.items.find(i => i.name === materialName);
           if (item) {

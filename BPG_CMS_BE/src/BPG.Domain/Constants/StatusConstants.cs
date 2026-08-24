@@ -31,6 +31,14 @@ public static class IncidentStatus
 {
     public const string Reported = "Reported";
     public const string UnderReview = "WaitingReview";
+    public const string WaitingStopApproval = "WaitingStopApproval";
+    public const string WaitingRecoveryPlan = "WaitingRecoveryPlan";
+    public const string WaitingDirectorApproval = "WaitingDirectorApproval";
+    public const string WaitingAccountant = "WaitingAccountant";
+    public const string UnderResolution = "UnderResolution";
+    public const string Assessing = "Assessing";
+    public const string Rejected = "Rejected";
+    public const string Approved = "Approved";
     public const string Resolved = "Resolved";
     public const string Closed = "Closed";
 }
@@ -79,6 +87,9 @@ public static class MaterialRequestProcurementDecision
 
     public static bool IsValid(string? decision) =>
         decision is not null && All.Contains(decision);
+
+    public static bool IsAlternativeSupplyOutcome(string? decision) =>
+        decision == InternalTransfer || decision == WaitSupply;
 
     public static string ResolveTechnicalStatus(string decision, string boqCheckStatus)
     {
@@ -173,6 +184,8 @@ public static class InventoryAdjustmentStatus
     public const string Pending = "Pending";
     public const string Approved = "Approved";
     public const string Rejected = "Rejected";
+    public const string RevisionRequired = "RevisionRequired";
+    public const string Cancelled = "Cancelled";
 }
 
 /// <summary>

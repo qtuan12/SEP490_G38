@@ -38,10 +38,8 @@ public static class PhaseBOQModificationGuard
             && string.Equals(phase.Project.Status, ProjectStatus.InProgress, StringComparison.OrdinalIgnoreCase))
         {
             var hasMaterialRequest = await uow.Repository<MaterialRequest>().Query()
-                .AnyAsync(r => r.PhaseId == phaseId
-                    && !r.IsDeleted
-                    && r.Status != MaterialRequestStatus.Rejected
-                    && r.Status != MaterialRequestStatus.Cancelled, ct);
+                .WhereCountsTowardBOQ()
+                .AnyAsync(r => r.PhaseId == phaseId, ct);
 
             var hasDirectPurchase = await uow.Repository<DirectPurchaseRequest>().Query()
                 .AnyAsync(dp => dp.PhaseId == phaseId

@@ -16,6 +16,7 @@ import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { RoleGroup } from '../../auth/roles';
 import toast from 'react-hot-toast';
 import { isPhaseReadyForAcceptance as checkPhaseAcceptanceReadiness } from '../../utils/phaseAcceptance';
+import { hasApprovedEmergencyForCurrentPause } from '../../utils/emergencyWbsAccess';
 
 
 interface WBSWorkspaceProps {
@@ -301,12 +302,21 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
     return checkPhaseAcceptanceReadiness(tasks.filter(t => t.phaseId === phaseId));
   };
 
-  const hasApprovedEmergencyIncident = incidentsList.some(i => i.isEmergency && i.status === 'Approved');
+  const hasApprovedEmergencyIncident = hasApprovedEmergencyForCurrentPause(
+    project?.pauseReason,
+    incidentsList,
+  );
 
   const canEdit = isTPKTOrPL && (
     project?.status !== 'paused' ||
     (isTPKT && hasApprovedEmergencyIncident)
   ) && project?.status !== 'done';
+
+  const canImportWbs = isTPKT && (
+    project?.status === 'draft'
+    || project?.status === 'inprogress'
+    || (project?.status === 'paused' && hasApprovedEmergencyIncident)
+  );
 
   // ── Material Request Actions ─────────────────────────
   const handleApproveByLeader = async (requestId: string) => {
@@ -473,7 +483,7 @@ export const WBSWorkspace: React.FC<WBSWorkspaceProps> = ({ projectId }) => {
               <h3 className="text-[1.15rem] font-semibold m-0 whitespace-nowrap">Cấu trúc công việc</h3>
             </div>
             <div className="flex gap-2 flex-wrap items-center w-full sm:w-auto justify-start sm:justify-end">
-              {isTPKTOrPL && canEdit && (
+              {canImportWbs && (
                 <button
                   onClick={() => setIsImportWbsOpen(true)}
                   className="flex items-center gap-2 py-2 px-3 shrink-0 rounded-sm text-[0.85rem] font-semibold transition-all duration-150 cursor-pointer bg-white border border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.05)]"

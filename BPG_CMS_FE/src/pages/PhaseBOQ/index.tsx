@@ -17,6 +17,7 @@ import { downloadBOQImportTemplate, parseBOQExcelFile } from '../../utils/boqExc
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
+import { countsTowardMaterialRequestBOQ } from '../MaterialRequests/materialRequestDecision';
 
 const materialItemSchema = z.object({
   materialId: z.number().min(1, 'Vui lòng chọn vật tư.'),
@@ -142,7 +143,7 @@ export const PhaseBOQ: React.FC = () => {
       setProject(currentProject);
 
       const reqs = await projectService.getMaterialRequests(projectId);
-      const phaseHasActiveMRs = reqs.some(mr => mr.phaseId === phaseId && mr.status !== 'rejected' && mr.status !== 'cancelled');
+      const phaseHasActiveMRs = reqs.some(mr => mr.phaseId === phaseId && countsTowardMaterialRequestBOQ(mr));
       setHasActiveMRs(phaseHasActiveMRs);
 
       try {

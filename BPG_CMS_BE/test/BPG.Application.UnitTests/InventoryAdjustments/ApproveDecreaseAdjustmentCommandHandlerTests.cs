@@ -264,6 +264,25 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         }
 
         [Fact]
+        public async Task Handle_RejectLinkedDecrease_ShouldRequestRevisionWithoutRejectingIncident()
+        {
+            _mockCurrentUserService.Setup(service => service.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
+            var adjustment = Adjustment(quantity: 2m, incidentId: IncidentId);
+            SetupAdjustments(adjustment);
+            SetupInventories(Inventory(quantity: 10m, reservedQuantity: 2m));
+            var incident = LinkedIncident();
+            SetupIncident(incident);
+
+            await _handler.Handle(
+                Command(isApproved: false, rejectedReason: "Cần bổ sung chứng cứ"),
+                CancellationToken.None);
+
+            adjustment.Status.Should().Be(InventoryAdjustmentStatus.RevisionRequired);
+            incident.Status.Should().Be(IncidentStatus.UnderResolution);
+            incident.ReviewedBy.Should().BeNull();
+        }
+
+        [Fact]
         public async Task Handle_StandaloneDecrease_ShouldNotFallBackToSamePhaseIncident()
         {
             _mockCurrentUserService.Setup(service => service.IsInRole(BPG.Domain.Constants.UserRole.Director)).Returns(true);
@@ -274,7 +293,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            unrelatedIncident.Status.Should().Be("WaitingDirector");
+            unrelatedIncident.Status.Should().Be(IncidentStatus.UnderResolution);
             _mockIncidentRepo.Verify(repository => repository.Update(It.IsAny<Incident>()), Times.Never);
             _transactions.Should().ContainSingle()
                 .Which.TransactionType.Should().Be(InventoryTransactionType.Adjustment);
@@ -291,7 +310,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
 
             await _handler.Handle(Command(isApproved: true), CancellationToken.None);
 
-            linkedIncident.Status.Should().Be("Approved");
+            linkedIncident.Status.Should().Be(IncidentStatus.Resolved);
             _transactions.Should().ContainSingle()
                 .Which.TransactionType.Should().Be(InventoryTransactionType.IncidentLoss);
         }
@@ -407,7 +426,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
                 ProjectId = ProjectId,
                 PhaseId = PhaseId,
                 IncidentType = "InventoryLoss",
-                Status = "WaitingDirector"
+                Status = IncidentStatus.UnderResolution
             };
 
         private void SetupAdjustments(params InventoryAdjustment[] adjustments)

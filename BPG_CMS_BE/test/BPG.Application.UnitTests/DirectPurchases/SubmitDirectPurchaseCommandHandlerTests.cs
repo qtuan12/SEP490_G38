@@ -208,9 +208,8 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         /// <summary>
-        /// Ngày mua không còn bị ràng buộc theo ngày bắt đầu dự án hay ngày kết thúc giai đoạn.
-        /// Vẫn còn chặn ở tương lai (Submit_PurchaseDateInFuture_ShouldThrow) và trước ngày bắt đầu
-        /// giai đoạn (Submit_PurchaseDateBeforePhaseStart_ShouldThrow).
+        /// Ngày mua không còn bị ràng buộc theo ngày bắt đầu dự án, ngày kết thúc giai đoạn,
+        /// hay ngày bắt đầu giai đoạn. Vẫn còn chặn ở tương lai (Submit_PurchaseDateInFuture_ShouldThrow).
         /// </summary>
         [Fact]
         public async Task Submit_PurchaseDateBeforeProjectStart_ShouldPass()
@@ -241,14 +240,17 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Fact]
-        public async Task Submit_PurchaseDateBeforePhaseStart_ShouldThrow()
+        public async Task Submit_PurchaseDateBeforePhaseStart_ShouldPass()
         {
             SetDraft(TodayVn.AddDays(-10), phaseStart: TodayVn.AddDays(-5));
 
-            var act = Submit;
+            await Submit();
 
-            (await act.Should().ThrowAsync<BusinessException>())
-                .Which.ErrorCode.Should().Be(ErrorCodes.DpPurchaseDateBeforePhase);
+            _mockFulfillment.Verify(f => f.MaterializeAsync(
+                It.IsAny<DirectPurchaseRequest>(),
+                It.IsAny<IReadOnlyList<DirectPurchaseItem>>(),
+                UserId,
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Fact]

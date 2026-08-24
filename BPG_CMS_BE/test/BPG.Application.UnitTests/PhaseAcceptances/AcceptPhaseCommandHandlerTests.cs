@@ -36,6 +36,7 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
 
         private readonly Mock<IGenericRepository<Phase>> _mockPhaseRepo;
         private readonly Mock<IGenericRepository<ProjectTask>> _mockTaskRepo;
+        private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
         private readonly Mock<IGenericRepository<PhaseAcceptance>> _mockAcceptanceRepo;
         private readonly Mock<IGenericRepository<User>> _mockUserRepo;
         private readonly Mock<IGenericRepository<ProjectMember>> _mockProjectMemberRepo;
@@ -52,16 +53,19 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
 
             _mockPhaseRepo = new Mock<IGenericRepository<Phase>>();
             _mockTaskRepo = new Mock<IGenericRepository<ProjectTask>>();
+            _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
             _mockAcceptanceRepo = new Mock<IGenericRepository<PhaseAcceptance>>();
             _mockUserRepo = new Mock<IGenericRepository<User>>();
             _mockProjectMemberRepo = new Mock<IGenericRepository<ProjectMember>>();
 
             _mockUow.Setup(u => u.Repository<Phase>()).Returns(_mockPhaseRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectTask>()).Returns(_mockTaskRepo.Object);
+            _mockUow.Setup(u => u.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
             _mockUow.Setup(u => u.Repository<PhaseAcceptance>()).Returns(_mockAcceptanceRepo.Object);
             _mockUow.Setup(u => u.Repository<User>()).Returns(_mockUserRepo.Object);
             _mockUow.Setup(u => u.Repository<ProjectMember>()).Returns(_mockProjectMemberRepo.Object);
             _mockProjectMemberRepo.Setup(r => r.Query()).Returns(new List<ProjectMember>().AsQueryable().BuildMock());
+            _mockIncidentRepo.Setup(r => r.Query()).Returns(new List<Incident>().AsQueryable().BuildMock());
             _mockUow.Setup(u => u.BeginTransactionAsync(
                     IsolationLevel.Serializable,
                     It.IsAny<CancellationToken>()))
@@ -306,6 +310,96 @@ namespace BPG.Application.UnitTests.PhaseAcceptances
 
             // Assert
             result.Should().Be(50);
+        }
+
+        [Fact]
+        public async Task UTCID09_Handle_PhaseHasTwoUnresolvedIncidents_ShouldThrowBusinessExceptionWithCount()
+        {
+            SetupCompletedPhase();
+            var incidents = new List<Incident>
+            {
+                new() { IncidentId = 1, PhaseId = PhaseId, Status = "WaitingReview" },
+                new() { IncidentId = 2, PhaseId = PhaseId, Status = "WaitingAccountant" }
+            };
+            _mockIncidentRepo.Setup(r => r.Query()).Returns(incidents.AsQueryable().BuildMock());
+
+            Func<Task> act = () => _handler.Handle(
+                new AcceptPhaseCommand(PhaseId, "Nghiệm thu giai đoạn"),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PHASE_HAS_UNRESOLVED_INCIDENTS");
+            exception.Which.Message.Should().Be("Không thể nghiệm thu giai đoạn vì còn 2 sự cố chưa xử lý.");
+        }
+
+        [Fact]
+        public async Task UTCID10_Handle_PhaseHasTerminalAndOneUnresolvedIncident_ShouldCountOnlyUnresolvedIncident()
+        {
+            SetupCompletedPhase();
+            var incidents = new List<Incident>
+            {
+                new() { IncidentId = 1, PhaseId = PhaseId, Status = "Approved" },
+                new() { IncidentId = 2, PhaseId = PhaseId, Status = "Rejected" },
+                new() { IncidentId = 3, PhaseId = PhaseId, Status = IncidentStatus.Resolved },
+                new() { IncidentId = 4, PhaseId = PhaseId, Status = IncidentStatus.Closed },
+                new() { IncidentId = 5, PhaseId = PhaseId, Status = "WaitingDirector" }
+            };
+            _mockIncidentRepo.Setup(r => r.Query()).Returns(incidents.AsQueryable().BuildMock());
+
+            Func<Task> act = () => _handler.Handle(
+                new AcceptPhaseCommand(PhaseId, "Nghiệm thu giai đoạn"),
+                CancellationToken.None);
+
+            var exception = await act.Should().ThrowAsync<BusinessException>();
+            exception.Which.ErrorCode.Should().Be("ERR_PHASE_HAS_UNRESOLVED_INCIDENTS");
+            exception.Which.Message.Should().Be("Không thể nghiệm thu giai đoạn vì còn 1 sự cố chưa xử lý.");
+        }
+
+        [Fact]
+        public async Task UTCID11_Handle_OtherPhaseHasUnresolvedIncident_ShouldAcceptCurrentPhaseSuccessfully()
+        {
+            SetupCompletedPhase();
+            var incidents = new List<Incident>
+            {
+                new() { IncidentId = 1, PhaseId = PhaseId + 1, Status = "WaitingReview" }
+            };
+            _mockIncidentRepo.Setup(r => r.Query()).Returns(incidents.AsQueryable().BuildMock());
+
+            var result = await _handler.Handle(
+                new AcceptPhaseCommand(PhaseId, "Nghiệm thu giai đoạn"),
+                CancellationToken.None);
+
+            result.Should().Be(50);
+        }
+
+        private void SetupCompletedPhase()
+        {
+            var phase = new Phase
+            {
+                PhaseId = PhaseId,
+                ProjectId = ProjectId,
+                Name = "Giai đoạn 1",
+                Status = PhaseStatus.InProgress,
+                Project = new Project
+                {
+                    ProjectId = ProjectId,
+                    Name = "Dự án A",
+                    Status = ProjectStatus.InProgress
+                }
+            };
+            _mockPhaseRepo.Setup(r => r.Query()).Returns(new List<Phase> { phase }.AsQueryable().BuildMock());
+
+            var task = new ProjectTask
+            {
+                PhaseId = PhaseId,
+                Name = "Công việc đã hoàn thành",
+                ProgressPercent = 100,
+                Status = TaskStatus.Completed,
+                Assignees = new List<TaskAssignee>()
+            };
+            _mockTaskRepo.Setup(r => r.Query()).Returns(new List<ProjectTask> { task }.AsQueryable().BuildMock());
+            _mockUserRepo.Setup(r => r.GetByIdAsync(CurrentUserId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new User { UserId = CurrentUserId, FullName = "Nguyễn Văn A" });
         }
 
     }

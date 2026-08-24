@@ -31,6 +31,7 @@ import {
 import {
   canResubmitProjectMaterialRequest,
   canProcessMaterialRequestByAccountant,
+  getMaterialRequestHandlingPlanLabel,
   getProjectMaterialRequestBusinessStatus,
   getProjectMaterialRequestBusinessStatusVariant,
   matchesProjectMaterialRequestStatusFilter,
@@ -411,6 +412,21 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
     }
   };
 
+  const getProcessingResult = (request: MaterialRequest) => {
+    const handlingPlan = getMaterialRequestHandlingPlanLabel(request.procurementDecision);
+
+    return (
+      <div className="flex flex-col items-start gap-1">
+        {getStatusBadge(request)}
+        {handlingPlan && (
+          <span className="text-[0.7rem] leading-tight text-[hsl(var(--text-muted))]">
+            <strong className="font-semibold text-[hsl(var(--text-secondary))]">{handlingPlan}</strong>
+          </span>
+        )}
+      </div>
+    );
+  };
+
   const getClassificationBadge = (req: MaterialRequest) => {
     if (req.type === 'emergency') {
       return <Badge variant="warning" className="text-[0.68rem] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-2 normal-case">Khẩn cấp (Mua ngoài)</Badge>;
@@ -457,13 +473,13 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-[hsl(var(--text-secondary))] font-bold uppercase tracking-wider">Trạng thái:</span>
+            <span className="text-xs text-[hsl(var(--text-secondary))] font-bold uppercase tracking-wider">Kết quả xử lý:</span>
             <select
               className="text-xs text-slate-700 bg-white border border-[hsl(var(--border))] rounded-lg px-2.5 py-1.5 font-semibold focus:outline-none cursor-pointer shadow-sm"
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as ProjectMaterialRequestStatusFilter)}
             >
-              <option value="">Tất cả Trạng thái</option>
+              <option value="">Tất cả kết quả</option>
               <option value="pending_accountant">Chờ phê duyệt</option>
               <option value="pending_director">Chờ phê duyệt vượt dự toán</option>
               <option value="approved">Đã phê duyệt</option>
@@ -503,7 +519,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                 <th className="px-4 py-3">Giai đoạn / Công việc</th>
                 <th className="px-4 py-3">Người yêu cầu</th>
                 <th className="px-4 py-3">Phân loại</th>
-                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Kết quả xử lý</th>
                 <th className="px-2.5 py-3 text-center w-[148px] min-w-[148px]">Thao tác</th>
               </tr>
             </thead>
@@ -536,7 +552,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
                     {getClassificationBadge(req)}
                   </td>
                   <td className="px-4 py-3.5 whitespace-nowrap">
-                    {getStatusBadge(req)}
+                    {getProcessingResult(req)}
                   </td>
                   <td className="px-2.5 py-3.5 text-center whitespace-nowrap w-[148px] min-w-[148px]">
                     <div className="inline-flex flex-nowrap items-center justify-center gap-1.5 whitespace-nowrap">
@@ -755,7 +771,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
           onClose={() => setIsCreateOpen(false)}
           onSuccess={(msg) => {
             setIsCreateOpen(false);
-            console.log(msg);
+            toast.success(msg);
             scheduleRealtimeRefresh();
           }}
           projectId={projectId.toString()}

@@ -200,8 +200,8 @@ public class RejectIncidentCommandHandler : IRequestHandler<RejectIncidentComman
             var hasPermission = incident.Status switch
             {
                 "Reported" => incident.ReportedBy == currentUserId,
-                "WaitingAccountant" => _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant),
-                "WaitingDirector" => throw new BusinessException(
+                IncidentStatus.WaitingAccountant => _currentUserService.IsInRole(BPG.Domain.Constants.UserRole.Accountant),
+                IncidentStatus.UnderResolution => throw new BusinessException(
                     "ERR_USE_ADJUSTMENT_APPROVAL",
                     "Hãy từ chối phiếu giảm tồn liên kết để hoàn tất sự cố vật tư."),
                 _ => throw new BusinessException("ERR_INVALID_STATUS", "Sự cố vật tư không ở trạng thái có thể từ chối.")

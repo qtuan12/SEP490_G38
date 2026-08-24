@@ -176,6 +176,49 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             }
         }
 
+        var isInventoryIncident = request.IncidentType == "InventoryLoss"
+            || request.IncidentType == "InventoryDamage";
+        var isRegularConstructionIncident = request.IncidentType == "Construction"
+            && !request.IsEmergency;
+
+        if (isInventoryIncident)
+        {
+            var hasActiveInventoryIncident = await _unitOfWork.Repository<Incident>().AnyAsync(
+                incident => incident.ProjectId == request.ProjectId
+                    && incident.PhaseId == phaseId
+                    && (incident.IncidentType == "InventoryLoss"
+                        || incident.IncidentType == "InventoryDamage")
+                    && incident.Status != IncidentStatus.Resolved
+                    && incident.Status != IncidentStatus.Closed
+                    && incident.Status != IncidentStatus.Rejected
+                    && incident.Status != IncidentStatus.Approved,
+                cancellationToken);
+
+            if (hasActiveInventoryIncident)
+            {
+                throw ActiveInventoryIncidentExists();
+            }
+        }
+
+        if (isRegularConstructionIncident)
+        {
+            var hasActiveConstructionIncident = await _unitOfWork.Repository<Incident>().AnyAsync(
+                incident => incident.ProjectId == request.ProjectId
+                    && incident.PhaseId == phaseId
+                    && incident.IncidentType == "Construction"
+                    && !incident.IsEmergency
+                    && incident.Status != IncidentStatus.Resolved
+                    && incident.Status != IncidentStatus.Closed
+                    && incident.Status != IncidentStatus.Rejected
+                    && incident.Status != IncidentStatus.Approved,
+                cancellationToken);
+
+            if (hasActiveConstructionIncident)
+            {
+                throw ActiveConstructionIncidentExists();
+            }
+        }
+
         if (request.IsEmergency)
         {
             // Mark the project as read so its RowVersion participates in this insert.
@@ -197,9 +240,6 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
                     "Dự án đang có một sự cố khẩn cấp chưa xử lý xong.");
             }
         }
-
-        // Determine which queue this incident goes to based on its type
-        var isInventoryIncident = request.IncidentType == "InventoryLoss" || request.IncidentType == "InventoryDamage";
 
         var incident = new Incident
         {
@@ -228,6 +268,16 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             throw new BusinessException(
                 "ERR_ACTIVE_EMERGENCY_EXISTS",
                 "Dự án hoặc danh sách sự cố khẩn cấp đã thay đổi. Vui lòng tải lại dữ liệu.");
+        }
+        catch (DbUpdateException exception) when (
+            isInventoryIncident && IsSingleActiveIncidentConflict(exception))
+        {
+            throw ActiveInventoryIncidentExists();
+        }
+        catch (DbUpdateException exception) when (
+            isRegularConstructionIncident && IsSingleActiveIncidentConflict(exception))
+        {
+            throw ActiveConstructionIncidentExists();
         }
 
         // Load relations for mapping
@@ -364,6 +414,37 @@ public class CreateAndAssessIncidentCommandHandler : IRequestHandler<CreateAndAs
             cancellationToken);
 
         return ApiResponse<IncidentDto>.SuccessResult(dto, "Sự cố đã được báo cáo và đánh giá.");
+    }
+
+    private static BusinessException ActiveInventoryIncidentExists()
+        => new(
+            "ERR_ACTIVE_INVENTORY_INCIDENT_EXISTS",
+            "Giai đoạn này đang có một sự cố vật tư kho chưa xử lý xong. Chỉ có thể tạo sự cố mới sau khi sự cố hiện tại đã được giải quyết.");
+
+    private static BusinessException ActiveConstructionIncidentExists()
+        => new(
+            "ERR_ACTIVE_CONSTRUCTION_INCIDENT_EXISTS",
+            "Giai đoạn này đang có một sự cố thi công chưa xử lý xong. Chỉ có thể tạo sự cố mới sau khi sự cố hiện tại đã được giải quyết.");
+
+    private static bool IsSingleActiveIncidentConflict(DbUpdateException exception)
+    {
+        for (Exception? current = exception; current != null; current = current.InnerException)
+        {
+            var numberProperty = current.GetType().GetProperty("Number");
+            if (numberProperty?.GetValue(current) is int number && number == 51000)
+            {
+                return true;
+            }
+
+            if (current.Message.Contains(
+                "ERR_ACTIVE_INVENTORY_INCIDENT_EXISTS",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

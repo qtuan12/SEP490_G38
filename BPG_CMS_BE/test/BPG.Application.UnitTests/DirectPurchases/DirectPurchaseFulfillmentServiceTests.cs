@@ -190,19 +190,34 @@ namespace BPG.Application.UnitTests.DirectPurchases
         }
 
         [Theory]
-        [InlineData(MaterialRequestStatus.Rejected, false)]
-        [InlineData(MaterialRequestStatus.Cancelled, false)]
-        [InlineData(MaterialRequestStatus.Pending, true)]
-        [InlineData(MaterialRequestStatus.Approved, true)]
-        public async Task EvaluateBoq_MaterialRequest_ShouldExcludeRejectedAndCancelledOnly(string status, bool expectOver)
+        [InlineData(MaterialRequestStatus.Rejected, null, false)]
+        [InlineData(MaterialRequestStatus.Rejected, MaterialRequestProcurementDecision.InternalTransfer, true)]
+        [InlineData(MaterialRequestStatus.Rejected, MaterialRequestProcurementDecision.WaitSupply, false)]
+        [InlineData(MaterialRequestStatus.Rejected, MaterialRequestProcurementDecision.NeedMoreInfo, false)]
+        [InlineData(MaterialRequestStatus.Rejected, MaterialRequestProcurementDecision.NotApproved, false)]
+        [InlineData(MaterialRequestStatus.Rejected, MaterialRequestProcurementDecision.ExternalPurchase, false)]
+        [InlineData(MaterialRequestStatus.Cancelled, MaterialRequestProcurementDecision.InternalTransfer, false)]
+        [InlineData(MaterialRequestStatus.Pending, null, true)]
+        [InlineData(MaterialRequestStatus.Approved, MaterialRequestProcurementDecision.ExternalPurchase, true)]
+        public async Task EvaluateBoq_MaterialRequest_ShouldCountOnlyActiveOrInternalTransfer(
+            string status,
+            string? procurementDecision,
+            bool expectOver)
         {
-            // Ngược với Direct Purchase: MR bị từ chối/hủy thì không có vật tư nào được mua.
+            // Điều chuyển nội bộ đã được chốt là một nguồn cung ứng nên vẫn giữ chỗ BOQ,
+            // dù trạng thái kỹ thuật của phiếu là Rejected.
             SetMaterialRequestItems(new MaterialRequestItem
             {
                 MaterialId = MaterialId,
                 Quantity = 90m,
                 ConversionRate = 1m,
-                Request = new MaterialRequest { PhaseId = PhaseId, Status = status, IsDeleted = false }
+                Request = new MaterialRequest
+                {
+                    PhaseId = PhaseId,
+                    Status = status,
+                    ProcurementDecision = procurementDecision,
+                    IsDeleted = false
+                }
             });
             var items = Request(50m);
 

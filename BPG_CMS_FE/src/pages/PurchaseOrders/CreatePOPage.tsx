@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
 import { projectService } from '../../services/projectService';
-import { Button, Input, Select } from '../../components/ui';
+import { Button, Input, MoneyInput, Select } from '../../components/ui';
 import { ArrowLeft, Plus, Trash2, AlertCircle, CheckCircle2, Loader2, ShoppingCart, Upload, X, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
@@ -622,7 +622,7 @@ export const CreatePOPage: React.FC = () => {
         <div className="glass-panel p-6">
           <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'hsl(var(--text-primary))' }}>
             {isRequestLocked ? (
-              <>Yêu cầu vật tư <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(đã chọn từ tab Yêu cầu vật tư)</span></>
+              <>Yêu cầu vật tư</>
             ) : (
               <>Chọn yêu cầu vật tư đã duyệt <span style={{ fontSize: 12, fontWeight: 500, color: 'hsl(var(--text-muted))' }}>(mỗi đơn hàng thuộc một yêu cầu)</span></>
             )}
@@ -766,9 +766,9 @@ export const CreatePOPage: React.FC = () => {
                       {qtyError && <p style={errorText}>{qtyError}</p>}
                     </td>
                     <td style={{ padding: '8px 10px', verticalAlign: 'top' }}>
-                      <Input type="number" min={0} step={1000}
+                      <MoneyInput
                         value={it.unitPrice}
-                        onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)}
+                        onChange={(raw) => updateItem(idx, 'unitPrice', raw)}
                         className="h-8" style={{ width: 140, ...(priceError ? { borderColor: 'hsl(var(--danger))' } : {}) }} />
                       {priceError && <p style={errorText}>{priceError}</p>}
                     </td>

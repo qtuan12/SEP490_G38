@@ -16,6 +16,8 @@ export interface IncidentDto {
   incidentType: string;
   description: string;
   status: string;
+  latestAdjustmentId?: number;
+  latestAdjustmentStatus?: string;
   damageDescription?: string;
   estimatedMaterialLoss?: number;
   estimatedLaborDays?: number;
@@ -67,6 +69,11 @@ export const incidentService = {
       reworkTaskStartDate?: string;
       reworkTaskEndDate?: string;
       reworkAssigneeId?: number;
+      reworkTaskDescription?: string;
+      reworkTaskWeight?: number;
+      isOutsourced?: boolean;
+      outsourcedTeamName?: string;
+      outsourcedTeamContact?: string;
       decreaseProgressTo?: number;
       decreaseProgressReason?: string;
       handlingInstruction?: string;

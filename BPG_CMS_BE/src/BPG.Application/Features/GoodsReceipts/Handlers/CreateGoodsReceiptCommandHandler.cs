@@ -175,7 +175,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 if (item.Quantity > remainingQty)
                 {
                     throw new BusinessException("ERR_QUANTITY_EXCEEDED",
-                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material.Name}] (còn thiếu {remainingQty}).");
+                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material?.Name ?? item.MaterialId.ToString()}] (còn thiếu {remainingQty}).");
                 }
 
                 validItems.Add(item);

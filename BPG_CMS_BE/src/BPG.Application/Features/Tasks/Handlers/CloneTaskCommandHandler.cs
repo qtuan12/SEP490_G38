@@ -1,3 +1,4 @@
+using BPG.Application.Common.Helpers;
 using BPG.Application.Common.Models;
 using BPG.Application.Features.Tasks.Commands;
 using BPG.Application.Features.Wbs.Services;
@@ -59,16 +60,24 @@ public class CloneTaskCommandHandler : IRequestHandler<CloneTaskCommand, ApiResp
         if (source == null)
             throw new NotFoundException("ProjectTask", request.TaskId);
 
-        if (source.Phase.Project.Status != ProjectStatus.InProgress
-            && source.Phase.Project.Status != ProjectStatus.Draft)
-        {
-            throw new BusinessException(
-                ErrorCodes.InvalidTransition,
-                "Dự án phải ở trạng thái Nháp hoặc Đang hoạt động để nhân bản công việc.");
-        }
+        await WbsEditGuard.EnsureProjectAllowsWbsEditAsync(
+            _unitOfWork, source.Phase.Project.ProjectId, source.Phase.Project.Status,
+            source.Phase.Project.PauseReason, ct, _currentUserService);
 
         if (source.Phase.Status == PhaseStatus.Approved)
             throw new AlreadyApprovedException("Giai đoạn", source.PhaseId);
+
+        if (source.ParentTaskId.HasValue)
+        {
+            var parentTask = await _unitOfWork.Repository<ProjectTask>()
+                .Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(task => task.TaskId == source.ParentTaskId.Value, ct);
+            if (parentTask != null && parentTask.Status == BPG.Domain.Constants.TaskStatus.Obsolete)
+            {
+                throw new BusinessException(ErrorCodes.InvalidTransition, "Không thể nhân bản công việc khi công việc cha đã bị dừng.");
+            }
+        }
 
         if (!_currentUserService.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager)
             && !await _projectAccessService.IsCurrentUserProjectLeaderAsync(

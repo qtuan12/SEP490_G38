@@ -32,6 +32,15 @@ public class AcceptPhaseCommandValidator : AbstractValidator<AcceptPhaseCommand>
 
 public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, long>
 {
+    private const string UnresolvedIncidentsErrorCode = "ERR_PHASE_HAS_UNRESOLVED_INCIDENTS";
+    private static readonly string[] TerminalIncidentStatuses =
+    [
+        "Approved",
+        "Rejected",
+        IncidentStatus.Resolved,
+        IncidentStatus.Closed
+    ];
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IPdfService _pdfService;
@@ -61,6 +70,7 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
 
         var phaseRepo = _unitOfWork.Repository<Phase>();
         var taskRepo = _unitOfWork.Repository<ProjectTask>();
+        var incidentRepo = _unitOfWork.Repository<Incident>();
         var acceptanceRepo = _unitOfWork.Repository<PhaseAcceptance>();
         var userRepo = _unitOfWork.Repository<User>();
 
@@ -97,6 +107,20 @@ public class AcceptPhaseCommandHandler : IRequestHandler<AcceptPhaseCommand, lon
 
         if (nonObsoleteTasks.Any(t => t.ProgressPercent < 100))
             throw new BusinessException("INVALID_OPERATION", "Không thể nghiệm thu Phase khi chưa hoàn thành 100% tất cả các công việc hoạt động.");
+
+        var unresolvedIncidentCount = await incidentRepo.Query()
+            .AsNoTracking()
+            .CountAsync(
+                incident => incident.PhaseId == request.PhaseId
+                    && !TerminalIncidentStatuses.Contains(incident.Status),
+                ct);
+
+        if (unresolvedIncidentCount > 0)
+        {
+            throw new BusinessException(
+                UnresolvedIncidentsErrorCode,
+                $"Không thể nghiệm thu giai đoạn vì còn {unresolvedIncidentCount} sự cố chưa xử lý.");
+        }
 
         var userId = _currentUserService.GetRequiredUserId();
         var user = await userRepo.GetByIdAsync(userId, ct);

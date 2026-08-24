@@ -73,7 +73,9 @@ export const wbsService = {
             history: [],
             status: taskDto.status?.toLowerCase() === 'obsolete' ? 'obsolete' : 'active',
             startDate: taskDto.startDate || undefined,
+            actualStartDate: taskDto.actualStartDate || undefined,
             deadline: taskDto.endDate || undefined,
+            actualEndDate: taskDto.actualEndDate || undefined,
             isOverdue: taskDto.isOverdue,
             isAtRisk: taskDto.isAtRisk,
             isLocked: taskDto.isLocked,
@@ -147,6 +149,13 @@ export const wbsService = {
     const formData = new FormData();
     formData.append('file', file);
     const res = await apiClient.postFormData<ApiResponse<{ phaseCount: number; taskCount: number; skippedCount: number; errors: string[] }>>(`/projects/${projectId}/wbs/import`, formData);
+    return res.data;
+  },
+
+  previewWbsImport: async (projectId: number | string, file: File): Promise<any> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.postFormData<ApiResponse<any>>(`/projects/${projectId}/wbs/import/preview`, formData);
     return res.data;
   },
 

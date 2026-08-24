@@ -6,7 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Modal } from '../../../components/ui/Modal';
 import { SearchSelect } from '../../../components/ui/SearchSelect';
 import { incidentService } from '../../../services/incidentService';
-import { UploadCloud, X, Plus, Trash2, Loader2, RotateCcw } from 'lucide-react';
+import { UploadCloud, X, Plus, Trash2, Loader2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { LazyImage } from '../../../utils/imageOptimizer';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
@@ -83,17 +83,28 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   const [damagedMaterials, setDamagedMaterials] = useState<DamagedMaterial[]>([]);
   const [inventoryItems, setInventoryItems] = useState<IncidentMaterialOption[]>([]);
   const [loadingBOQ, setLoadingBOQ] = useState(false);
+  const [activeIncidentId, setActiveIncidentId] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (isOpen && phaseId) {
       setLoadingBOQ(true);
       setInventoryItems([]);
       setDamagedMaterials([]);
+      setActiveIncidentId(null);
       Promise.all([
         directPurchaseService.getPhaseBOQ(Number(projectId), Number(phaseId)).catch(() => []),
-        inventoryService.getCurrentInventory(Number(projectId)).catch(() => [])
+        inventoryService.getCurrentInventory(Number(projectId)).catch(() => []),
+        incidentService.getIncidents(Number(projectId)).catch(() => [])
       ])
-        .then(([boqRes, invRes]) => {
+        .then(([boqRes, invRes, incidents]) => {
+          const terminalStatuses = new Set(['Resolved', 'Closed', 'Rejected', 'Approved']);
+          const activeIncident = incidents.find(incident =>
+            incident.phaseId === Number(phaseId)
+            && (incident.incidentType === 'InventoryLoss' || incident.incidentType === 'InventoryDamage')
+            && !terminalStatuses.has(incident.status)
+          );
+          setActiveIncidentId(activeIncident?.incidentId ?? null);
+
           const boqByMaterial = new Map<number, PhaseBOQItemDto>();
           (boqRes || []).forEach(item => {
             if (!boqByMaterial.has(item.materialId)) boqByMaterial.set(item.materialId, item);
@@ -193,6 +204,11 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
   });
 
   const onSubmit = (data: any) => {
+    if (activeIncidentId) {
+      toast.error(`Giai đoạn này còn sự cố vật tư #${activeIncidentId} chưa xử lý xong.`);
+      return;
+    }
+
     if (uploadedFiles.some(f => f.status === 'uploading')) {
       toast.error('Vui lòng chờ hình ảnh tải lên hoàn tất.');
       return;
@@ -388,6 +404,16 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
         <span>Giai đoạn: <strong>{phaseName}</strong></span>
         <span className="text-xs font-semibold text-blue-600 bg-blue-100/70 px-2 py-0.5 rounded">Sự cố Vật tư Kho</span>
       </div>
+
+      {activeIncidentId && (
+        <div className="text-sm bg-amber-50 text-amber-800 p-3 rounded-md border border-amber-200 mb-4 flex items-start gap-2">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <span>
+            Giai đoạn này đang có sự cố vật tư <strong>#{activeIncidentId}</strong> chưa xử lý xong.
+            Chỉ có thể lập báo cáo mới sau khi sự cố hiện tại đã được giải quyết.
+          </span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-[4.2fr_5.8fr] gap-6" style={{ minHeight: '480px' }}>
@@ -698,7 +724,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || loadingBOQ || activeIncidentId !== null}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'hsl(210, 70%, 45%)' }}
           >
             {mutation.isPending && (
@@ -707,7 +733,7 @@ export const ReportInventoryIncidentModal: React.FC<ReportInventoryIncidentModal
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             )}
-            {mutation.isPending ? 'Đang lưu...' : '📦 Gửi báo cáo'}
+            {mutation.isPending ? 'Đang lưu...' : activeIncidentId ? 'Đang có sự cố chưa xử lý' : '📦 Gửi báo cáo'}
           </button>
         </div>
       </form>

@@ -20,7 +20,7 @@ import { ImportWbsModal } from '../modals/ImportWbsModal';
 
 export const WBSModalsContainer = () => {
   const {
-    projectId, user, isPL, isProjectMember, isTPKT, materialRequests, tasks, members,
+    projectId, user, isPL, isProjectMember, isTPKT, canEdit, materialRequests, tasks, members,
     isDetailOpen, setIsDetailOpen, project, isTPKTOrPL, handleDeleteTask, setCreateMatReqType, isAssignOpen, setIsAssignOpen,
     isLogOpen, setIsLogOpen,
     isCreateMatReqOpen, setIsCreateMatReqOpen, createMatReqType,
@@ -63,6 +63,7 @@ export const WBSModalsContainer = () => {
           materialRequests={materialRequests}
           isTPKTOrPL={isTPKTOrPL}
           isTPKT={isTPKT}
+          canEdit={canEdit}
           isPL={isPL}
           isProjectMember={isProjectMember}
           onCreateMatReqOpen={(type) => { setIsDetailOpen(false); setCreateMatReqType(type); setIsCreateMatReqOpen(true); }}

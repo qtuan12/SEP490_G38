@@ -64,6 +64,42 @@ public class CreatePhaseCommandHandlerTests
     }
 
     [Fact]
+    public async Task UTCID03B_Handle_ProjectPausedWithApprovedEmergency_ShouldAllowCreation()
+    {
+        SetupProjects(PausedProjectForEmergency(100));
+        var incidentRepo = new Mock<IGenericRepository<Incident>>();
+        var incidents = new List<Incident>
+        {
+            new() { IncidentId = 100, ProjectId = ProjectId, IsEmergency = true, Status = IncidentStatus.Approved }
+        };
+        incidentRepo.Setup(x => x.Query()).Returns(incidents.AsQueryable().BuildMock());
+        _uow.Setup(x => x.Repository<Incident>()).Returns(incidentRepo.Object);
+
+        var result = await _handler.Handle(Command(), CancellationToken.None);
+
+        result.Success.Should().BeTrue();
+        result.Data.Should().Be(GeneratedPhaseId);
+    }
+
+    [Fact]
+    public async Task UTCID03C_Handle_ProjectPausedWithoutApprovedEmergency_ShouldThrowInvalidTransition()
+    {
+        SetupProjects(PausedProjectForEmergency(101));
+        var incidentRepo = new Mock<IGenericRepository<Incident>>();
+        var incidents = new List<Incident>
+        {
+            new() { IncidentId = 101, ProjectId = ProjectId, IsEmergency = true, Status = IncidentStatus.Reported }
+        };
+        incidentRepo.Setup(x => x.Query()).Returns(incidents.AsQueryable().BuildMock());
+        _uow.Setup(x => x.Repository<Incident>()).Returns(incidentRepo.Object);
+
+        Func<Task> act = () => _handler.Handle(Command(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<BusinessException>();
+        exception.Which.ErrorCode.Should().Be(ErrorCodes.InvalidTransition);
+    }
+
+    [Fact]
     public async Task UTCID04_Handle_StartDateBeforeProject_ShouldThrowDateInvalid()
     {
         Func<Task> act = () => _handler.Handle(
@@ -104,6 +140,13 @@ public class CreatePhaseCommandHandlerTests
         PlannedStart = new DateOnly(2026, 1, 1),
         PlannedEnd = new DateOnly(2026, 12, 31)
     };
+
+    private static Project PausedProjectForEmergency(long incidentId)
+    {
+        var project = Project(ProjectStatus.Paused);
+        project.PauseReason = $"[{{\"type\":\"pause\",\"emergencyIncidentId\":{incidentId}}}]";
+        return project;
+    }
 
     private void SetupProjects(params Project[] projects) =>
         _projectRepo.Setup(x => x.Query()).Returns(projects.AsQueryable().BuildMock());

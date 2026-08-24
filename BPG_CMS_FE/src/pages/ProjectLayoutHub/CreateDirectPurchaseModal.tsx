@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Modal } from '../../components/ui/Modal';
-import { Button, ConfirmDialog, ImageLightbox } from '../../components/ui';
+import { Button, ConfirmDialog, ImageLightbox, MoneyInput } from '../../components/ui';
 import {
   directPurchaseService,
   type PhaseBOQItemDto,
@@ -10,7 +11,7 @@ import { materialService } from '../../services/materialService';
 import { projectService } from '../../services/projectService';
 import type { MaterialCatalog, MaterialConversion } from '../../types/material';
 import type { WBSPhase } from '../../types/common';
-import { Plus, Trash2, Upload, X, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Upload, X, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ApiError } from '../../services/api';
 import { DP_PURCHASE_DATE_ERRORS } from '../../constants/errorCodes';
@@ -61,6 +62,146 @@ interface UnitOption {
   conversionRate: number;
 }
 
+interface MaterialOption {
+  materialId: number;
+  code: string;
+  name: string;
+  /** Nhãn phụ nối sau tên, vd " — không còn trong dự toán". */
+  suffix?: string;
+}
+
+/**
+ * Ô chọn vật tư có tìm kiếm — danh mục vật tư có thể dài nên cuộn tay khó tìm.
+ * Chỉ hiển thị tên (không kèm mã) cho gọn; mã vật tư vẫn giữ trong tooltip và vẫn dùng để
+ * tìm kiếm, vì người dùng quen tra theo mã lẫn tên.
+ */
+const MaterialSelectCell: React.FC<{
+  value: number;
+  options: MaterialOption[];
+  onChange: (materialId: number) => void;
+  hasError?: boolean;
+}> = ({ value, options, onChange, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  /** Toạ độ dropdown, tính từ nút bấm — cần vì dropdown được portal ra <body>. */
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Dropdown portal ra document.body thay vì nằm trong ô bảng: bảng vật tư có
+   * overflowX: 'auto' để cuộn ngang, mà theo spec CSS thì overflow-y khi đó cũng tự thành
+   * 'auto' — dropdown mở trong ô sẽ bị cắt mất phần vượt ra ngoài khung bảng.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const updatePos = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.max(rect.width, 260);
+      const left = Math.min(rect.left, window.innerWidth - width - 8);
+      setMenuPos({ top: rect.bottom + 4, left: Math.max(8, left), width });
+    };
+    updatePos();
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+      setQuery('');
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  const selected = options.find(o => o.materialId === value);
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = normalizedQuery
+    ? options.filter(o => o.name.toLowerCase().includes(normalizedQuery) || o.code.toLowerCase().includes(normalizedQuery))
+    : options;
+  // Danh mục có thể cả trăm vật tư — không giới hạn số dòng, chỉ giới hạn chiều cao
+  // hiển thị còn khoảng 5 dòng rồi cuộn tiếp, đỡ chiếm hết khung nhìn.
+  const ROW_HEIGHT = 33;
+  const VISIBLE_ROWS = 5;
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        title={selected ? `[${selected.code}] ${selected.name}` : undefined}
+        style={{
+          width: '100%', padding: '4px 24px 4px 6px', fontSize: '0.85rem', textAlign: 'left',
+          border: `1px solid ${hasError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`,
+          borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: selected ? 'hsl(var(--text-primary))' : 'hsl(var(--text-muted))',
+          cursor: 'pointer', position: 'relative', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}
+      >
+        {selected ? selected.name : '-- Chọn --'}
+        <ChevronDown size={13} style={{ position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--text-muted))', pointerEvents: 'none' }} />
+      </button>
+
+      {open && menuPos && createPortal(
+        <div
+          ref={menuRef}
+          className="dp-material-dropdown"
+          style={{
+            position: 'fixed', top: menuPos.top, left: menuPos.left, width: menuPos.width, zIndex: 3000,
+            background: 'hsl(var(--bg-card))', border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', maxHeight: '280px',
+          }}
+        >
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Tìm theo tên hoặc mã vật tư..."
+            style={{
+              margin: '6px', padding: '6px 8px', fontSize: '0.85rem',
+              border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)',
+              background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))',
+            }}
+          />
+          <div style={{ overflowY: 'auto', borderTop: '1px solid hsl(var(--border))', maxHeight: `${ROW_HEIGHT * VISIBLE_ROWS}px` }}>
+            {filtered.length === 0 && (
+              <div style={{ padding: '10px', fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textAlign: 'center' }}>
+                Không tìm thấy vật tư phù hợp.
+              </div>
+            )}
+            {filtered.map(o => (
+              <div
+                key={o.materialId}
+                className="dp-material-option"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => { onChange(o.materialId); setOpen(false); setQuery(''); }}
+                title={`[${o.code}] ${o.name}`}
+                style={{
+                  padding: '7px 10px', fontSize: '0.85rem', cursor: 'pointer',
+                  background: o.materialId === value ? 'hsl(var(--bg-sidebar))' : undefined,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', boxSizing: 'border-box', height: `${ROW_HEIGHT}px`,
+                }}
+              >
+                {o.name}{o.suffix ?? ''}
+              </div>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+};
+
 export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, projectId, draftId }) => {
   const isEditing = !!draftId;
 
@@ -91,6 +232,23 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   /** Lỗi backend theo từng trường (ApiResponse.fieldErrors), key giữ nguyên dạng "Items[0].Quantity". */
   const [apiFieldErrors, setApiFieldErrors] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /**
+   * Bảng vật tư dùng 2 <table> riêng (header đứng yên + phần dữ liệu cuộn dọc) thay vì
+   * position: 'sticky' trong 1 bảng — sticky trong <table> bị lỗi vẽ chồng lên dòng đầu khi
+   * cuộn, thử nhiều cách vẫn lặp lại. Tách hẳn 2 bảng thì cần tự đồng bộ cuộn ngang giữa
+   * chúng bằng tay: bảng dữ liệu cuộn ngang thì bảng header phải cuộn theo, không thì header
+   * sẽ lệch cột so với dữ liệu bên dưới.
+   */
+  const materialHeadScrollRef = useRef<HTMLDivElement>(null);
+  /**
+   * Neo để cuộn tới đúng chỗ lỗi khi bấm "Gửi phiếu" mà phiếu chưa đủ điều kiện — bảng vật tư
+   * giờ chỉ cao 3 dòng rồi cuộn, dòng báo lỗi có thể nằm ngoài tầm nhìn nếu không tự cuộn tới.
+   */
+  const phaseDateSectionRef = useRef<HTMLDivElement>(null);
+  const reasonSectionRef = useRef<HTMLDivElement>(null);
+  const rowsSectionRef = useRef<HTMLDivElement>(null);
+  const invoiceSectionRef = useRef<HTMLDivElement>(null);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   // ---------- Nạp dữ liệu nền ----------
   useEffect(() => {
@@ -264,20 +422,14 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   const selectedPhase = phases.find(p => String(p.id) === selectedPhaseId);
 
   // ---------- Khoảng ngày mua hợp lệ ----------
-  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai. Cũng không được sớm
-  // hơn ngày bắt đầu giai đoạn — chỉ mua khẩn cấp cho giai đoạn đã thực sự bắt đầu, khớp với
-  // check DpPurchaseDateBeforePhase ở SubmitDirectPurchaseCommandHandler. Không còn ràng buộc
-  // theo ngày kết thúc giai đoạn hay ngày bắt đầu dự án.
+  // Phiếu mua trực tiếp là hậu kiểm nên ngày mua không được ở tương lai. Không còn ràng buộc
+  // theo ngày bắt đầu/kết thúc giai đoạn hay ngày bắt đầu dự án.
   const todayStr = todayVnISO();
   const maxPurchaseDate = todayStr;
-  const phaseStart = selectedPhase?.startDate?.split('T')[0];
-  const minPurchaseDate = phaseStart;
 
   const purchaseDateHint = (): string | null => {
     if (!purchaseDate) return null;
     if (purchaseDate > todayStr) return 'Ngày mua không được ở tương lai.';
-    if (phaseStart && purchaseDate < phaseStart)
-      return `Ngày mua phải từ ${toDisplayDate(phaseStart)} (ngày bắt đầu giai đoạn) trở đi.`;
     return null;
   };
   const dateHint = purchaseDateHint();
@@ -480,6 +632,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           ? 'Ảnh hóa đơn đang tải lên, vui lòng đợi.'
           : 'Chưa lưu nháp được, vui lòng kiểm tra các mục còn thiếu.'
       );
+      requestAnimationFrame(scrollToFirstIssue);
       return;
     }
 
@@ -507,6 +660,29 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   };
 
   /**
+   * Cuộn tới đúng khối đang lỗi đầu tiên, theo đúng thứ tự xuất hiện trên form (giai đoạn/ngày
+   * mua → lý do → vật tư → ảnh hóa đơn) — người dùng sửa xong khối này thì bấm Gửi lại sẽ tự
+   * nhảy tới khối lỗi kế tiếp. Bảng vật tư giờ chỉ cao 3 dòng rồi cuộn, nên riêng dòng vật tư lỗi
+   * cần cuộn tới đúng <tr>, không chỉ cuộn tới đầu bảng.
+   */
+  const scrollToFirstIssue = () => {
+    const target = (() => {
+      if (!selectedPhaseId || !!phaseFrozenHint || !purchaseDate || !!dateHint) return phaseDateSectionRef.current;
+      if (!reason.trim()) return reasonSectionRef.current;
+      if (rows.length === 0) return rowsSectionRef.current;
+      const firstInvalidRow = rowErrors.findIndex(e => Object.keys(e).length > 0);
+      if (firstInvalidRow !== -1) return rowRefs.current[firstInvalidRow] ?? rowsSectionRef.current;
+      if (
+        uploadedFiles.length === 0
+        || uploadedFiles.some(f => f.status === 'uploading')
+        || uploadedFiles.some(f => f.status === 'error' || (f.status === 'success' && !f.url?.startsWith('http')))
+      ) return invoiceSectionRef.current;
+      return null;
+    })();
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  /**
    * Mở hộp xác nhận - việc gửi thực sự nằm ở doSubmit.
    *
    * Nút Gửi phiếu luôn bấm được: nút xám không nói cho người dùng biết họ còn thiếu gì,
@@ -520,6 +696,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     if (submitIssues.length > 0) {
       setIssueMode('submit');
       toast.error('Phiếu chưa gửi được, vui lòng kiểm tra các mục còn thiếu.');
+      // Đợi dòng đỏ hiện ra (issueMode vừa set) rồi mới cuộn, để lấy đúng vị trí sau khi
+      // render lại — cuộn ngay trong cùng tick có thể còn dùng layout cũ.
+      requestAnimationFrame(scrollToFirstIssue);
       return;
     }
 
@@ -633,7 +812,27 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   };
 
   /** Các ô trong bảng vật tư neo theo đỉnh: căn giữa sẽ đẩy ô nhập lên khi dòng lỗi xuất hiện. */
-  const bodyCellStyle: React.CSSProperties = { padding: '8px 10px', verticalAlign: 'top' };
+  const bodyCellStyle: React.CSSProperties = {
+    padding: '8px 10px', verticalAlign: 'top', borderBottom: '1px solid hsl(var(--border))',
+  };
+
+  // Chiều cao ước lượng của header và một dòng vật tư — dùng để giới hạn khung bảng còn
+  // đúng 3 dòng rồi cuộn tiếp. Dòng nào cũng cao bằng nhau vì cellNoteSlotStyle luôn chiếm
+  // chỗ sẵn (có lỗi hay không), nên ước lượng cố định này khớp thực tế, không cần đo động.
+  const TABLE_ROW_HEIGHT = 58;
+
+  const headCellStyle: React.CSSProperties = {
+    padding: '8px 10px', fontWeight: 600,
+    backgroundColor: 'hsl(var(--bg-sidebar))', borderBottom: '1px solid hsl(var(--border))',
+  };
+
+  /**
+   * Độ rộng cố định từng cột, dùng chung cho cả bảng header và bảng dữ liệu (2 bảng riêng —
+   * xem giải thích ở chỗ render). table-layout: 'fixed' + cùng một colgroup là cách duy nhất để
+   * đảm bảo 2 bảng luôn thẳng cột với nhau.
+   */
+  const MATERIAL_TABLE_COLS = [260, 130, 170, 110, 150, 120, 36];
+  const MATERIAL_TABLE_WIDTH = MATERIAL_TABLE_COLS.reduce((a, b) => a + b, 0);
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '8px 10px', border: '1px solid hsl(var(--border))',
@@ -694,7 +893,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         )}
 
         {/* Row 1: Phase + Date */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div ref={phaseDateSectionRef} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <div>
             <label style={labelStyle}>
               Giai đoạn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -721,7 +920,6 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
               <input
                 type="date"
                 value={purchaseDate}
-                min={minPurchaseDate}
                 max={maxPurchaseDate}
                 onChange={e => { setPurchaseDate(e.target.value); setPurchaseDateError(null); }}
                 style={{ ...inputStyle, border: `1px solid ${dateError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, color: 'transparent' }}
@@ -741,7 +939,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         </div>
 
         {/* Reason */}
-        <div>
+        <div ref={reasonSectionRef}>
           <label style={labelStyle}>
             Lý do mua khẩn cấp <span style={{ color: 'hsl(var(--danger))' }}>*</span>
           </label>
@@ -761,7 +959,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         </div>
 
         {/* Material rows */}
-        <div>
+        <div ref={rowsSectionRef}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'hsl(var(--text-secondary))' }}>
               Danh sách vật tư <span style={{ color: 'hsl(var(--danger))' }}>*</span>
@@ -786,19 +984,46 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           )}
 
           {rows.length > 0 && (
-            <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)', overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '820px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: 'hsl(var(--bg-sidebar))', borderBottom: '1px solid hsl(var(--border))' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Vật tư</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn vị</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Dự toán còn lại</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Số lượng</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>Đơn giá (VNĐ)</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Thành tiền</th>
-                    <th style={{ width: '36px' }}></th>
-                  </tr>
-                </thead>
+            /*
+              Từng thử "dính" header bằng position: sticky (trên <th>, rồi trên <thead>) nhưng
+              sticky trong <table> cứ bị lỗi vẽ chồng lên dòng đầu tiên khi cuộn — lặp lại dù đã
+              đổi collapse model, đổi chỗ đặt sticky. Đây là giới hạn hay gặp của sticky trong
+              bảng HTML, không phải lỗi CSS sửa tiếp bằng cách chỉnh style được.
+
+              Chuyển hẳn sang kỹ thuật cũ nhưng chắc chắn: 2 <table> riêng — 1 bảng chỉ có
+              header (đứng yên, không nằm trong vùng cuộn nào) và 1 bảng chỉ có dữ liệu (cuộn
+              dọc). Không dùng position: sticky ở đâu cả nên không còn rủi ro của nó. Cả 2 bảng
+              dùng chung table-layout: 'fixed' + colgroup để luôn thẳng cột, và đồng bộ cuộn
+              ngang bằng tay qua onScroll (xem materialHeadScrollRef).
+            */
+            <div style={{ border: '1px solid hsl(var(--border))', borderRadius: 'var(--radius-sm)' }}>
+              <div ref={materialHeadScrollRef} style={{ overflow: 'hidden', borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0' }}>
+                <table style={{ width: '100%', minWidth: `${MATERIAL_TABLE_WIDTH}px`, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <colgroup>{MATERIAL_TABLE_COLS.map((w, idx) => <col key={idx} style={{ width: `${w}px` }} />)}</colgroup>
+                  <thead>
+                    <tr style={{ backgroundColor: 'hsl(var(--bg-sidebar))', borderBottom: '1px solid hsl(var(--border))' }}>
+                      <th style={{ ...headCellStyle, textAlign: 'left' }}>Vật tư</th>
+                      <th style={{ ...headCellStyle, textAlign: 'left', whiteSpace: 'nowrap' }}>Đơn vị</th>
+                      <th style={{ ...headCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>Dự toán còn lại</th>
+                      <th style={{ ...headCellStyle, textAlign: 'right' }}>Số lượng</th>
+                      <th style={{ ...headCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>Đơn giá (VNĐ)</th>
+                      <th style={{ ...headCellStyle, textAlign: 'right' }}>Thành tiền</th>
+                      <th style={{ ...headCellStyle, width: '36px', padding: 0 }}></th>
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+              <div
+                onScroll={e => {
+                  if (materialHeadScrollRef.current) materialHeadScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+                }}
+                style={{
+                  maxHeight: `${3 * TABLE_ROW_HEIGHT}px`, overflow: 'auto',
+                  borderRadius: totalAmount > 0 ? '0' : '0 0 var(--radius-sm) var(--radius-sm)',
+                }}
+              >
+              <table style={{ width: '100%', minWidth: `${MATERIAL_TABLE_WIDTH}px`, tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <colgroup>{MATERIAL_TABLE_COLS.map((w, idx) => <col key={idx} style={{ width: `${w}px` }} />)}</colgroup>
                 <tbody>
                   {rows.map((row, i) => {
                     const qty = parseFloat(row.quantity) || 0;
@@ -822,30 +1047,29 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     const hasError = !!(materialError || unitError || qtyError || priceError);
 
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid hsl(var(--border))', backgroundColor: hasError ? 'hsl(var(--danger-glow))' : warn ? 'hsl(var(--warning) / 0.08)' : undefined }}>
-                        <td style={{ ...bodyCellStyle, minWidth: '260px' }}>
-                          <select
-                            value={row.materialId || ''}
-                            onChange={e => updateRowMaterial(i, Number(e.target.value))}
-                            title={row.materialName ? `[${row.materialCode}] ${row.materialName}` : undefined}
-                            style={{ ...selectStyle, padding: '4px 28px 4px 6px', fontSize: '0.85rem' }}
-                          >
-                            <option value="">-- Chọn --</option>
-                            {catalog
+                      <tr
+                        key={i}
+                        ref={el => { rowRefs.current[i] = el; }}
+                        style={{ backgroundColor: hasError ? 'hsl(var(--danger-glow))' : warn ? 'hsl(var(--warning) / 0.08)' : undefined }}
+                      >
+                        <td style={bodyCellStyle}>
+                          <MaterialSelectCell
+                            value={row.materialId}
+                            onChange={materialId => updateRowMaterial(i, materialId)}
+                            hasError={!!materialError}
+                            options={catalog
                               // Chỉ mua khẩn cấp được vật tư đã có trong dự toán vật tư của giai đoạn.
                               // Vật tư đang chọn sẵn vẫn giữ lại để phiếu nháp cũ không mất dòng.
                               .filter(m => m.materialId === row.materialId
                                 || (boqItems.some(b => b.materialId === m.materialId)
                                     && !usedMaterialIds.includes(m.materialId)))
-                              .map(m => {
-                                const inBoq = boqItems.some(b => b.materialId === m.materialId);
-                                return (
-                                  <option key={m.materialId} value={m.materialId}>
-                                    [{m.code}] {m.name}{inBoq ? '' : ' — không còn trong dự toán'}
-                                  </option>
-                                );
-                              })}
-                          </select>
+                              .map(m => ({
+                                materialId: m.materialId,
+                                code: m.code,
+                                name: m.name,
+                                suffix: boqItems.some(b => b.materialId === m.materialId) ? undefined : ' — không còn trong dự toán',
+                              }))}
+                          />
                           <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{materialError ?? ''}</div>
                         </td>
                         <td style={{ ...bodyCellStyle, whiteSpace: 'nowrap' }}>
@@ -889,13 +1113,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                           </div>
                         </td>
                         <td style={{ ...bodyCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            className="dp-no-spinner"
+                          <MoneyInput
                             value={row.unitPrice}
-                            onChange={e => updateRowField(i, 'unitPrice', e.target.value)}
+                            onChange={raw => updateRowField(i, 'unitPrice', raw)}
                             placeholder="0"
                             style={{ width: '110px', padding: '4px 6px', border: `1px solid ${priceError ? 'hsl(var(--danger))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
@@ -904,7 +1124,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                         <td style={{ ...bodyCellStyle, textAlign: 'right', fontWeight: lineTotal > 0 ? 600 : 400, whiteSpace: 'nowrap', color: lineTotal > 0 ? undefined : 'hsl(var(--text-muted))', paddingTop: '14px' }}>
                           {lineTotal > 0 ? formatNumber(lineTotal) + ' ₫' : '—'}
                         </td>
-                        <td style={{ padding: '10px 4px', verticalAlign: 'top' }}>
+                        <td style={{ padding: '10px 4px', verticalAlign: 'top', borderBottom: '1px solid hsl(var(--border))' }}>
                           <button onClick={() => removeRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'hsl(var(--danger))', padding: '4px' }}>
                             <Trash2 size={14} />
                           </button>
@@ -912,10 +1132,11 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
               {totalAmount > 0 && (
-                <div style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', borderTop: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-sidebar))' }}>
+                <div style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, fontSize: '0.95rem', borderTop: '1px solid hsl(var(--border))', background: 'hsl(var(--bg-sidebar))', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
                   Tổng cộng: {formatNumber(totalAmount)} ₫
                 </div>
               )}
@@ -924,7 +1145,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         </div>
 
         {/* Invoice photo upload */}
-        <div>
+        <div ref={invoiceSectionRef}>
           <label style={labelStyle}>
             Ảnh hóa đơn <span style={{ color: 'hsl(var(--danger))' }}>*</span>
           </label>
@@ -984,6 +1205,9 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
         }
         .dp-no-spinner {
           -moz-appearance: textfield;
+        }
+        .dp-material-option:hover {
+          background: hsl(var(--bg-hover, var(--bg-sidebar)));
         }
       `}</style>
     </Modal>
