@@ -362,27 +362,34 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         )}
 
         <FormItem label="Lý do điều chỉnh (*)">
-          <div className="flex flex-col gap-2">
-            <select
-              className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
-              value={presetReason}
-              onChange={e => {
-                const val = e.target.value;
-                setPresetReason(val);
-                if (val !== 'Khác (Nhập lý do chi tiết)') {
-                  setReason(val);
-                } else {
-                  setReason(customReason);
-                }
-              }}
-            >
-              <option value="Xử lý sự cố">Xử lý sự cố</option>
-              <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
-              <option value="Hao hụt vật tư trong định mức cho phép">Hao hụt vật tư trong định mức cho phép</option>
-              <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
-              <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
-            </select>
-
+          {incident ? (
+            <input
+              type="text"
+              className="w-full px-3 py-2 border rounded-lg bg-gray-100 cursor-not-allowed font-medium text-gray-700"
+              value={reason}
+              disabled
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              <select
+                className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
+                value={presetReason}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPresetReason(val);
+                  if (val !== 'Khác (Nhập lý do chi tiết)') {
+                    setReason(val);
+                  } else {
+                    setReason(customReason);
+                  }
+                }}
+              >
+                <option value="Xử lý sự cố">Xử lý sự cố</option>
+                <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
+                <option value="Hao hụt vật tư trong dự toán cho phép">Hao hụt vật tư trong dự toán cho phép</option>
+                <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
+                <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
+              </select>
             {presetReason === 'Khác (Nhập lý do chi tiết)' && (
               <input
                 type="text"
@@ -397,8 +404,8 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               />
             )}
           </div>
+          )}
         </FormItem>
-
         <FormItem label="Giai đoạn liên quan (*)">
           <select
             className={`w-full px-3 py-2 border rounded-lg ${incident ? 'bg-gray-100 cursor-not-allowed text-gray-600 font-medium appearance-none' : ''}`}
@@ -618,7 +625,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
                     ).length === 0 ? (
                       <div className="p-3 text-center text-xs text-gray-500">
                         {phaseMaterials.length === 0
-                          ? "Giai đoạn này không có vật tư trong BOQ"
+                          ? "Giai đoạn này không có vật tư trong dự toán"
                           : "Không tìm thấy vật tư phù hợp với từ khóa"}
                       </div>
                     ) : (
