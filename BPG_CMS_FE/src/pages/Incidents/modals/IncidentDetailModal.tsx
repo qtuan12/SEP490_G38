@@ -1313,7 +1313,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   )}
 
                   {isRegularConstruction && !damageMetaClean['Ước tính thiệt hại'] && !!incident.estimatedMaterialLoss && incident.estimatedMaterialLoss > 0 && (
-                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+                    <div style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))', gridColumn: '1 / -1' }}>
                       <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <AlertCircle size={12} />
                         Ước tính chi phí vật tư sơ bộ
@@ -1324,15 +1324,27 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                     </div>
                   )}
 
-                  {isRegularConstruction && Object.entries(damageMetaClean).map(([key, val]) => (
-                    <div key={key} style={{ padding: '10px 12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-                      <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <AlertCircle size={12} />
-                        {key}
+                  {isRegularConstruction && Object.entries(damageMetaClean).map(([key, val]) => {
+                    const isFullWidth = key.toLowerCase().includes('ước tính thiệt hại') || key.toLowerCase().includes('thiệt hại');
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          padding: '10px 12px',
+                          background: 'hsl(var(--bg-muted))',
+                          borderRadius: '8px',
+                          border: '1px solid hsl(var(--border))',
+                          ...(isFullWidth ? { gridColumn: '1 / -1' } : {})
+                        }}
+                      >
+                        <div style={{ fontSize: '0.68rem', color: 'hsl(var(--text-muted))', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <AlertCircle size={12} />
+                          {key}
+                        </div>
+                        <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))', wordBreak: 'break-word', whiteSpace: 'pre-line' }}>{val}</strong>
                       </div>
-                      <strong style={{ fontSize: '0.95rem', color: 'hsl(var(--text-primary))' }}>{val}</strong>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
