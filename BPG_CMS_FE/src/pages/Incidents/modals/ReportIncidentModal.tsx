@@ -32,6 +32,7 @@ const schema = z.object({
   responsibleParty: z.string().optional(),
   canceledVolume: z.string().optional(),
   estimatedDamage: z.string().optional(),
+  damageNote: z.string().optional(),
   estimatedLaborDays: z.coerce.number({ message: 'Vui lòng nhập số' }).min(0, 'Số ngày không được âm'),
   estimatedDelayDays: z.coerce.number({ message: 'Vui lòng nhập số' }).min(0, 'Số ngày không được âm'),
   proposedAction: z.enum(['Tạo Rework Task', 'Giảm tiến độ task'], {
@@ -97,6 +98,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       responsibleParty: '',
       canceledVolume: '',
       estimatedDamage: '',
+      damageNote: '',
       estimatedLaborDays: 0,
       estimatedDelayDays: 0,
       proposedAction: 'Tạo Rework Task',
@@ -131,6 +133,9 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       }
       if (cData.estimatedDamage) {
         finalDamageDesc += `**Ước tính thiệt hại:** ${cData.estimatedDamage}\n\n`;
+      }
+      if (cData.damageNote) {
+        finalDamageDesc += `**Ghi chú thiệt hại bổ sung:** ${cData.damageNote}\n\n`;
       }
 
       await incidentService.createAndAssessIncident({
@@ -512,6 +517,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <input type="number" className="input" placeholder="0" min={0} {...register('estimatedLaborDays', { valueAsNumber: true })} />
                   {(errors as any).estimatedLaborDays && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).estimatedLaborDays?.message)}</span>}
                 </div>
+              
               </>
 
 

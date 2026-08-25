@@ -1733,7 +1733,7 @@ export const projectService = {
       phaseName: item.phaseName,
       requesterName: item.createdByName || 'PL',
       reason: item.reason,
-      date: item.createdAt ? formatToLocalTime(item.createdAt) : '',
+      date: item.createdAt || '',
       isOverBOQ: item.boqCheckStatus === 'OverBOQ',
       type: 'normal',
       createdBy: item.createdBy,

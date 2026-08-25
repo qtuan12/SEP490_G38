@@ -496,11 +496,12 @@ public class AppDbContext : DbContext
             .Property(i => i.RowVersion)
             .IsRowVersion();
 
-        // Keep rejected attempts as history while allowing at most one active request.
+        // An inventory incident is revised and resubmitted on the same adjustment.
+        // Enforce the invariant in the database as a final concurrency safeguard.
         modelBuilder.Entity<InventoryAdjustment>()
             .HasIndex(i => i.IncidentId)
             .IsUnique()
-            .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0 AND [Status] = N'Pending'");
+            .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0");
 
         // DirectPurchaseItem - explicit FK to avoid shadow property DirectPurchaseRequestDirectPurchaseId
         modelBuilder.Entity<DirectPurchaseItem>()

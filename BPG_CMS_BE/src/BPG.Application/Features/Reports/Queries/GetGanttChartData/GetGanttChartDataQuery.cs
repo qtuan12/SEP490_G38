@@ -2,6 +2,7 @@ using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Application.Common.Models;
 using BPG.Application.DTOs.Reports;
+using BPG.Domain.Common;
 using BPG.Domain.Constants;
 using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
@@ -43,7 +44,7 @@ public class GetGanttChartDataQueryHandler : IRequestHandler<GetGanttChartDataQu
             .OrderBy(p => p.StartDate)
             .ToListAsync(cancellationToken);
 
-        var currentDate = DateTime.UtcNow.Date;
+        var currentDate = VietnamTime.Today.ToDateTime(TimeOnly.MinValue);
         var dto = new GanttChartDataDto();
 
         foreach (var phase in phases)

@@ -1,5 +1,6 @@
 using BPG.Application.Features.Reports.Queries.GetBoqVsActualReport;
 using BPG.Application.Features.Reports.Queries.GetCostReferenceReport;
+using BPG.Application.Features.Reports.Queries.GetConstructionProgressReport;
 using BPG.Application.Features.Reports.Queries.GetExecutiveDashboard;
 using BPG.Application.Features.Reports.Queries.GetIncidentReport;
 using BPG.Application.Features.Reports.Queries.GetProcurementReport;
@@ -402,6 +403,71 @@ public class ReportQueryHandlerTests
     }
 
     [Fact]
+    public async Task ConstructionProgressReport_ShouldMatchWbsLeafTaskDurationWeighting()
+    {
+        var project = new Project
+        {
+            ProjectId = ProjectId,
+            PlannedStart = new DateOnly(2026, 1, 1),
+            PlannedEnd = new DateOnly(2026, 12, 31),
+            Status = ProjectStatus.InProgress
+        };
+        var phase = new Phase
+        {
+            PhaseId = 30,
+            ProjectId = ProjectId,
+            Project = project,
+            Name = "Execution",
+            Status = PhaseStatus.InProgress,
+            StartDate = new DateOnly(2026, 8, 1),
+            EndDate = new DateOnly(2026, 8, 10)
+        };
+        var parent = ProgressTask(50, phase, "Parent summary", 100, new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 10));
+        var shortLeaf = ProgressTask(51, phase, "Short leaf", 100, new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 1), parent.TaskId, 2m);
+        var longLeaf = ProgressTask(52, phase, "Long leaf", 0, new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 3), parent.TaskId, 1m);
+        phase.Tasks.Add(parent);
+        phase.Tasks.Add(shortLeaf);
+        phase.Tasks.Add(longLeaf);
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        SetupRepository(unitOfWork, phase);
+        SetupRepository<SystemConfig>(unitOfWork);
+
+        var projectRepository = new Mock<IGenericRepository<Project>>();
+        projectRepository.Setup(r => r.Query()).Returns(new[] { project }.AsQueryable().BuildMock());
+        projectRepository.Setup(r => r.GetByIdAsync(ProjectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(project);
+        unitOfWork.Setup(u => u.Repository<Project>()).Returns(projectRepository.Object);
+
+        var handler = new GetConstructionProgressReportQueryHandler(unitOfWork.Object, AccessibleProjects());
+
+        var result = await handler.Handle(
+            new GetConstructionProgressReportQuery(ProjectId),
+            CancellationToken.None);
+
+        var report = result.Data!;
+        report.TotalTasks.Should().Be(2);
+        report.DoneTasks.Should().Be(1);
+        report.OverallProgressPercent.Should().Be(40m);
+        var phaseReport = report.Phases.Should().ContainSingle().Which;
+        phaseReport.TotalTasks.Should().Be(2);
+        phaseReport.CompletedTasks.Should().Be(1);
+        phaseReport.ProgressPercent.Should().Be(40m);
+        phaseReport.AllTasks.Select(t => t.TaskId).Should().BeEquivalentTo(new[] { shortLeaf.TaskId, longLeaf.TaskId });
+
+        var historicalResult = await handler.Handle(
+            new GetConstructionProgressReportQuery(
+                ProjectId,
+                new DateTime(2026, 8, 2),
+                new DateTime(2026, 8, 3)),
+            CancellationToken.None);
+
+        historicalResult.Data!.TotalTasks.Should().Be(2, "the report period must not change the WBS progress denominator");
+        historicalResult.Data.ScheduleVarianceDays.Should().Be(0, "a leaf task is not overdue until the day after its deadline");
+        historicalResult.Data.Phases.SelectMany(p => p.DelayedTasks).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task IncidentReport_ShouldNotCountRejectedIncidentAsOpenOrResolved()
     {
         var reporter = new User { UserId = 1, FullName = "Reporter" };
@@ -435,6 +501,30 @@ public class ReportQueryHandlerTests
             Description = $"Incident {id}",
             Status = status,
             CreatedAt = createdAt
+        };
+
+    private static ProjectTask ProgressTask(
+        long id,
+        Phase phase,
+        string name,
+        byte progress,
+        DateOnly start,
+        DateOnly end,
+        long? parentTaskId = null,
+        decimal? weight = 1m)
+        => new()
+        {
+            TaskId = id,
+            PhaseId = phase.PhaseId,
+            Phase = phase,
+            ParentTaskId = parentTaskId,
+            Name = name,
+            StartDate = start,
+            EndDate = end,
+            ProgressPercent = progress,
+            Weight = weight,
+            Status = progress >= 100 ? BPG.Domain.Constants.TaskStatus.Completed : BPG.Domain.Constants.TaskStatus.Assigned,
+            CreatedAt = DateTime.UtcNow.AddYears(-1)
         };
 
     private static PurchaseOrder PurchaseOrderWithItem(
