@@ -3,7 +3,7 @@ import { parseDateSafe } from './dateHelpers';
 /**
  * Trả về tên hiển thị và class màu sắc (Tailwind) cho từng loại giao dịch kho (Ledger Transaction Type)
  */
-export const getTransactionTypeDetails = (type: number) => {
+export const getTransactionTypeDetails = (type: number, quantityChange?: number, referenceType?: string) => {
   switch (type) {
     case 1:
       return { name: 'Nhập kho (Đơn mua)', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
@@ -16,7 +16,13 @@ export const getTransactionTypeDetails = (type: number) => {
     case 5:
       return { name: 'Trả hàng NCC', color: 'bg-rose-50 text-rose-700 border-rose-200' };
     case 6:
-      return { name: 'Tăng tồn', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+      if (referenceType === 'GoodsReceiptReversal') {
+        return { name: 'Hủy phiếu nhập', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+      }
+      if (quantityChange !== undefined && quantityChange < 0) {
+        return { name: 'Giảm tồn (Điều chỉnh)', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+      }
+      return { name: 'Tăng tồn (Điều chỉnh)', color: 'bg-amber-50 text-amber-700 border-amber-200' };
     case 7:
       return { name: 'Thanh lý', color: 'bg-slate-100 text-slate-800 border-slate-300' };
     case 8:
