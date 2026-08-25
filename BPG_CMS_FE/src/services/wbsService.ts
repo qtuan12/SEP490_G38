@@ -46,6 +46,8 @@ export const wbsService = {
         startDate: phaseDto.startDate || undefined,
         deadline: phaseDto.endDate || undefined,
         endDate: phaseDto.endDate || undefined,
+        actualStartDate: phaseDto.actualStartDate ?? null,
+        actualEndDate: phaseDto.actualEndDate ?? null,
         // @ts-ignore
         progress: phaseDto.progressPercent,
         materials: phaseDto.materials?.map((it: any) => ({

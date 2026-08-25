@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { getPOSupplierDisplayName } from '../../utils/purchaseOrderHelpers';
-import { formatDateVietnam } from '../../utils/dateHelpers';
+import { formatDateOnly, formatDateVietnam } from '../../utils/dateHelpers';
 import toast from 'react-hot-toast';
 
 const fmt = (v: number) =>
@@ -304,7 +304,10 @@ export const PODetailPage: React.FC = () => {
         }}>
           <XCircle size={16} style={{ color: 'hsl(var(--danger))', flexShrink: 0, marginTop: 2 }} />
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--danger))' }}>Đơn hàng bị từ chối</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--danger))' }}>
+              Giám đốc từ chối{po.approverName ? ` — ${po.approverName}` : ''}
+              {po.approvedAt ? ` (${formatDateOnly(po.approvedAt)})` : ''}
+            </div>
             <div style={{ fontSize: 13, color: 'hsl(346 84% 35%)', marginTop: 2 }}>{po.rejectedReason || '—'}</div>
             <div style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 4 }}>
               Số lượng vật tư của đơn này đã được trả lại yêu cầu vật tư, có thể lập đơn mua hàng khác.
@@ -313,7 +316,26 @@ export const PODetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Cancelled reason banner — ai hủy/khi nào xem ở khối "Lịch sử phiếu" bên dưới */}
+      {/* Approved banner */}
+      {po.approverName && po.status !== 'Rejected' && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'hsl(142 70% 45% / 0.1)', border: '1px solid hsl(142 70% 45% / 0.3)',
+          borderRadius: 8, padding: '12px 16px',
+        }}>
+          <CheckCircle2 size={16} style={{ color: 'hsl(142 70% 35%)', flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(142 70% 30%)' }}>
+              Đã được Giám đốc {po.approverName} duyệt{po.approvedAt ? ` ngày ${formatDateOnly(po.approvedAt)}` : ''}
+            </div>
+            {po.approvalNote && (
+              <div style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{po.approvalNote}</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Cancelled reason banner */}
       {po.status === 'Cancelled' && po.cancelledReason && (
         <div style={{
           display: 'flex', alignItems: 'flex-start', gap: 10,

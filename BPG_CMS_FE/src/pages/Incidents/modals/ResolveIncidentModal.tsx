@@ -7,6 +7,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { incidentService } from '../../../services/incidentService';
 import type { IncidentReport, ProjectMember, WBSPhase, WBSTask } from '../../../types/common';
 import { AlertCircle, CalendarDays } from 'lucide-react';
+import { todayVnISO } from '../../../utils/dateHelpers';
 
 const schema = z.object({
   handlingInstruction: z.string().min(1, 'Vui lòng nhập hướng dẫn xử lý/giải quyết'),
@@ -55,7 +56,7 @@ interface ResolveIncidentModalProps {
   onError: (msg: string) => void;
 }
 
-const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+const getTodayDateStr = () => todayVnISO();
 
 const getDefaultEndDate = (task: WBSTask | null | undefined, phase: WBSPhase | null | undefined) => {
   if (task?.deadline) {

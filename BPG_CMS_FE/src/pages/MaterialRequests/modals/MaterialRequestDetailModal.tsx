@@ -18,6 +18,7 @@ import {
   getMaterialRequestBusinessStatusVariant,
   getMaterialRequestDetailTableState,
   getMaterialRequestHandlingPlanLabel,
+  getMaterialRequestReviewNoteState,
 } from '../materialRequestDecision';
 
 interface MaterialRequestDetailModalProps {
@@ -154,6 +155,7 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
   if (!request) return null;
 
   const handlingPlan = getMaterialRequestHandlingPlanLabel(request.procurementDecision);
+  const reviewNoteState = getMaterialRequestReviewNoteState(request);
 
   const getStatusBadge = (status: MaterialRequest['status']) => {
     switch (status) {
@@ -377,7 +379,29 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
             </div>
           )}
 
-          {request.status === 'rejected' && request.rejectionReason && (
+          {reviewNoteState && (request.accountantNote || reviewNoteState.showDirectorNote) && (
+            <div className="flex flex-col gap-1.5 border border-slate-200 rounded-lg p-3 bg-slate-50/70">
+              <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
+                <Info size={16} />
+                <span>{reviewNoteState.title}:</span>
+              </div>
+              <div className="flex flex-col gap-1.5 text-sm text-slate-600">
+                {request.accountantNote && (
+                  <p className="m-0 leading-relaxed">
+                    <strong>Kế toán:</strong> <span className="italic">"{request.accountantNote}"</span>
+                  </p>
+                )}
+                {reviewNoteState.showDirectorNote && (
+                  <p className="m-0 leading-relaxed">
+                    <strong>Giám đốc:</strong>{' '}
+                    <span className="italic">{request.approvalNote ? `"${request.approvalNote}"` : 'Không có ghi chú'}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {request.status === 'rejected' && !reviewNoteState && request.rejectionReason && (
             <div className="flex flex-col gap-1.5 border border-slate-200 rounded-lg p-3 bg-slate-50/70">
               <div className="flex items-center gap-2 text-slate-700 font-bold text-sm">
                 <Info size={16} />

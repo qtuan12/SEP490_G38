@@ -19,6 +19,7 @@ import { Badge, Button } from '../../components/ui';
 import { useNotification } from '../../context/NotificationContext';
 import { useSignalREvent } from '../../hooks/useSignalREvent';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { parseDateSafe } from '../../utils/dateHelpers';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -300,7 +301,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
     }
 
     if (inc.createdAt) {
-      const incDate = new Date(inc.createdAt);
+      const incDate = parseDateSafe(inc.createdAt);
 
       if (filterStartDate) {
         const start = new Date(filterStartDate);

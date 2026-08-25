@@ -31,6 +31,7 @@ type AcceptanceSummary = Pick<
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { canManageAcceptance } = useProjectAccess(projectId);
   const queryClient = useQueryClient();
 
@@ -132,6 +133,16 @@ export const PhaseAcceptance: React.FC = () => {
     loadData();
   }, [loadData]);
 
+  const invalidateWbsCache = React.useCallback(async () => {
+    if (!projectId) return;
+    await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+  }, [projectId, queryClient]);
+
+  const refreshAfterAcceptanceMutation = React.useCallback(async () => {
+    await invalidateWbsCache();
+    await loadData();
+  }, [invalidateWbsCache, loadData]);
+
   // Realtime notification via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
     if (noti?.referenceType === 'PhaseAcceptance' || noti?.referenceType === 'Project' || noti?.referenceType?.includes('/acceptance') || noti?.referenceType?.includes('/phases')) {
@@ -190,7 +201,9 @@ export const PhaseAcceptance: React.FC = () => {
       const message = await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
-      console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
+      toast.success(message || 'Đã hủy nghiệm thu thành công.');
+
+      await invalidateWbsCache();
 
       // Invalidate WBS data cache so WBSWorkspace reflects the updated phase status
       if (projectId) {
@@ -304,9 +317,9 @@ export const PhaseAcceptance: React.FC = () => {
               phase={phase!}
               project={project}
               allCompleted={allCompleted}
-              onSuccess={(msg) => console.log(msg)}
+              onSuccess={(msg) => toast.success(msg)}
               onError={(msg) => toast.error(msg)}
-              onPhaseUpdated={loadData}
+              onPhaseUpdated={refreshAfterAcceptanceMutation}
             />
           )}
 

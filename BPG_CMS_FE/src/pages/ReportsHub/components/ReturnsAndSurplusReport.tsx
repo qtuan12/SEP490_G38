@@ -16,6 +16,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, BarChart
 } from 'recharts';
+import { formatDateOnly, formatDateVietnam } from '../../../utils/dateHelpers';
 
 interface Props {
   projectId: string | null;
@@ -122,7 +123,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
               Báo Cáo Tổng Hợp Hoàn Trả & Xử Lý Vật Tư Thừa
             </h2>
             <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 m-0 mt-0.5">
-              {data.projectName} • Cập nhật lúc {new Date(data.generatedAt).toLocaleTimeString('vi-VN')} {new Date(data.generatedAt).toLocaleDateString('vi-VN')}
+              {data.projectName} • Cập nhật lúc {formatDateVietnam(data.generatedAt)}
             </p>
           </div>
         </div>
@@ -404,7 +405,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                         )}
                       </div>
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5">
-                        <span>{new Date(r.returnDate).toLocaleDateString('vi-VN')}</span>
+                        <span>{formatDateOnly(r.returnDate)}</span>
                         <span>•</span>
                         <span>{r.createdByName}</span>
                       </div>
@@ -522,7 +523,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                             {s.projectName} •
                           </Link>
                         )}
-                        <span>{new Date(s.createdAt).toLocaleDateString('vi-VN')}</span>
+                        <span>{formatDateOnly(s.createdAt)}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-right whitespace-nowrap">
@@ -612,7 +613,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                           )}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-1">
-                          {new Date(a.actionDate).toLocaleDateString('vi-VN')}
+                          {formatDateOnly(a.actionDate)}
                         </div>
                       </td>
                       <td className="px-4 py-3.5">

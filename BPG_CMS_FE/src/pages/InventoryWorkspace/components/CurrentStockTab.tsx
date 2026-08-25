@@ -3,6 +3,7 @@ import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, Ch
 import ExcelJS from 'exceljs';
 import type { CurrentInventory } from '../../../types/inventory';
 import { Pagination } from '../../../components/ui';
+import { formatDateVietnam, todayVnISO } from '../../../utils/dateHelpers';
 
 interface CurrentStockTabProps {
   inventoryList: CurrentInventory[];
@@ -154,7 +155,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
         item.reservedQuantity,
         item.availableQuantity,
         item.unitName,
-        item.lastUpdated ? new Date(item.lastUpdated).toLocaleString('vi-VN') : 'Chưa cập nhật',
+        item.lastUpdated ? formatDateVietnam(item.lastUpdated) : 'Chưa cập nhật',
         statusLabel,
       ];
 
@@ -232,7 +233,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const date = new Date().toISOString().split('T')[0];
+    const date = todayVnISO();
     link.download = `Bao_cao_ton_kho_${date}.xlsx`;
     document.body.appendChild(link);
     link.click();
@@ -442,13 +443,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
                         {formatQty(item.availableQuantity)} <span className="text-xs text-slate-400 font-normal">{item.unitName}</span>
                       </td>
                       <td className="px-4 py-3.5 text-center text-xs text-slate-500">
-                        {item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString('vi-VN', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : 'Chưa cập nhật'}
+                        {item.lastUpdated ? formatDateVietnam(item.lastUpdated) : 'Chưa cập nhật'}
                       </td>
                       <td className="px-4 py-3.5 text-center">
                         {getStatusBadge(item)}
