@@ -200,7 +200,7 @@ export const PhaseAcceptance: React.FC = () => {
       const message = await phaseAcceptanceService.cancelAcceptance(targetId, { cancellationReason: revokeReason });
       setIsRevoking(false);
       setRevokeReason('');
-      console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
+      toast.success(message || 'Đã hủy nghiệm thu thành công.');
 
       await invalidateWbsCache();
 
@@ -310,7 +310,7 @@ export const PhaseAcceptance: React.FC = () => {
               phase={phase!}
               project={project}
               allCompleted={allCompleted}
-              onSuccess={(msg) => console.log(msg)}
+              onSuccess={(msg) => toast.success(msg)}
               onError={(msg) => toast.error(msg)}
               onPhaseUpdated={refreshAfterAcceptanceMutation}
             />
