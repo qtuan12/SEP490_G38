@@ -26,6 +26,8 @@ namespace BPG.Infrastructure.Data;
 public static class DbSeeder
 {
     private const string MainProjectName = "CÔNG TRÌNH TẠI ĐẢO DỪA 3 – VINHOMES OCEAN PARK 2";
+    private const string AssessmentReferenceReason =
+        "Rà soát toàn bộ tồn kho dương để xử lý hoặc điều phối sang dự án khác khi có nhu cầu phù hợp.";
     private static readonly DateOnly DemoDate = new(2026, 8, 20);
     private static readonly DateTime SeedUtc = new(2026, 8, 20, 2, 0, 0, DateTimeKind.Utc);
 
@@ -66,6 +68,12 @@ public static class DbSeeder
 
     private sealed record BoqLine(string MaterialCode, string UnitCode, decimal Quantity);
 
+    private sealed record AssessmentSupplyLine(
+        string MaterialCode,
+        string UnitCode,
+        decimal Quantity,
+        decimal UnitPrice);
+
     private sealed record WbsGroup(
         string Name,
         string Description,
@@ -85,10 +93,23 @@ public static class DbSeeder
                 && await context.MaterialCatalogs.AnyAsync(m => m.Code == "XM-ROI-PCB40")
                 && await context.MaterialCatalogs.AnyAsync(m => m.Code == "PVC-D114")
                 && await context.Units.AnyAsync(u => u.UnitCode == "VIEN" && u.UnitName == "Viên")
-                && await context.PurchaseOrders.AnyAsync(p => p.PONumber == "PO-MO-LAO-202508-01");
+                && await context.PurchaseOrders.AnyAsync(p => p.PONumber == "PO-MO-LAO-202510-01");
 
             if (hasCurrentSeed)
+            {
+                var hasAssessmentSeed =
+                    await context.PurchaseOrders.AnyAsync(po => po.PONumber == "PO-DEMO-TARGET-STOCK-V1") &&
+                    await context.PurchaseOrders.AnyAsync(po => po.PONumber == "PO-DEMO-COMMON-MATERIALS-01") &&
+                    await context.PurchaseOrders.AnyAsync(po => po.PONumber == "PO-DEMO-COMMON-MATERIALS-02");
+                if (!hasAssessmentSeed)
+                {
+                    throw new InvalidOperationException(
+                        "Database đang chứa phiên bản seed YCVT cũ. Hãy reset database và seed lại để dựng đúng chuỗi BOQ -> YCVT -> PO -> GR/tồn/surplus và coverage 5/6 vật tư demo.");
+                }
+
+                await NormalizeAndValidateMaterialRequestSeedAsync(context);
                 return;
+            }
 
             throw new InvalidOperationException(
                 "Database đang chứa seed cũ. Hãy drop/reset database rồi chạy migration + seed lại để tránh trộn dữ liệu demo cũ và mới.");
@@ -102,10 +123,10 @@ public static class DbSeeder
         var projects = await SeedProjectsWbsAndBoqAsync(context, users, master, materials);
 
         await SeedMainDemoLifecycleAsync(context, projects, users, master, materials);
-        await SeedSecondaryInventorySnapshotsAsync(context, projects, users, master, materials);
+        await SeedMaterialRequestAssessmentScenariosAsync(context, projects, users, master, materials);
         await SeedCompletedMoLaoHistoryAsync(context, projects, users, master, materials);
-        await SeedCompletedProjectSurplusAsync(context, projects, users, master, materials);
         await SeedNotificationsAsync(context, projects, users);
+        await NormalizeAndValidateMaterialRequestSeedAsync(context);
     }
 
     // -------------------------------------------------------------------------
@@ -1900,13 +1921,17 @@ public static class DbSeeder
         var director = users["giamdoc@bpg.com"];
         var tpkt = users["tpkt@bpg.com"];
 
-        // Hiệu chỉnh BOQ riêng cho kịch bản bảo vệ:
-        // 158 m² planned - 140 m² already approved = 18 m² remaining.
-        // A later 32 m² request is therefore a genuine 14 m² over-BOQ exception.
-        var demoTileBoq = await context.BOQItems.FirstAsync(x =>
-            x.PhaseId == phase.PhaseId && x.MaterialId == materials["GACH-POR-600"].MaterialId);
-        demoTileBoq.Quantity = 158m;
-        await context.SaveChangesAsync();
+        // BOQ hiện có là đầu vào bất biến. Kịch bản vượt định mức được tính từ
+        // chính hạn mức đã seed, không sửa BOQ để hợp thức hóa dữ liệu YCVT.
+        var demoTileBoq = await context.BOQItems.FirstAsync(item =>
+            item.PhaseId == phase.PhaseId &&
+            item.MaterialId == materials["GACH-POR-600"].MaterialId &&
+            !item.IsDeleted);
+        var tileLimitInRequestUnit = demoTileBoq.Quantity /
+            (demoTileBoq.ConversionRate > 0 ? demoTileBoq.ConversionRate : 1m);
+        const decimal receivedTileRequestQuantity = 140m;
+        const decimal tileOverAmount = 14m;
+        var overTileRequestQuantity = tileLimitInRequestUnit - receivedTileRequestQuantity + tileOverAmount;
 
         // Nhật ký thi công trên các công việc chi tiết đang triển khai, kèm lịch sử tiến độ và bình luận.
         var phaseLeafTasks = b.TasksByPhase[phase.PhaseId]
@@ -1959,9 +1984,9 @@ public static class DbSeeder
             new[]
             {
                 (materials["WEBER-ST250"], master.Units["BAO"], 45m, false, (string?)null),
-                (materials["GACH-POR-600"], master.Units["M2"], 140m, false, (string?)null),
+                (materials["GACH-POR-600"], master.Units["M2"], receivedTileRequestQuantity, false, (string?)null),
                 (materials["SON-NOI-18"], master.Units["THUNG"], 10m, false, (string?)null),
-                (materials["CADIVI-CV2.5"], master.Units["CUON"], 4m, false, (string?)null)
+                (materials["O-CAM-DOI"], master.Units["CAI"], 4m, false, (string?)null)
             }, SeedUtc.AddDays(-18));
 
         var po1 = await CreatePurchaseOrderAsync(context, request1, project,
@@ -1970,9 +1995,9 @@ public static class DbSeeder
             new[]
             {
                 (materials["WEBER-ST250"], master.Units["BAO"], 45m, 225_000m),
-                (materials["GACH-POR-600"], master.Units["M2"], 140m, 285_000m),
+                (materials["GACH-POR-600"], master.Units["M2"], receivedTileRequestQuantity, 285_000m),
                 (materials["SON-NOI-18"], master.Units["THUNG"], 10m, 2_650_000m),
-                (materials["CADIVI-CV2.5"], master.Units["CUON"], 4m, 1_150_000m)
+                (materials["O-CAM-DOI"], master.Units["CAI"], 4m, 82_000m)
             }, "Đã phê duyệt đơn giá và điều kiện giao vật tư theo tiến độ hoàn thiện.");
 
         await CreateGoodsReceiptAsync(context, po1, leader, GoodsReceiptStatus.Approved,
@@ -1980,20 +2005,20 @@ public static class DbSeeder
             new[]
             {
                 (materials["WEBER-ST250"], master.Units["BAO"], 45m),
-                (materials["GACH-POR-600"], master.Units["M2"], 140m),
+                (materials["GACH-POR-600"], master.Units["M2"], receivedTileRequestQuantity),
                 (materials["SON-NOI-18"], master.Units["THUNG"], 10m),
-                (materials["CADIVI-CV2.5"], master.Units["CUON"], 4m)
+                (materials["O-CAM-DOI"], master.Units["CAI"], 4m)
             }, SeedUtc.AddDays(-13));
 
         // 2) Yêu cầu vượt BOQ đang chờ Giám đốc; Kế toán đã kiểm tra và ghi rõ căn cứ trình duyệt.
         await CreateMaterialRequestAsync(context, phase, leader, accountant, null,
             MaterialRequestStatus.WaitingApproval, BOQCheckStatus.OverBOQ,
             "Bổ sung gạch porcelain do thay đổi bố trí khu sinh hoạt chung và tăng tỷ lệ dự phòng cắt hao.",
-            "BOQ còn 18 m²; hiện trường cần thêm 32 m². Tồn khả dụng tại Đảo Dừa 3 không đủ cho phần phát sinh. Dự án San Hô có tồn nhưng đang dùng cho hạng mục cùng loại, chưa phù hợp điều chuyển. Đề nghị Giám đốc chấp thuận ngoại lệ 14 m² vượt định mức.",
+            $"BOQ còn {overTileRequestQuantity - tileOverAmount:N0} m²; hiện trường cần thêm {overTileRequestQuantity:N0} m². Tồn khả dụng tại Đảo Dừa 3 không đủ cho phần phát sinh. Đề nghị Giám đốc chấp thuận ngoại lệ {tileOverAmount:N0} m² vượt định mức.",
             null,
             new[]
             {
-                (materials["GACH-POR-600"], master.Units["M2"], 32m, true, (string?)"Vượt 14 m² so với phần định mức còn lại do thay đổi phạm vi hoàn thiện.")
+                (materials["GACH-POR-600"], master.Units["M2"], overTileRequestQuantity, true, (string?)"Vượt 14 m² so với phần định mức còn lại do thay đổi phạm vi hoàn thiện.")
             }, SeedUtc.AddDays(-2));
 
         // 3) Yêu cầu đã duyệt, PO đang chờ Giám đốc để tiện demo bước phê duyệt đơn mua.
@@ -2020,15 +2045,15 @@ public static class DbSeeder
         // 4) PO đã phát hành nhưng chưa có phiếu nhập để tiện demo nhận hàng tại công trường.
         var request3 = await CreateMaterialRequestAsync(context, phase, leader, accountant, null,
             MaterialRequestStatus.Approved, BOQCheckStatus.WithinBOQ,
-            "Cấp vật tư chống thấm để hoàn thiện các khu vực ướt còn lại.",
-            "Đã kiểm tra BOQ và lịch thi công; cần giao trước khi test ngâm nước.",
+            "Cấp gạch chống trơn để hoàn thiện các khu vực ướt còn lại.",
+            "Đã kiểm tra BOQ và lịch thi công; cần giao trước khi hoàn thiện nền khu vực ướt.",
             null,
-            new[] { (materials["SIKA-TOP-107"], master.Units["BO"], 8m, false, (string?)null) }, SeedUtc.AddDays(-7));
+            new[] { (materials["GACH-CT-300"], master.Units["M2"], 8m, false, (string?)null) }, SeedUtc.AddDays(-7));
         await CreatePurchaseOrderAsync(context, request3, project,
-            master.Suppliers["Sika Việt Nam"], accountant, director,
+            master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"], accountant, director,
             PurchaseOrderStatus.Sent, "PO-DEMO-DAO-DUA-003", SeedUtc.AddDays(-6),
-            new[] { (materials["SIKA-TOP-107"], master.Units["BO"], 8m, 1_650_000m) },
-            "Duyệt PO chống thấm; giao thẳng công trình Đảo Dừa 3.");
+            new[] { (materials["GACH-CT-300"], master.Units["M2"], 8m, 230_000m) },
+            "Duyệt PO gạch chống trơn; giao thẳng công trình Đảo Dừa 3.");
 
         // Xuất và hoàn vật tư luôn lấy từ tồn kho đã nhập ở bước trước.
         var taskForIssue = tileTask;
@@ -2272,9 +2297,14 @@ public static class DbSeeder
             Status = status,
             BOQCheckStatus = boqStatus,
             CheckedBy = checker?.UserId,
-            ApprovedBy = approver?.UserId,
+            ApprovedBy = status == MaterialRequestStatus.Approved
+                ? (approver ?? checker)?.UserId
+                : approver?.UserId,
             AccountantNote = accountantNote,
             ApprovalNote = approvalNote,
+            ProcurementDecision = status is MaterialRequestStatus.Approved or MaterialRequestStatus.WaitingApproval
+                ? MaterialRequestProcurementDecision.ExternalPurchase
+                : null,
             CreatedAt = createdAt,
             CreatedBy = creator.UserId
         };
@@ -2296,6 +2326,55 @@ public static class DbSeeder
         }
         await context.SaveChangesAsync();
         return request;
+    }
+
+    private static async Task CreateActiveSurplusFromCurrentInventoryAsync(
+        AppDbContext context,
+        ProjectBundle source,
+        DateTime createdAt,
+        string reason)
+    {
+        var inventoryItems = await context.CurrentInventories
+            .Where(inventory =>
+                inventory.ProjectId == source.Project.ProjectId &&
+                inventory.Quantity > 0)
+            .ToListAsync();
+        if (inventoryItems.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Không có tồn kho để seed nguồn surplus tại dự án {source.Project.Name}.");
+        }
+
+        var surplus = new SurplusRequest
+        {
+            ProjectId = source.Project.ProjectId,
+            Reason = reason,
+            Status = SurplusRequestStatus.Processing,
+            CreatedAt = createdAt,
+            CreatedBy = source.Leader.UserId
+        };
+        context.SurplusRequests.Add(surplus);
+        await context.SaveChangesAsync();
+
+        foreach (var inventory in inventoryItems)
+        {
+            context.SurplusRequestItems.Add(new SurplusRequestItem
+            {
+                SurplusRequestId = surplus.SurplusRequestId,
+                MaterialId = inventory.MaterialId,
+                UnitId = inventory.UnitId,
+                Quantity = inventory.Quantity,
+                ProcessedQuantity = 0,
+                ConversionRate = 1,
+                Status = SurplusRequestItemStatus.Pending,
+                CreatedAt = createdAt,
+                CreatedBy = source.Leader.UserId
+            });
+            inventory.ReservedQuantity += inventory.Quantity;
+            inventory.LastUpdated = createdAt;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private static async Task<PurchaseOrder> CreatePurchaseOrderAsync(
@@ -2530,52 +2609,391 @@ public static class DbSeeder
     }
 
     // -------------------------------------------------------------------------
-    // TỒN KHO MẪU Ở CÁC DỰ ÁN KHÁC
-    // These intentionally create varied current inventory across projects so the
-    // Material Request review screen has meaningful "other project stock" context.
+    // KỊCH BẢN THẨM ĐỊNH YCVT CÓ LIÊN KẾT CHỨNG TỪ
+    // Không tạo/chỉnh BOQ. Mọi dòng đều lấy từ BOQ hiện có của đúng phase:
+    // - hai dự án nguồn: YCVT -> PO -> GR -> tồn -> khóa toàn bộ tồn -> Surplus Processing;
+    // - dự án đích: YCVT đã nhận tạo tồn, YCVT đã duyệt tạo PO đang về;
+    // - YCVT Pending dùng đúng bốn vật tư trên để cơ sở thẩm định có coverage đa dạng;
+    // - 5/6 vật tư demo phổ biến có nguồn nội bộ và giá gần nhất; Đá 1x2 chủ động để trống;
+    // - các phương án điều chuyển/chờ cung ứng/bổ sung thông tin/từ chối không sinh PO;
+    // - cùng một dự án có đủ Pending/WaitingApproval/Approved/Rejected/Cancelled để danh sách không một màu.
     // -------------------------------------------------------------------------
-    private static async Task SeedSecondaryInventorySnapshotsAsync(
+    private static async Task SeedMaterialRequestAssessmentScenariosAsync(
         AppDbContext context,
         Dictionary<string, ProjectBundle> projects,
         Dictionary<string, User> users,
         MasterData master,
         Dictionary<string, MaterialCatalog> materials)
     {
+        var source = projects["Biệt thự nhà chú Công – khu San Hô, Vinhomes Ocean Park 2"];
+        var demoMaterialSource = projects["Biệt thự song lập An Khánh – Hoài Đức"];
+        var target = projects["Cải tạo nhà liền kề Vạn Phúc – Hà Đông"];
+        var sourcePhase = source.Phases[2];
+        var targetPhase = target.Phases[2];
+        var decisionPhase = target.Phases[1];
         var accountant = users["ketoan@bpg.com"];
         var director = users["giamdoc@bpg.com"];
+        var supplier = master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"];
 
-        var snapshots = new[]
+        var sourceLines = new[]
         {
-            ("Biệt thự nhà chú Công – khu San Hô, Vinhomes Ocean Park 2", "GACH-POR-600", "M2", 110m, 285_000m),
-            ("Cải tạo chung cư Trần Thủ Độ", "WEBER-ST250", "BAO", 24m, 225_000m),
-            ("Biệt thự song lập An Khánh – Hoài Đức", "SIKA-TOP-107", "BO", 12m, 1_650_000m),
-            ("Cải tạo nhà liền kề Vạn Phúc – Hà Đông", "SON-NOI-18", "THUNG", 12m, 2_650_000m)
+            new AssessmentSupplyLine("WEBER-ST250", "BAO", 10m, 228_000m),
+            new AssessmentSupplyLine("GACH-POR-600", "M2", 40m, 285_000m),
+            new AssessmentSupplyLine("SON-NOI-18", "THUNG", 6m, 2_700_000m),
+            new AssessmentSupplyLine("BOT-BA-40", "BAO", 12m, 295_000m)
         };
+        var sourceRequest = await CreateMaterialRequestAsync(
+            context,
+            sourcePhase,
+            source.Leader,
+            accountant,
+            null,
+            MaterialRequestStatus.Approved,
+            BOQCheckStatus.WithinBOQ,
+            "Cấp lô vật tư hoàn thiện theo BOQ; phần chưa dùng được rà soát làm nguồn điều phối nội bộ.",
+            "Đã đối chiếu BOQ và tiến độ thi công trước khi mua.",
+            null,
+            sourceLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, false, (string?)null)),
+            SeedUtc.AddDays(-18));
+        var sourcePo = await CreatePurchaseOrderAsync(
+            context,
+            sourceRequest,
+            source.Project,
+            supplier,
+            accountant,
+            director,
+            PurchaseOrderStatus.FullyReceived,
+            "PO-DEMO-SOURCE-STOCK-V1",
+            SeedUtc.AddDays(-16),
+            sourceLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, line.UnitPrice)),
+            "Đơn hàng đã giao đủ và nhập kho dự án nguồn.");
+        await CreateGoodsReceiptAsync(
+            context,
+            sourcePo,
+            source.Leader,
+            GoodsReceiptStatus.Approved,
+            "GR-DEMO-SOURCE-STOCK-V1",
+            supplier.SupplierName,
+            "BBGH-DEMO-SOURCE-STOCK-V1",
+            sourceLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity)),
+            SeedUtc.AddDays(-14));
 
-        var seq = 10;
-        foreach (var s in snapshots)
+        await CreateActiveSurplusFromCurrentInventoryAsync(
+            context,
+            source,
+            SeedUtc.AddDays(-4),
+            AssessmentReferenceReason);
+
+        // Nguồn thứ hai phủ 5/6 vật tư thường dùng khi demo YCVT mới.
+        // Đá 1x2 được chủ động để trống nhằm giữ tình huống "không có dữ liệu tham khảo".
+        var demoFoundationLines = new[]
         {
-            var b = projects[s.Item1];
-            var phase = b.Phases.First(p => p.Status == PhaseStatus.InProgress);
-            var request = await CreateMaterialRequestAsync(context, phase, b.Leader, accountant, null,
-                MaterialRequestStatus.Approved, BOQCheckStatus.WithinBOQ,
-                "Cấp vật tư theo kế hoạch thi công đang triển khai.",
-                "Đã đối chiếu BOQ và tồn hiện tại; đề nghị mua bổ sung đúng tiến độ.",
+            new AssessmentSupplyLine("XM-VICEM-PCB40", "BAO", 24m, 93_000m),
+            new AssessmentSupplyLine("BT-TUOI-M250", "M3", 8m, 1_285_000m),
+            new AssessmentSupplyLine("THEP-HP-D16", "CAY", 36m, 244_000m),
+            new AssessmentSupplyLine("CAT-XAY-TO", "M3", 5m, 335_000m)
+        };
+        var demoFoundationRequest = await CreateMaterialRequestAsync(
+            context,
+            demoMaterialSource.Phases[0],
+            demoMaterialSource.Leader,
+            accountant,
+            null,
+            MaterialRequestStatus.Approved,
+            BOQCheckStatus.WithinBOQ,
+            "Cấp vật tư móng và nền theo BOQ để tạo tồn phục vụ thi công.",
+            "Đã đối chiếu BOQ, tiến độ và kế hoạch giao nhận.",
+            null,
+            demoFoundationLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, false, (string?)null)),
+            SeedUtc.AddDays(-20));
+        var demoFoundationPo = await CreatePurchaseOrderAsync(
+            context,
+            demoFoundationRequest,
+            demoMaterialSource.Project,
+            supplier,
+            accountant,
+            director,
+            PurchaseOrderStatus.FullyReceived,
+            "PO-DEMO-COMMON-MATERIALS-01",
+            SeedUtc.AddDays(-18),
+            demoFoundationLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, line.UnitPrice)),
+            "Đơn hàng vật tư móng đã giao đủ và nhập kho.");
+        await CreateGoodsReceiptAsync(
+            context,
+            demoFoundationPo,
+            demoMaterialSource.Leader,
+            GoodsReceiptStatus.Approved,
+            "GR-DEMO-COMMON-MATERIALS-01",
+            supplier.SupplierName,
+            "BBGH-DEMO-COMMON-MATERIALS-01",
+            demoFoundationLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity)),
+            SeedUtc.AddDays(-16));
+
+        var demoMasonryLines = new[]
+        {
+            new AssessmentSupplyLine("GACH-2LO-220", "VIEN", 600m, 1_450m)
+        };
+        var demoMasonryRequest = await CreateMaterialRequestAsync(
+            context,
+            demoMaterialSource.Phases[2],
+            demoMaterialSource.Leader,
+            accountant,
+            null,
+            MaterialRequestStatus.Approved,
+            BOQCheckStatus.WithinBOQ,
+            "Cấp gạch xây theo BOQ cho công tác tường bao và tường ngăn.",
+            "Khối lượng phù hợp BOQ và kế hoạch thi công xây tô.",
+            null,
+            demoMasonryLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, false, (string?)null)),
+            SeedUtc.AddDays(-15));
+        var demoMasonryPo = await CreatePurchaseOrderAsync(
+            context,
+            demoMasonryRequest,
+            demoMaterialSource.Project,
+            supplier,
+            accountant,
+            director,
+            PurchaseOrderStatus.FullyReceived,
+            "PO-DEMO-COMMON-MATERIALS-02",
+            SeedUtc.AddDays(-13),
+            demoMasonryLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, line.UnitPrice)),
+            "Đơn hàng gạch xây đã giao đủ và nhập kho.");
+        await CreateGoodsReceiptAsync(
+            context,
+            demoMasonryPo,
+            demoMaterialSource.Leader,
+            GoodsReceiptStatus.Approved,
+            "GR-DEMO-COMMON-MATERIALS-02",
+            supplier.SupplierName,
+            "BBGH-DEMO-COMMON-MATERIALS-02",
+            demoMasonryLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity)),
+            SeedUtc.AddDays(-11));
+        await CreateActiveSurplusFromCurrentInventoryAsync(
+            context,
+            demoMaterialSource,
+            SeedUtc.AddDays(-3),
+            "Rà soát toàn bộ tồn kho chưa sử dụng để làm nguồn điều phối nội bộ.");
+
+        var targetStockLines = new[]
+        {
+            new AssessmentSupplyLine("WEBER-ST250", "BAO", 12m, 226_000m),
+            new AssessmentSupplyLine("GACH-POR-600", "M2", 30m, 282_000m)
+        };
+        var targetStockRequest = await CreateMaterialRequestAsync(
+            context,
+            targetPhase,
+            target.Leader,
+            accountant,
+            null,
+            MaterialRequestStatus.Approved,
+            BOQCheckStatus.WithinBOQ,
+            "Cấp vật tư ốp lát theo BOQ để triển khai khối lượng đầu đợt.",
+            "Đã đối chiếu BOQ, tiến độ và chứng từ giao nhận.",
+            null,
+            targetStockLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, false, (string?)null)),
+            SeedUtc.AddDays(-12));
+        var targetStockPo = await CreatePurchaseOrderAsync(
+            context,
+            targetStockRequest,
+            target.Project,
+            supplier,
+            accountant,
+            director,
+            PurchaseOrderStatus.FullyReceived,
+            "PO-DEMO-TARGET-STOCK-V1",
+            SeedUtc.AddDays(-10),
+            targetStockLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, line.UnitPrice)),
+            "Đơn hàng đã giao đủ và nhập kho dự án đích.");
+        await CreateGoodsReceiptAsync(
+            context,
+            targetStockPo,
+            target.Leader,
+            GoodsReceiptStatus.Approved,
+            "GR-DEMO-TARGET-STOCK-V1",
+            supplier.SupplierName,
+            "BBGH-DEMO-TARGET-STOCK-V1",
+            targetStockLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity)),
+            SeedUtc.AddDays(-8));
+
+        var activeSupplyLines = new[]
+        {
+            new AssessmentSupplyLine("SON-NOI-18", "THUNG", 4m, 2_680_000m),
+            new AssessmentSupplyLine("BOT-BA-40", "BAO", 10m, 292_000m)
+        };
+        var activeSupplyRequest = await CreateMaterialRequestAsync(
+            context,
+            targetPhase,
+            target.Leader,
+            accountant,
+            null,
+            MaterialRequestStatus.Approved,
+            BOQCheckStatus.WithinBOQ,
+            "Cấp vật tư sơn bả theo tiến độ hoàn thiện; nhà cung cấp đang chuẩn bị giao.",
+            "Đã đối chiếu BOQ và lịch giao hàng.",
+            null,
+            activeSupplyLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, false, (string?)null)),
+            SeedUtc.AddDays(-6));
+        await CreatePurchaseOrderAsync(
+            context,
+            activeSupplyRequest,
+            target.Project,
+            supplier,
+            accountant,
+            director,
+            PurchaseOrderStatus.Sent,
+            "PO-DEMO-TARGET-SUPPLY-V1",
+            SeedUtc.AddDays(-5),
+            activeSupplyLines.Select(line =>
+                (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, line.UnitPrice)),
+            "Đã gửi nhà cung cấp; chưa phát sinh phiếu nhập kho.");
+
+        await CreateMaterialRequestAsync(
+            context,
+            targetPhase,
+            target.Leader,
+            null,
+            null,
+            MaterialRequestStatus.Pending,
+            BOQCheckStatus.WithinBOQ,
+            "Yêu cầu vật tư hoàn thiện đợt tiếp theo để Kế toán thẩm định nguồn cung ứng.",
+            null,
+            null,
+            new[]
+            {
+                (materials["WEBER-ST250"], master.Units["BAO"], 8m, false, (string?)null),
+                (materials["GACH-POR-600"], master.Units["M2"], 20m, false, (string?)null),
+                (materials["SON-NOI-18"], master.Units["THUNG"], 3m, false, (string?)null),
+                (materials["BOT-BA-40"], master.Units["BAO"], 6m, false, (string?)null)
+            },
+            SeedUtc.AddDays(-1));
+
+        async Task SeedDecisionAsync(string decision, MaterialCatalog material, Unit unit, decimal quantity, string note, DateTime createdAt)
+        {
+            var request = await CreateMaterialRequestAsync(
+                context,
+                decisionPhase,
+                target.Leader,
+                accountant,
                 null,
-                new[] { (materials[s.Item2], master.Units[s.Item3], s.Item4, false, (string?)null) },
-                SeedUtc.AddDays(-20 - seq));
-
-            var po = await CreatePurchaseOrderAsync(context, request, b.Project,
-                master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"], accountant, director,
-                PurchaseOrderStatus.FullyReceived, $"PO-SNAP-{seq:D3}", SeedUtc.AddDays(-18 - seq),
-                new[] { (materials[s.Item2], master.Units[s.Item3], s.Item4, s.Item5) },
-                "Duyệt PO phục vụ tiến độ dự án.");
-
-            await CreateGoodsReceiptAsync(context, po, b.Leader, GoodsReceiptStatus.Approved,
-                $"GR-SNAP-{seq:D3}", "Nhà cung cấp giao tại công trường", $"BBGH-SNAP-{seq:D3}",
-                new[] { (materials[s.Item2], master.Units[s.Item3], s.Item4) }, SeedUtc.AddDays(-15 - seq));
-            seq++;
+                MaterialRequestStatus.Rejected,
+                BOQCheckStatus.WithinBOQ,
+                "Yêu cầu vật tư để minh họa kết quả thẩm định theo từng phương án xử lý.",
+                note,
+                null,
+                new[] { (material, unit, quantity, false, (string?)null) },
+                createdAt);
+            request.ProcurementDecision = decision;
+            request.UpdatedAt = createdAt.AddHours(2);
+            request.UpdatedBy = accountant.UserId;
+            await context.SaveChangesAsync();
         }
+
+        await SeedDecisionAsync(
+            MaterialRequestProcurementDecision.InternalTransfer,
+            materials["CAT-XAY-TO"],
+            master.Units["M3"],
+            2m,
+            "Ưu tiên điều chuyển từ nguồn nội bộ đã rà soát; không lập PO mua ngoài.",
+            SeedUtc.AddDays(-3).AddHours(1));
+        await SeedDecisionAsync(
+            MaterialRequestProcurementDecision.WaitSupply,
+            materials["GACH-2LO-220"],
+            master.Units["VIEN"],
+            200m,
+            "Tạm chờ lô đang cung ứng về kho; không lập thêm PO.",
+            SeedUtc.AddDays(-3).AddHours(2));
+        await SeedDecisionAsync(
+            MaterialRequestProcurementDecision.NotApproved,
+            materials["SIKA-TOP-107"],
+            master.Units["BO"],
+            2m,
+            "Không chấp thuận do chưa đủ căn cứ nhu cầu tại thời điểm thẩm định.",
+            SeedUtc.AddDays(-3).AddHours(3));
+        await SeedDecisionAsync(
+            MaterialRequestProcurementDecision.NeedMoreInfo,
+            materials["CADIVI-CV1.5"],
+            master.Units["CUON"],
+            2m,
+            "Yêu cầu bổ sung phạm vi sử dụng và tiến độ cần vật tư trước khi thẩm định lại.",
+            SeedUtc.AddDays(-3).AddHours(4));
+
+        await CreateMaterialRequestAsync(
+            context,
+            decisionPhase,
+            target.Leader,
+            null,
+            null,
+            MaterialRequestStatus.Cancelled,
+            BOQCheckStatus.WithinBOQ,
+            "Phiếu được hủy do đội thi công điều chỉnh lại thời điểm cấp vật tư.",
+            null,
+            null,
+            new[] { (materials["GACH-DAC-A1"], master.Units["VIEN"], 120m, false, (string?)null) },
+            SeedUtc.AddDays(-2).AddHours(1));
+
+        var pendingOverMaterial = materials["GACH-4LO-80"];
+        var pendingOverBoq = await context.BOQItems.SingleAsync(item =>
+            item.PhaseId == decisionPhase.PhaseId &&
+            item.MaterialId == pendingOverMaterial.MaterialId &&
+            !item.IsDeleted);
+        var pendingOverQuantity = Math.Ceiling(
+            pendingOverBoq.Quantity / (pendingOverBoq.ConversionRate > 0 ? pendingOverBoq.ConversionRate : 1m)) + 10m;
+        await CreateMaterialRequestAsync(
+            context,
+            decisionPhase,
+            target.Leader,
+            null,
+            null,
+            MaterialRequestStatus.Pending,
+            BOQCheckStatus.OverBOQ,
+            "Bổ sung gạch xây vượt phần định mức còn lại, đang chờ Kế toán thẩm định.",
+            null,
+            null,
+            new[]
+            {
+                (pendingOverMaterial, master.Units["VIEN"], pendingOverQuantity, true,
+                    (string?)"Khối lượng yêu cầu vượt định mức BOQ của giai đoạn.")
+            },
+            SeedUtc.AddHours(-8));
+
+        var waitingApprovalMaterial = materials["SIKA-GROUT-214"];
+        var waitingApprovalBoq = await context.BOQItems.SingleAsync(item =>
+            item.PhaseId == decisionPhase.PhaseId &&
+            item.MaterialId == waitingApprovalMaterial.MaterialId &&
+            !item.IsDeleted);
+        var waitingApprovalQuantity = Math.Ceiling(
+            waitingApprovalBoq.Quantity /
+            (waitingApprovalBoq.ConversionRate > 0 ? waitingApprovalBoq.ConversionRate : 1m)) + 2m;
+        await CreateMaterialRequestAsync(
+            context,
+            decisionPhase,
+            target.Leader,
+            accountant,
+            null,
+            MaterialRequestStatus.WaitingApproval,
+            BOQCheckStatus.OverBOQ,
+            "Bổ sung vữa rót vượt định mức, đã được Kế toán trình Giám đốc phê duyệt.",
+            "Nhu cầu có căn cứ hiện trường nhưng vượt BOQ nên cần Giám đốc quyết định.",
+            null,
+            new[]
+            {
+                (waitingApprovalMaterial, master.Units["BAO"], waitingApprovalQuantity, true,
+                    (string?)"Khối lượng yêu cầu vượt định mức BOQ của giai đoạn.")
+            },
+            SeedUtc.AddHours(-7));
     }
 
     // -------------------------------------------------------------------------
@@ -2721,6 +3139,13 @@ public static class DbSeeder
         var task1 = bundle.TasksByPhase[phase1.PhaseId].First(t => t.ParentTaskId.HasValue);
         var task2 = bundle.TasksByPhase[phase2.PhaseId].First(t => t.ParentTaskId.HasValue);
         var task3 = bundle.TasksByPhase[phase3.PhaseId].First(t => t.ParentTaskId.HasValue);
+        var task4 = bundle.TasksByPhase[phase4.PhaseId].First(t => t.ParentTaskId.HasValue);
+        var d16Boq = await context.BOQItems.SingleAsync(item =>
+            item.PhaseId == phase2.PhaseId &&
+            item.MaterialId == materials["THEP-HP-D16"].MaterialId &&
+            !item.IsDeleted);
+        var d16OverQuantity = Math.Ceiling(
+            d16Boq.Quantity / (d16Boq.ConversionRate > 0 ? d16Boq.ConversionRate : 1m)) + 10m;
 
         await SeedProcurementBatchAsync(
             phase1, task1, new DateTime(2025, 3, 12, 2, 0, 0, DateTimeKind.Utc), "202503-01",
@@ -2729,7 +3154,7 @@ public static class DbSeeder
             BOQCheckStatus.WithinBOQ,
             new[]
             {
-                (materials["XM-VICEM-PCB40"], master.Units["BAO"], 300m, 92_000m, 260m, false)
+                (materials["XM-VICEM-PCB40"], master.Units["BAO"], 120m, 92_000m, 100m, false)
             });
 
         await SeedProcurementBatchAsync(
@@ -2749,12 +3174,12 @@ public static class DbSeeder
             BOQCheckStatus.OverBOQ,
             new[]
             {
-                (materials["THEP-HP-D16"], master.Units["CAY"], 360m, 242_000m, 340m, true),
+                (materials["THEP-HP-D16"], master.Units["CAY"], d16OverQuantity, 242_000m, d16OverQuantity - 20m, true),
                 (materials["THEP-HP-D10"], master.Units["CAY"], 280m, 98_000m, 265m, false)
             });
 
         var finishingBatch = await SeedProcurementBatchAsync(
-            phase3, task3, new DateTime(2025, 8, 18, 2, 0, 0, DateTimeKind.Utc), "202508-01",
+            phase4, task4, new DateTime(2025, 10, 8, 2, 0, 0, DateTimeKind.Utc), "202510-01",
             master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"],
             "Cấp vật tư ốp lát, keo và sơn cho giai đoạn hoàn thiện.",
             BOQCheckStatus.WithinBOQ,
@@ -2767,10 +3192,10 @@ public static class DbSeeder
 
         var materialReturn = new MaterialReturn
         {
-            ReturnNo = "PTRA-MO-LAO-20250915-01",
+            ReturnNo = "PTRA-MO-LAO-20251025-01",
             OriginalIssuanceId = finishingBatch.Issuance.MaterialIssuanceId,
             Reason = "Hoàn vật tư nguyên đai còn dư sau khi chốt khối lượng căn hộ mẫu và khu vực tầng tum.",
-            CreatedAt = new DateTime(2025, 9, 15, 2, 0, 0, DateTimeKind.Utc),
+            CreatedAt = new DateTime(2025, 10, 25, 2, 0, 0, DateTimeKind.Utc),
             CreatedBy = bundle.Leader.UserId
         };
         context.MaterialReturns.Add(materialReturn);
@@ -2779,9 +3204,9 @@ public static class DbSeeder
         await AddReturnLineAsync(context, materialReturn, project, materials["WEBER-ST250"], master.Units["BAO"], 2m, bundle.Leader.UserId, materialReturn.CreatedAt);
 
         await SeedDirectPurchaseAsync(
-            context, project, phase3, task3, bundle.EngineerA, accountant, director,
+            context, project, phase4, task4, bundle.EngineerA, accountant, director,
             materials["WEBER-ST250"], master.Units["BAO"], 4m, 228_000m,
-            new DateTime(2025, 9, 2, 2, 0, 0, DateTimeKind.Utc));
+            new DateTime(2025, 10, 22, 2, 0, 0, DateTimeKind.Utc));
 
         var reworkTask = new ProjectTask
         {
@@ -3051,6 +3476,494 @@ public static class DbSeeder
             CreatedBy = source.Leader.UserId
         });
         await context.SaveChangesAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // CHUẨN HÓA, COVERAGE VÀ INVARIANT CHO SEED YÊU CẦU VẬT TƯ
+    // BOQ là đầu vào bất biến. Seeder chỉ tính lại trạng thái từ dữ liệu hiện có
+    // và fail ngay khi một chứng từ không còn nằm trong chuỗi nghiệp vụ hợp lệ.
+    // -------------------------------------------------------------------------
+    private static async Task NormalizeAndValidateMaterialRequestSeedAsync(AppDbContext context)
+    {
+        var requests = await context.MaterialRequests
+            .Include(request => request.Items)
+            .OrderBy(request => request.CreatedAt)
+            .ThenBy(request => request.RequestId)
+            .ToListAsync();
+        var boqByPhaseAndMaterial = await context.BOQItems
+            .Where(item => !item.IsDeleted)
+            .ToDictionaryAsync(item => (item.PhaseId, item.MaterialId));
+        var usedByPhaseAndMaterial = new Dictionary<(long PhaseId, long MaterialId), decimal>();
+
+        foreach (var request in requests)
+        {
+            if (request.Status is MaterialRequestStatus.Approved or MaterialRequestStatus.WaitingApproval)
+                request.ProcurementDecision = MaterialRequestProcurementDecision.ExternalPurchase;
+
+            if (request.Status == MaterialRequestStatus.Approved && request.ApprovedBy == null)
+            {
+                request.ApprovedBy = request.CheckedBy
+                    ?? throw new InvalidOperationException(
+                        $"Seed MR-{request.RequestId} đã duyệt nhưng không có người thẩm định/phê duyệt.");
+            }
+
+            var countsTowardBoq = request.Status != MaterialRequestStatus.Cancelled &&
+                (request.Status != MaterialRequestStatus.Rejected ||
+                 request.ProcurementDecision == MaterialRequestProcurementDecision.InternalTransfer);
+            var reservations = new List<((long PhaseId, long MaterialId) Key, decimal Quantity)>();
+            var anyOver = false;
+
+            foreach (var item in request.Items)
+            {
+                var key = (request.PhaseId, item.MaterialId);
+                if (!boqByPhaseAndMaterial.TryGetValue(key, out var boq))
+                {
+                    throw new InvalidOperationException(
+                        $"Seed MR-{request.RequestId} chứa material {item.MaterialId} không thuộc BOQ của phase {request.PhaseId}.");
+                }
+
+                var itemRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+                var boqRate = boq.ConversionRate > 0 ? boq.ConversionRate : 1m;
+                var quantityInBase = item.Quantity / itemRate;
+                var limitInBase = boq.Quantity / boqRate;
+                usedByPhaseAndMaterial.TryGetValue(key, out var usedBefore);
+                var isOver = usedBefore + quantityInBase > limitInBase;
+
+                item.IsOverBOQ = isOver;
+                item.Explanation = isOver
+                    ? item.Explanation ?? "Yêu cầu vượt quá hạn mức định mức BOQ của Phase."
+                    : null;
+                anyOver |= isOver;
+
+                if (countsTowardBoq)
+                    reservations.Add((key, quantityInBase));
+            }
+
+            request.BOQCheckStatus = anyOver ? BOQCheckStatus.OverBOQ : BOQCheckStatus.WithinBOQ;
+            foreach (var reservation in reservations)
+            {
+                usedByPhaseAndMaterial.TryGetValue(reservation.Key, out var current);
+                usedByPhaseAndMaterial[reservation.Key] = current + reservation.Quantity;
+            }
+        }
+
+        await context.SaveChangesAsync();
+
+        foreach (var request in requests)
+        {
+            if (request.Items.Any(item => item.IsOverBOQ) !=
+                (request.BOQCheckStatus == BOQCheckStatus.OverBOQ))
+            {
+                throw new InvalidOperationException(
+                    $"Seed MR-{request.RequestId} lệch trạng thái BOQ giữa phiếu và dòng vật tư.");
+            }
+
+            if (request.Status == MaterialRequestStatus.WaitingApproval &&
+                request.BOQCheckStatus != BOQCheckStatus.OverBOQ)
+            {
+                throw new InvalidOperationException(
+                    $"Seed MR-{request.RequestId} chờ Giám đốc nhưng không vượt BOQ.");
+            }
+
+            if (request.Status is MaterialRequestStatus.Approved or MaterialRequestStatus.WaitingApproval &&
+                request.ProcurementDecision != MaterialRequestProcurementDecision.ExternalPurchase)
+            {
+                throw new InvalidOperationException(
+                    $"Seed MR-{request.RequestId} đi theo luồng mua ngoài nhưng thiếu phương án xử lý.");
+            }
+
+            if (request.Status == MaterialRequestStatus.Rejected &&
+                !MaterialRequestProcurementDecision.IsValid(request.ProcurementDecision))
+            {
+                throw new InvalidOperationException(
+                    $"Seed MR-{request.RequestId} đã xử lý nhưng thiếu phương án xử lý hợp lệ.");
+            }
+        }
+
+        await ValidateMaterialRequestDocumentLinksAsync(context);
+        await ValidateInventoryAndSurplusAsync(context);
+        await ValidateMaterialRequestAssessmentCoverageAsync(context);
+        await ValidateMaterialRequestStateCoverageAsync(context);
+    }
+
+    private static async Task ValidateMaterialRequestDocumentLinksAsync(AppDbContext context)
+    {
+        static decimal ToBase(decimal quantity, decimal rate) =>
+            quantity / (rate > 0 ? rate : 1m);
+
+        var purchaseOrders = await context.PurchaseOrders
+            .Where(po => po.RequestId != null)
+            .Include(po => po.Items)
+            .Include(po => po.Request!)
+                .ThenInclude(request => request.Items)
+            .Include(po => po.Request!)
+                .ThenInclude(request => request.Phase)
+            .AsSplitQuery()
+            .ToListAsync();
+
+        foreach (var po in purchaseOrders)
+        {
+            var request = po.Request
+                ?? throw new InvalidOperationException($"PO {po.PONumber} thiếu YCVT tham chiếu.");
+            if (po.ProjectId != request.Phase.ProjectId)
+            {
+                throw new InvalidOperationException(
+                    $"PO {po.PONumber} lệch dự án so với MR-{request.RequestId}.");
+            }
+
+            if (request.Status != MaterialRequestStatus.Approved ||
+                request.ProcurementDecision != MaterialRequestProcurementDecision.ExternalPurchase)
+            {
+                throw new InvalidOperationException(
+                    $"PO {po.PONumber} chỉ được liên kết YCVT đã duyệt theo phương án mua ngoài.");
+            }
+
+            var requestedByMaterial = request.Items
+                .GroupBy(item => item.MaterialId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Sum(item => ToBase(item.Quantity, item.ConversionRate)));
+            foreach (var ordered in po.Items.GroupBy(item => item.MaterialId))
+            {
+                if (!requestedByMaterial.TryGetValue(ordered.Key, out var requestedBase))
+                {
+                    throw new InvalidOperationException(
+                        $"PO {po.PONumber} có material {ordered.Key} không thuộc MR-{request.RequestId}.");
+                }
+
+                var orderedBase = ordered.Sum(item => ToBase(item.Quantity, item.ConversionRate));
+                if (orderedBase > requestedBase)
+                {
+                    throw new InvalidOperationException(
+                        $"PO {po.PONumber} đặt material {ordered.Key} vượt số lượng MR-{request.RequestId}.");
+                }
+            }
+        }
+
+        var receipts = await context.GoodsReceipts
+            .Where(receipt => receipt.Status == GoodsReceiptStatus.Approved)
+            .Include(receipt => receipt.Items)
+            .Include(receipt => receipt.PurchaseOrder)
+                .ThenInclude(po => po.Items)
+            .AsSplitQuery()
+            .ToListAsync();
+        foreach (var poGroup in receipts.GroupBy(receipt => receipt.POId))
+        {
+            var po = poGroup.First().PurchaseOrder;
+            var orderedByMaterial = po.Items
+                .GroupBy(item => item.MaterialId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Sum(item => ToBase(item.Quantity, item.ConversionRate)));
+            foreach (var received in poGroup.SelectMany(receipt => receipt.Items).GroupBy(item => item.MaterialId))
+            {
+                if (!orderedByMaterial.TryGetValue(received.Key, out var orderedBase))
+                {
+                    throw new InvalidOperationException(
+                        $"GR của PO {po.PONumber} có material {received.Key} không thuộc đơn hàng.");
+                }
+
+                var receivedBase = received.Sum(item => ToBase(item.Quantity, item.ConversionRate));
+                if (receivedBase > orderedBase)
+                {
+                    throw new InvalidOperationException(
+                        $"GR của PO {po.PONumber} nhận material {received.Key} vượt số lượng đã đặt.");
+                }
+            }
+        }
+    }
+
+    private static async Task ValidateInventoryAndSurplusAsync(AppDbContext context)
+    {
+        var invalidSurplusProjects = await context.SurplusRequests
+            .Where(request => request.Project.Status != ProjectStatus.InProgress)
+            .Select(request => $"surplus {request.SurplusRequestId} / project {request.ProjectId} ({request.Project.Status})")
+            .ToListAsync();
+        if (invalidSurplusProjects.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Seed chỉ được tạo surplus cho dự án InProgress: {string.Join("; ", invalidSurplusProjects)}.");
+        }
+
+        var inventoryByKey = await context.CurrentInventories
+            .ToDictionaryAsync(
+                inventory => (inventory.ProjectId, inventory.MaterialId),
+                inventory => new
+                {
+                    inventory.Quantity,
+                    inventory.ReservedQuantity
+                });
+        var ledgerByKey = await context.InventoryTransactions
+            .GroupBy(transaction => new { transaction.ProjectId, transaction.MaterialId })
+            .Select(group => new
+            {
+                group.Key.ProjectId,
+                group.Key.MaterialId,
+                Quantity = group.Sum(transaction => transaction.QuantityChange)
+            })
+            .ToDictionaryAsync(
+                entry => (entry.ProjectId, entry.MaterialId),
+                entry => entry.Quantity);
+
+        foreach (var inventory in inventoryByKey)
+        {
+            ledgerByKey.TryGetValue(inventory.Key, out var ledgerQuantity);
+            if (inventory.Value.Quantity != ledgerQuantity)
+            {
+                throw new InvalidOperationException(
+                    $"Tồn seed lệch ledger tại project {inventory.Key.ProjectId}, material {inventory.Key.MaterialId}: tồn {inventory.Value.Quantity}, ledger {ledgerQuantity}.");
+            }
+        }
+
+        if (ledgerByKey.Keys.Except(inventoryByKey.Keys).Any())
+            throw new InvalidOperationException("Ledger seed có vật tư không tồn tại trong CurrentInventory.");
+
+        var activeSources = await context.SurplusRequestItems
+            .Where(item =>
+                item.SurplusRequest.Status == SurplusRequestStatus.Processing &&
+                (item.Status == SurplusRequestItemStatus.Pending ||
+                 item.Status == SurplusRequestItemStatus.Processing))
+            .Include(item => item.SurplusRequest)
+            .Include(item => item.Transfers)
+            .ToListAsync();
+        foreach (var source in activeSources)
+        {
+            inventoryByKey.TryGetValue(
+                (source.SurplusRequest.ProjectId, source.MaterialId),
+                out var inventory);
+            var committed = source.Transfers
+                .Where(transfer => transfer.Status != SurplusTransferStatus.Rejected &&
+                    transfer.Status != SurplusTransferStatus.Received)
+                .Sum(transfer => transfer.TransferQuantity);
+            var sourceBase = Math.Max(0, source.Quantity - source.ProcessedQuantity - committed) /
+                (source.ConversionRate > 0 ? source.ConversionRate : 1m);
+            if (sourceBase <= 0 || inventory == null || sourceBase != inventory.Quantity ||
+                inventory.ReservedQuantity != inventory.Quantity)
+            {
+                throw new InvalidOperationException(
+                    $"Nguồn nội bộ seed không mô phỏng đúng lúc tạo surplus tại project {source.SurplusRequest.ProjectId}, material {source.MaterialId}: " +
+                    $"nguồn {sourceBase}, tồn {inventory?.Quantity ?? 0}, tạm khóa {inventory?.ReservedQuantity ?? 0}.");
+            }
+        }
+
+        var activeProjectIds = activeSources
+            .Select(source => source.SurplusRequest.ProjectId)
+            .Distinct()
+            .ToHashSet();
+        var activeSourceKeys = activeSources
+            .Select(source => (source.SurplusRequest.ProjectId, source.MaterialId))
+            .ToHashSet();
+        var unlockedInventory = inventoryByKey
+            .Where(entry =>
+                activeProjectIds.Contains(entry.Key.ProjectId) &&
+                entry.Value.Quantity > 0 &&
+                !activeSourceKeys.Contains(entry.Key))
+            .Select(entry => $"project {entry.Key.ProjectId}, material {entry.Key.MaterialId}")
+            .ToList();
+        if (unlockedInventory.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Surplus Processing không bao phủ toàn bộ tồn dương như runtime: {string.Join("; ", unlockedInventory)}.");
+        }
+    }
+
+    private static async Task ValidateMaterialRequestAssessmentCoverageAsync(AppDbContext context)
+    {
+        var targetRequest = await context.MaterialRequests
+            .Include(request => request.Items)
+            .Include(request => request.Phase)
+            .SingleOrDefaultAsync(request =>
+                request.Status == MaterialRequestStatus.Pending &&
+                request.Reason.StartsWith("Yêu cầu vật tư hoàn thiện đợt tiếp theo"))
+            ?? throw new InvalidOperationException("Thiếu YCVT Pending mục tiêu để kiểm tra coverage thẩm định.");
+
+        var materialIds = targetRequest.Items.Select(item => item.MaterialId).Distinct().ToList();
+        if (materialIds.Count != 4)
+            throw new InvalidOperationException($"YCVT demo cần đúng 4 vật tư, hiện có {materialIds.Count}.");
+
+        var projectId = targetRequest.Phase.ProjectId;
+        var inventoryIds = (await context.CurrentInventories
+                .Where(inventory => inventory.ProjectId == projectId &&
+                    materialIds.Contains(inventory.MaterialId) &&
+                    inventory.Quantity > 0)
+                .Select(inventory => inventory.MaterialId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+
+        var activeSupplyIds = (await context.PurchaseOrderItems
+                .Where(item => item.PurchaseOrder.ProjectId == projectId &&
+                    materialIds.Contains(item.MaterialId) &&
+                    (item.PurchaseOrder.Status == PurchaseOrderStatus.Sent ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.PartiallyReceived))
+                .Select(item => item.MaterialId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+
+        var internalSourceIds = (await context.SurplusRequestItems
+                .Where(item => materialIds.Contains(item.MaterialId) &&
+                    item.SurplusRequest.ProjectId != projectId &&
+                    item.SurplusRequest.Project.Status == ProjectStatus.InProgress &&
+                    item.SurplusRequest.Status == SurplusRequestStatus.Processing &&
+                    (item.Status == SurplusRequestItemStatus.Pending ||
+                     item.Status == SurplusRequestItemStatus.Processing))
+                .Select(item => item.MaterialId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+
+        var priceIds = (await context.PurchaseOrderItems
+                .Where(item => materialIds.Contains(item.MaterialId) &&
+                    item.UnitPrice > 0 &&
+                    (item.PurchaseOrder.Status == PurchaseOrderStatus.Sent ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.PartiallyReceived ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.FullyReceived ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.Closed))
+                .Select(item => item.MaterialId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+
+        decimal Ratio(HashSet<long> ids) => ids.Count / (decimal)materialIds.Count;
+        var anyContext = materialIds.Count(materialId =>
+            inventoryIds.Contains(materialId) ||
+            activeSupplyIds.Contains(materialId) ||
+            internalSourceIds.Contains(materialId));
+        var twoContexts = materialIds.Count(materialId =>
+            (inventoryIds.Contains(materialId) ? 1 : 0) +
+            (activeSupplyIds.Contains(materialId) ? 1 : 0) +
+            (internalSourceIds.Contains(materialId) ? 1 : 0) >= 2);
+
+        var failures = new List<string>();
+        if (Ratio(priceIds) < 0.90m) failures.Add($"giá {Ratio(priceIds):P0} < 90%");
+        if (Ratio(inventoryIds) < 0.25m) failures.Add($"tồn dự án {Ratio(inventoryIds):P0} < 25%");
+        if (Ratio(activeSupplyIds) < 0.25m) failures.Add($"đang cung ứng {Ratio(activeSupplyIds):P0} < 25%");
+        if (Ratio(internalSourceIds) < 0.50m) failures.Add($"nguồn nội bộ {Ratio(internalSourceIds):P0} < 50%");
+        if (anyContext / (decimal)materialIds.Count < 0.75m) failures.Add("dòng có ít nhất một cơ sở < 75%");
+        if (twoContexts / (decimal)materialIds.Count < 0.50m) failures.Add("dòng có ít nhất hai cơ sở < 50%");
+
+        if (failures.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Coverage thẩm định YCVT demo không đạt: {string.Join("; ", failures)}.");
+        }
+
+        var demoCodes = new[]
+        {
+            "XM-VICEM-PCB40",
+            "BT-TUOI-M250",
+            "THEP-HP-D16",
+            "CAT-XAY-TO",
+            "DA-1X2",
+            "GACH-2LO-220"
+        };
+        var demoMaterials = await context.MaterialCatalogs
+            .Where(material => demoCodes.Contains(material.Code))
+            .ToDictionaryAsync(material => material.Code, material => material.MaterialId);
+        if (demoMaterials.Count != demoCodes.Length)
+            throw new InvalidOperationException("Thiếu vật tư trong bộ 6 mã demo coverage.");
+
+        var requiredDemoIds = demoCodes
+            .Where(code => code != "DA-1X2")
+            .Select(code => demoMaterials[code])
+            .ToHashSet();
+        var demoInternalSourceIds = (await context.SurplusRequestItems
+                .Where(item =>
+                    requiredDemoIds.Contains(item.MaterialId) &&
+                    item.SurplusRequest.Project.Status == ProjectStatus.InProgress &&
+                    item.SurplusRequest.Status == SurplusRequestStatus.Processing &&
+                    (item.Status == SurplusRequestItemStatus.Pending ||
+                     item.Status == SurplusRequestItemStatus.Processing))
+                .Select(item => item.MaterialId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+        var demoPriceIds = (await context.PurchaseOrderItems
+                .Where(item =>
+                    requiredDemoIds.Contains(item.MaterialId) &&
+                    item.UnitPrice > 0 &&
+                    (item.PurchaseOrder.Status == PurchaseOrderStatus.Sent ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.PartiallyReceived ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.FullyReceived ||
+                     item.PurchaseOrder.Status == PurchaseOrderStatus.Closed))
+                .Select(item => item.MaterialId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+        var missingInternalSources = requiredDemoIds.Except(demoInternalSourceIds).Count();
+        var missingPrices = requiredDemoIds.Except(demoPriceIds).Count();
+        if (missingInternalSources > 0 || missingPrices > 0)
+        {
+            throw new InvalidOperationException(
+                $"Coverage 5/6 vật tư demo không đạt: thiếu nguồn nội bộ {missingInternalSources}, thiếu giá gần nhất {missingPrices}.");
+        }
+    }
+
+    private static async Task ValidateMaterialRequestStateCoverageAsync(AppDbContext context)
+    {
+        var requests = await context.MaterialRequests
+            .AsNoTracking()
+            .Include(request => request.Phase)
+            .ToListAsync();
+        var requiredStatuses = new[]
+        {
+            MaterialRequestStatus.Pending,
+            MaterialRequestStatus.WaitingApproval,
+            MaterialRequestStatus.Approved,
+            MaterialRequestStatus.Rejected,
+            MaterialRequestStatus.Cancelled
+        };
+        var missingStatuses = requiredStatuses
+            .Where(status => requests.All(request => request.Status != status))
+            .ToList();
+        var requiredRejectedDecisions = new[]
+        {
+            MaterialRequestProcurementDecision.InternalTransfer,
+            MaterialRequestProcurementDecision.WaitSupply,
+            MaterialRequestProcurementDecision.NeedMoreInfo,
+            MaterialRequestProcurementDecision.NotApproved
+        };
+        var missingDecisions = requiredRejectedDecisions
+            .Where(decision => requests.All(request =>
+                request.Status != MaterialRequestStatus.Rejected ||
+                request.ProcurementDecision != decision))
+            .ToList();
+
+        var hasPendingWithin = requests.Any(request =>
+            request.Status == MaterialRequestStatus.Pending &&
+            request.BOQCheckStatus == BOQCheckStatus.WithinBOQ);
+        var hasPendingOver = requests.Any(request =>
+            request.Status == MaterialRequestStatus.Pending &&
+            request.BOQCheckStatus == BOQCheckStatus.OverBOQ);
+        var hasApprovedWithin = requests.Any(request =>
+            request.Status == MaterialRequestStatus.Approved &&
+            request.BOQCheckStatus == BOQCheckStatus.WithinBOQ);
+        var hasApprovedOver = requests.Any(request =>
+            request.Status == MaterialRequestStatus.Approved &&
+            request.BOQCheckStatus == BOQCheckStatus.OverBOQ);
+
+        var failures = new List<string>();
+        if (missingStatuses.Count > 0)
+            failures.Add($"thiếu status {string.Join(", ", missingStatuses)}");
+        if (missingDecisions.Count > 0)
+            failures.Add($"thiếu phương án {string.Join(", ", missingDecisions)}");
+        if (!hasPendingWithin) failures.Add("thiếu Pending trong BOQ");
+        if (!hasPendingOver) failures.Add("thiếu Pending vượt BOQ");
+        if (!hasApprovedWithin) failures.Add("thiếu Approved trong BOQ");
+        if (!hasApprovedOver) failures.Add("thiếu Approved vượt BOQ");
+        var hasDiverseProject = requests
+            .GroupBy(request => request.Phase.ProjectId)
+            .Any(projectRequests => requiredStatuses.All(status =>
+                projectRequests.Any(request => request.Status == status)));
+        if (!hasDiverseProject)
+            failures.Add("không có dự án nào hiển thị đủ năm trạng thái YCVT runtime");
+
+        if (failures.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Coverage trạng thái YCVT seed không đạt: {string.Join("; ", failures)}.");
+        }
     }
 
     // -------------------------------------------------------------------------
