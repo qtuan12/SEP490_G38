@@ -148,18 +148,18 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
             <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Vật tư Tiết kiệm</span>
+                <span>Trong định mức</span>
                 <PackageCheck size={18} className="text-emerald-500" />
               </div>
               <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-                {items.filter(i => i.netConsumption < i.boqLimit && i.netConsumption > 0).length} Loại vật tư
+                {items.filter(i => !i.isExceeding && i.netConsumption > 0).length} Loại vật tư
               </div>
-              <div className="text-xs font-semibold text-emerald-600 mt-1">Tiêu thụ ít hơn dự toán vật tư</div>
+              <div className="text-xs font-semibold text-emerald-600 mt-1">Chưa vượt tổng định mức</div>
             </div>
 
             <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Vượt Dự toán vật tư</span>
+                <span>Vượt định mức</span>
                 <AlertTriangle size={18} className="text-red-500" />
               </div>
               <div className="text-xl font-black text-red-600 dark:text-red-400 mt-2">{exceedingItemsCount} Loại vật tư</div>
@@ -168,19 +168,19 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
             <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Giá trị Tiêu thụ</span>
+                <span>Giá trị tiêu hao</span>
                 <PackageCheck size={18} className="text-purple-500" />
               </div>
               <div className="text-xl font-black text-purple-700 dark:text-purple-300 mt-2">
                 {items.reduce((acc, i) => acc + (i.consumptionValue || 0), 0) > 0
                   ? `${(items.reduce((acc, i) => acc + (i.consumptionValue || 0), 0) / 1000000).toFixed(1)}M đ`
-                  : `${items.reduce((acc, i) => acc + i.netConsumption, 0).toLocaleString()} Đơn vị`}
+                  : `${formatNumber(items.reduce((acc, i) => acc + i.netConsumption, 0))} đơn vị`}
               </div>
               <div className="text-xs font-semibold text-purple-600 mt-1">Tổng xuất kho ròng thực tế</div>
             </div>
           </div>
 
-          {/* Monthly BOQ Consumption Trend Chart */}
+          {/* Monthly Consumption Trend Chart */}
           {(monthlyTrends || []).length > 0 && (() => {
             const hasAnyDataYear = (monthlyTrends || []).some(t => (t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0);
             const availableYears = Array.from(new Set((monthlyTrends || []).map(t => t.year)))
@@ -305,9 +305,9 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                         className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
                       >
                         <option value="all">Tất cả trạng thái</option>
-                        <option value="safe">✅ An toàn</option>
-                        <option value="earnedExceeding">⚠️ Cảnh báo vượt dự toán</option>
-                        <option value="exceeding">🚨 Vượt tổng Dự toán</option>
+                        <option value="safe">Trong định mức / chưa phát sinh</option>
+                        <option value="earnedExceeding">Tiêu hao nhanh hơn tiến độ</option>
+                        <option value="exceeding">Vượt định mức</option>
                       </select>
                     </div>
 
@@ -346,58 +346,59 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                   <table className="w-full text-xs text-left relative table-fixed">
                     <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm text-[10.5px]">
                       <tr>
-                        <th className="w-[36px] px-1 py-2.5 text-center shrink-0">STT</th>
-                        <th className="w-[12%] px-1.5 py-2.5 truncate">Mã VT</th>
-                        <th className="w-[23%] px-2 py-2.5">Tên vật tư</th>
-                        <th className="w-[45px] px-1 py-2.5 text-center shrink-0">ĐVT</th>
-                        <th className="w-[8%] px-1.5 py-2.5 text-right">Tổng Dự toán</th>
-                        <th className="w-[8.5%] px-1.5 py-2.5 text-right text-amber-600 font-bold">Dự toán N.Thu</th>
-                        <th className="w-[7%] px-1.5 py-2.5 text-right">Đã xuất</th>
-                        <th className="w-[6%] px-1.5 py-2.5 text-right">Trả lại</th>
-                        <th className="w-[8%] px-1.5 py-2.5 text-right text-indigo-600 font-bold">Tiêu thụ</th>
-                        <th className="w-[6%] px-1.5 py-2.5 text-right">Tồn kho</th>
-                        <th className="w-[6%] px-1.5 py-2.5 text-right">Vượt mức</th>
-                        <th className="w-[14%] px-1.5 py-2.5 text-center">Trạng thái</th>
+                        <th className="w-[35%] px-3 py-2.5">Vật tư</th>
+                        <th className="w-[13%] px-2 py-2.5 text-right">Định mức</th>
+                        <th className="w-[14%] px-2 py-2.5 text-right text-indigo-600 font-bold">Tiêu hao ròng</th>
+                        <th className="w-[13%] px-2 py-2.5 text-right">Còn định mức</th>
+                        <th className="w-[10%] px-2 py-2.5 text-right">Tồn kho</th>
+                        <th className="w-[15%] px-2 py-2.5 text-center">Trạng thái</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11.5px]">
-                      {filteredItems.map((item, index) => {
+                      {filteredItems.map((item) => {
                         const isExceeding = !!item?.isExceeding;
                         const isEarnedExceeding = !!item?.isEarnedExceeding;
                         const totalReturned = item?.totalReturned || 0;
                         const netConsumption = item?.netConsumption ?? Math.max(0, (item?.totalIssued || 0) - totalReturned);
+                        const remainingAllowance = Math.max(0, (item?.boqLimit || 0) - netConsumption);
                         return (
                           <tr
                             key={item.materialId}
                             className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isExceeding ? 'bg-red-50/30 dark:bg-red-950/10' : isEarnedExceeding ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''}`}
                           >
-                            <td className="px-1 py-2.5 text-center font-medium text-slate-500">{index + 1}</td>
-                            <td className="px-1.5 py-2.5 font-mono font-bold text-slate-700 dark:text-slate-300 truncate" title={item?.materialCode}>{item?.materialCode || '—'}</td>
-                            <td className="px-2 py-2.5 font-bold text-slate-900 dark:text-white leading-tight">
-                              <span className="line-clamp-2" title={item?.materialName}>{item?.materialName || '—'}</span>
+                            <td className="px-3 py-2.5 leading-tight">
+                              <div className="font-bold text-slate-900 dark:text-white line-clamp-2" title={item?.materialName}>
+                                {item?.materialName || '—'}
+                              </div>
+                              <div className="mt-1 flex items-center gap-2 text-[10.5px] text-slate-500">
+                                <span className="font-mono font-semibold" title={item?.materialCode}>{item?.materialCode || '—'}</span>
+                                <span>•</span>
+                                <span>{item?.unitName || '—'}</span>
+                              </div>
                             </td>
-                            <td className="px-1 py-2.5 text-center text-slate-500 truncate" title={item?.unitName}>{item?.unitName || '—'}</td>
-                            <td className="px-1.5 py-2.5 text-right font-bold text-slate-900 dark:text-white truncate">{(item?.boqLimit || 0).toLocaleString()}</td>
-                            <td className="px-1.5 py-2.5 text-right font-bold text-amber-600 dark:text-amber-400 truncate">{(item?.earnedBoqLimit || 0).toLocaleString()}</td>
-                            <td className="px-1.5 py-2.5 text-right text-slate-700 dark:text-slate-300 truncate">{(item?.totalIssued || 0).toLocaleString()}</td>
-                            <td className="px-1.5 py-2.5 text-right text-blue-600 truncate">{totalReturned > 0 ? `+${totalReturned.toLocaleString()}` : '0'}</td>
-                            <td className="px-1.5 py-2.5 text-right font-extrabold text-indigo-600 dark:text-indigo-400 truncate">{netConsumption.toLocaleString()}</td>
-                            <td className="px-1.5 py-2.5 text-right text-slate-600 dark:text-slate-400 truncate">{(item?.stockRemaining || 0).toLocaleString()}</td>
-                            <td className={`px-1.5 py-2.5 text-right font-extrabold truncate ${isExceeding ? 'text-red-600 dark:text-red-400' : isEarnedExceeding ? 'text-amber-600' : 'text-slate-400'}`}>
-                              {isExceeding ? `+${(item?.exceededAmount || 0).toLocaleString()}` : isEarnedExceeding ? `+${(item?.earnedExceededAmount || 0).toLocaleString()}` : '0'}
-                            </td>
-                            <td className="px-1.5 py-2.5 text-center whitespace-nowrap">
+                            <td className="px-2 py-2.5 text-right font-bold text-slate-900 dark:text-white truncate">{formatNumber(item?.boqLimit || 0)}</td>
+                            <td className="px-2 py-2.5 text-right font-extrabold text-indigo-600 dark:text-indigo-400 truncate">{formatNumber(netConsumption)}</td>
+                            <td className="px-2 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400 truncate">{formatNumber(remainingAllowance)}</td>
+                            <td className="px-2 py-2.5 text-right text-slate-600 dark:text-slate-400 truncate" title="Số lượng hiện còn trong kho dự án">{formatNumber(item?.stockRemaining || 0)}</td>
+                            <td className="px-2 py-2.5 text-center whitespace-nowrap">
                               {isExceeding ? (
                                 <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap">
-                                  <AlertTriangle size={10} /> VƯỢT DỰ TOÁN
+                                  <AlertTriangle size={10} /> VƯỢT ĐỊNH MỨC
                                 </span>
                               ) : isEarnedExceeding ? (
-                                <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap">
-                                  <AlertTriangle size={10} /> CẢNH BÁO VƯỢT DỰ TOÁN
+                                <span
+                                  className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap"
+                                  title="Tiêu hao đang cao hơn mức tham chiếu theo tiến độ chung, nhưng chưa vượt định mức"
+                                >
+                                  <AlertTriangle size={10} /> NHANH HƠN TIẾN ĐỘ
+                                </span>
+                              ) : netConsumption <= 0 ? (
+                                <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded-full text-[9.5px] font-bold whitespace-nowrap">
+                                  CHƯA PHÁT SINH
                                 </span>
                               ) : (
                                 <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[9.5px] font-bold whitespace-nowrap">
-                                  AN TOÀN
+                                  TRONG ĐỊNH MỨC
                                 </span>
                               )}
                             </td>
@@ -406,7 +407,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                       })}
                       {filteredItems.length === 0 && (
                         <tr>
-                          <td colSpan={12} className="px-4 py-28 text-center text-slate-400">
+                          <td colSpan={6} className="px-4 py-28 text-center text-slate-400">
                             {isFiltering ? (
                               <div className="flex flex-col items-center justify-center gap-2">
                                 <span className="font-medium">Không tìm thấy vật tư nào phù hợp với từ khóa hoặc bộ lọc.</span>

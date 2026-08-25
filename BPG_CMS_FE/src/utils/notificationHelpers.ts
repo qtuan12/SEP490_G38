@@ -31,9 +31,7 @@ export const resolveNotificationUrl = (noti: any): string | null => {
         if (tab === 'inventoryadjustments') {
           return referenceId ? `/inventory-adjustments?adjustmentId=${referenceId}` : '/inventory-adjustments';
         }
-        if (tab === 'inventoryincidents' || tab === 'incidents') {
-          return referenceId ? `/projects/0?tab=incidents&incidentId=${referenceId}` : '/projects';
-        }
+        return '/projects';
       }
 
       // Mở thẳng chi tiết phiếu ngay trong phạm vi dự án
@@ -70,39 +68,57 @@ export const resolveNotificationUrl = (noti: any): string | null => {
       return referenceId ? `${referenceType}?historyId=${referenceId}&acceptanceId=${referenceId}` : referenceType;
     }
 
+    // Không chuyển hướng tới route /projects/0/... nếu BE gửi nhầm projectId = 0
+    if (referenceType.startsWith('/projects/0/')) {
+      return referenceId ? `/tasks/${referenceId}` : '/projects';
+    }
+
     return referenceType;
   }
 
   // 2. Fallbacks for entity constant names
-  if (referenceType === 'Project' && referenceId) {
+  if (referenceType === 'Project' && referenceId && referenceId !== 0) {
     return `/projects/${referenceId}`;
   }
 
-  if (referenceType === 'DailyLog' || referenceType === 'Comment') {
-    return `/projects/0/logs?logId=${referenceId}`;
-  }
-
   if (referenceType === 'Task' && referenceId) {
-    if (titleOrContent.includes('bình luận') || titleOrContent.includes('nhật ký')) {
-      return `/projects/0/tasks/${referenceId}/logs`;
-    }
     return `/tasks/${referenceId}`;
   }
 
-  if (referenceType === 'GoodsReceipt' && referenceId) {
-    return `/projects/0?tab=inventory&subTab=receipts&receiptId=${referenceId}`;
+  if (referenceType === 'DailyLog' || referenceType === 'Comment') {
+    const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
+    if (projId && projId !== '0' && projId !== 0) {
+      return `/projects/${projId}/logs?logId=${referenceId}`;
+    }
+    return referenceId ? `/tasks/${referenceId}` : '/field?standalone=true';
   }
 
-  if (referenceType === 'MaterialIssuance' && referenceId) {
-    return `/projects/0?tab=inventory&subTab=issuances&issuanceId=${referenceId}`;
+  if (referenceType === 'GoodsReceipt') {
+    const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
+    if (projId && projId !== '0' && projId !== 0 && referenceId) {
+      return `/projects/${projId}?tab=inventory&subTab=receipts&receiptId=${referenceId}`;
+    }
+    return `/purchase-orders`;
   }
 
-  if (referenceType === 'MaterialReturn' && referenceId) {
-    return `/projects/0?tab=inventory&subTab=returns&returnId=${referenceId}`;
+  if (referenceType === 'MaterialIssuance') {
+    const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
+    if (projId && projId !== '0' && projId !== 0 && referenceId) {
+      return `/projects/${projId}?tab=inventory&subTab=issuances&issuanceId=${referenceId}`;
+    }
+    return `/materials`;
   }
 
-  if (referenceType === 'PurchaseOrder' && referenceId) {
-    return `/purchase-orders/${referenceId}`;
+  if (referenceType === 'MaterialReturn') {
+    const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
+    if (projId && projId !== '0' && projId !== 0 && referenceId) {
+      return `/projects/${projId}?tab=inventory&subTab=returns&returnId=${referenceId}`;
+    }
+    return `/materials`;
+  }
+
+  if (referenceType === 'PurchaseOrder') {
+    return referenceId ? `/purchase-orders/${referenceId}` : `/purchase-orders`;
   }
 
   if (referenceType === 'DirectPurchaseRequest') {
@@ -111,11 +127,8 @@ export const resolveNotificationUrl = (noti: any): string | null => {
 
   if (referenceType === 'Incident' || referenceType === 'IncidentReported' || referenceType === 'InventoryIncidentReported' || referenceType === 'EmergencyStop') {
     const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
-    if (projId && referenceId) {
+    if (projId && projId !== '0' && projId !== 0 && referenceId) {
       return `/projects/${projId}?tab=incidents&incidentId=${referenceId}`;
-    }
-    if (referenceId) {
-      return `/projects/0?tab=incidents&incidentId=${referenceId}`;
     }
     return `/projects`;
   }
@@ -129,7 +142,11 @@ export const resolveNotificationUrl = (noti: any): string | null => {
   }
 
   if (referenceType === 'MaterialRequest') {
-    return referenceId ? `/projects/0?tab=materialrequests&requestId=${referenceId}` : `/projects`;
+    const projId = noti.projectId || noti.project?.id || noti.project?.projectId;
+    if (projId && projId !== '0' && projId !== 0 && referenceId) {
+      return `/projects/${projId}?tab=materialrequests&requestId=${referenceId}`;
+    }
+    return `/materials-control`;
   }
 
   if (referenceType === 'SurplusRequest') {
