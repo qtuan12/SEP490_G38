@@ -284,13 +284,51 @@ export const WBSTree = () => {
                           borderRadius: 'var(--radius-sm)',
                           whiteSpace: 'nowrap'
                         }}
+                        title="Thời gian kế hoạch"
                       >
-                        📅 {ph.startDate.split('-').reverse().join('-')} → {ph.endDate.split('-').reverse().join('-')}
+                        📅 <span style={{ fontWeight: 600, opacity: 0.7 }}>Dự kiến:</span> {ph.startDate.split('-').reverse().join('/')} → {ph.endDate.split('-').reverse().join('/')}
                       </span>
                     )}
 
-
-
+                    {/* Actual dates badge — chỉ hiển thị khi có ít nhất 1 ngày thực tế */}
+                    {(ph.actualStartDate || ph.actualEndDate) && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          color: ph.actualEndDate
+                            ? 'hsl(var(--success))'
+                            : 'hsl(var(--warning))',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          border: `1px solid ${ph.actualEndDate ? 'hsl(var(--success) / 0.4)' : 'hsl(var(--warning) / 0.4)'}`,
+                          backgroundColor: ph.actualEndDate
+                            ? 'hsl(var(--success-glow) / 0.1)'
+                            : 'hsl(var(--warning) / 0.06)',
+                          padding: '1px 5px',
+                          borderRadius: 'var(--radius-sm)',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 500,
+                        }}
+                        title={
+                          ph.actualEndDate
+                            ? `Thực tế: Bắt đầu ${ph.actualStartDate ? ph.actualStartDate.split('-').reverse().join('/') : '?'} — Nghiệm thu ${ph.actualEndDate.split('-').reverse().join('/')}`
+                            : `Thực tế: Bắt đầu ${ph.actualStartDate ? ph.actualStartDate.split('-').reverse().join('/') : '?'} — Chưa hoàn thành`
+                        }
+                      >
+                        {ph.actualEndDate ? '✅' : '🕐'}
+                        {' '}
+                        <span style={{ fontWeight: 700 }}>Thực tế:</span>
+                        {' '}
+                        {ph.actualStartDate
+                          ? ph.actualStartDate.split('-').reverse().join('/')
+                          : '?'}
+                        {' → '}
+                        {ph.actualEndDate
+                          ? ph.actualEndDate.split('-').reverse().join('/')
+                          : '…'}
+                      </span>
+                    )}
 
                     {/* Badge */}
                     {isFrozen ? (
