@@ -66,7 +66,7 @@ interface MaterialOption {
   materialId: number;
   code: string;
   name: string;
-  /** Nhãn phụ nối sau tên, vd " — không còn trong BOQ". */
+  /** Nhãn phụ nối sau tên, vd " — không còn trong dự toán". */
   suffix?: string;
 }
 
@@ -294,7 +294,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           }))
         );
         // Nạp trước bảng quy đổi của các vật tư đã lưu, nếu không dropdown đơn vị sẽ trống
-        // và ô "Định mức còn lại" không tính được.
+        // và ô "Dự toán còn lại" không tính được.
         await Promise.all(dp.items.map(it => ensureConversionsLoaded(it.materialId)));
 
         setRows(dp.items.map(it => ({
@@ -356,7 +356,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   };
 
   /**
-   * Đơn vị mặc định lấy theo dòng BOQ. Chỉ mua khẩn cấp được vật tư có trong định mức nên nhánh
+   * Đơn vị mặc định lấy theo dòng BOQ. Chỉ mua khẩn cấp được vật tư có trong dự toán nên nhánh
    * đơn vị cơ bản chỉ còn dùng cho phiếu nháp cũ có vật tư đã bị gỡ khỏi BOQ.
    */
   const defaultUnitIdOf = (materialId: number): number => {
@@ -434,14 +434,14 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
   };
   const dateHint = purchaseDateHint();
 
-  // ---------- Đối chiếu định mức BOQ (chỉ để cảnh báo, backend mới là nơi chốt) ----------
+  // ---------- Đối chiếu dự toán vật tư (chỉ để cảnh báo, backend mới là nơi chốt) ----------
   // Người dùng có thể chọn đơn vị khác đơn vị của dòng BOQ, nên phải quy cả hai về đơn vị cơ bản
   // rồi mới so — đúng cách backend làm trong EvaluateBoqAsync.
   const rowBoqState = useMemo(() => rows.map(row => {
     if (!row.materialId) return { isOver: false, notInBoq: false, remainingLabel: '-' };
 
     const boq = boqItems.find(b => b.materialId === row.materialId);
-    if (!boq) return { isOver: true, notInBoq: true, remainingLabel: 'Ngoài định mức' };
+    if (!boq) return { isOver: true, notInBoq: true, remainingLabel: 'Ngoài dự toán' };
 
     const unit = unitOf(row);
     // Chưa nạp xong bảng quy đổi thì hiển thị theo đơn vị BOQ, chưa cảnh báo vội.
@@ -711,7 +711,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
     try {
       const persisted = await persist();
       const result = await directPurchaseService.submit(persisted.id);
-      // Không còn phân nhánh theo vượt/trong định mức: mọi phiếu đều qua Kế toán soát hóa đơn
+      // Không còn phân nhánh theo vượt/trong dự toán: mọi phiếu đều qua Kế toán soát hóa đơn
       // rồi Giám đốc duyệt chi. Câu dưới chỉ là dự phòng khi backend không trả message.
       toast.success(result.message
         || 'Đã gửi phiếu. Tồn kho đã được cập nhật, phiếu đang chờ Kế toán soát hóa đơn.');
@@ -980,7 +980,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
           )}
 
           {loadingBOQ && (
-            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '20px 0' }}>Đang tải định mức BOQ...</p>
+            <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '20px 0' }}>Đang tải dự toán vật tư...</p>
           )}
 
           {rows.length > 0 && (
@@ -1004,7 +1004,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                     <tr style={{ backgroundColor: 'hsl(var(--bg-sidebar))', borderBottom: '1px solid hsl(var(--border))' }}>
                       <th style={{ ...headCellStyle, textAlign: 'left' }}>Vật tư</th>
                       <th style={{ ...headCellStyle, textAlign: 'left', whiteSpace: 'nowrap' }}>Đơn vị</th>
-                      <th style={{ ...headCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>Định mức còn lại</th>
+                      <th style={{ ...headCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>Dự toán còn lại</th>
                       <th style={{ ...headCellStyle, textAlign: 'right' }}>Số lượng</th>
                       <th style={{ ...headCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>Đơn giá (VNĐ)</th>
                       <th style={{ ...headCellStyle, textAlign: 'right' }}>Thành tiền</th>
@@ -1058,7 +1058,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                             onChange={materialId => updateRowMaterial(i, materialId)}
                             hasError={!!materialError}
                             options={catalog
-                              // Chỉ mua khẩn cấp được vật tư đã có trong định mức BOQ của giai đoạn.
+                              // Chỉ mua khẩn cấp được vật tư đã có trong dự toán vật tư của giai đoạn.
                               // Vật tư đang chọn sẵn vẫn giữ lại để phiếu nháp cũ không mất dòng.
                               .filter(m => m.materialId === row.materialId
                                 || (boqItems.some(b => b.materialId === m.materialId)
@@ -1067,7 +1067,7 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                                 materialId: m.materialId,
                                 code: m.code,
                                 name: m.name,
-                                suffix: boqItems.some(b => b.materialId === m.materialId) ? undefined : ' — không còn trong BOQ',
+                                suffix: boqItems.some(b => b.materialId === m.materialId) ? undefined : ' — không còn trong dự toán',
                               }))}
                           />
                           <div style={{ ...cellNoteSlotStyle, color: 'hsl(var(--danger))' }}>{materialError ?? ''}</div>
@@ -1105,11 +1105,11 @@ export const CreateDirectPurchaseModal: React.FC<Props> = ({ isOpen, onClose, on
                             placeholder="0"
                             style={{ width: '80px', padding: '4px 6px', border: `1px solid ${qtyError ? 'hsl(var(--danger))' : warn ? 'hsl(var(--warning))' : 'hsl(var(--border))'}`, borderRadius: 'var(--radius-sm)', background: 'hsl(var(--bg-card))', color: 'hsl(var(--text-primary))', fontSize: '0.85rem', textAlign: 'right' }}
                           />
-                          {/* Lỗi và cảnh báo vượt định mức dùng chung một chỗ - không bao giờ
+                          {/* Lỗi và cảnh báo vượt dự toán dùng chung một chỗ - không bao giờ
                               cùng lúc, và giữ cho hàng luôn một chiều cao.
-                              Không nhắc lại số còn lại: cột "Định mức còn lại" ngay bên trái đã có. */}
+                              Không nhắc lại số còn lại: cột "Dự toán còn lại" ngay bên trái đã có. */}
                           <div style={{ ...cellNoteSlotStyle, color: qtyError ? 'hsl(var(--danger))' : 'hsl(var(--warning))' }}>
-                            {qtyError ?? (warn ? (state.notInBoq ? 'Ngoài định mức' : 'Vượt định mức') : '')}
+                            {qtyError ?? (warn ? (state.notInBoq ? 'Ngoài dự toán' : 'Vượt dự toán') : '')}
                           </div>
                         </td>
                         <td style={{ ...bodyCellStyle, textAlign: 'right', whiteSpace: 'nowrap' }}>

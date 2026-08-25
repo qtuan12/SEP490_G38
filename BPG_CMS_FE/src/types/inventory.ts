@@ -3,6 +3,7 @@ export interface MaterialPhaseUsage {
   phaseName: string;
   boqQuantity: number;
   usedQuantity: number;
+  receivedQuantity?: number;
 }
 
 export interface CurrentInventory {
@@ -33,6 +34,7 @@ export interface InventoryTransaction {
   materialName: string;
   transactionType: number;
   referenceId: number;
+  referenceType?: string;
   quantityChange: number;
   balanceAfter: number;
   unitName: string;

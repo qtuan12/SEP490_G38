@@ -9,6 +9,29 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
+// Custom tick to guarantee single-line text and prevent SVG word-wrapping
+const CustomYAxisTick = (props: any) => {
+  const { x = 0, y = 0, payload } = props;
+  const text = payload?.value || '';
+  const displayText = text.length > 22 ? `${text.substring(0, 21)}…` : text;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={-8}
+        y={4}
+        textAnchor="end"
+        fill="hsl(var(--text-secondary))"
+        fontSize={11}
+        fontWeight={500}
+      >
+        <title>{text}</title>
+        {displayText}
+      </text>
+    </g>
+  );
+};
+
 export const PortfolioDashboard: React.FC = () => {
   const [metrics, setMetrics] = useState<DashboardMetricsDto | null>(null);
   const [warnings, setWarnings] = useState<DashboardWarningDto[]>([]);
@@ -117,15 +140,45 @@ export const PortfolioDashboard: React.FC = () => {
                 <BarChart
                   data={progressData}
                   layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} />
-                  <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
-                  <RechartsTooltip formatter={(value) => [`${value}%`, 'Tiến độ']} cursor={{ fill: 'hsl(var(--bg-main))' }} />
-                  <Bar dataKey="progress" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20}>
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(val) => `${val}%`} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={155}
+                    tick={<CustomYAxisTick />}
+                    interval={0}
+                  />
+                  <RechartsTooltip
+                    formatter={(value) => [`${value}%`, 'Tiến độ']}
+                    labelFormatter={(label) => label}
+                    cursor={{ fill: 'hsl(var(--bg-main)/0.5)' }}
+                  />
+                  <Bar
+                    dataKey="progress"
+                    fill="hsl(var(--primary))"
+                    radius={[0, 4, 4, 0]}
+                    barSize={16}
+                    className="cursor-pointer"
+                    onClick={(data: any) => {
+                      if (data?.projectId) {
+                        navigate(`/projects/${data.projectId}`);
+                      }
+                    }}
+                  >
                     {progressData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.progress >= 80 ? 'hsl(var(--success))' : entry.progress >= 40 ? 'hsl(var(--primary))' : 'hsl(var(--warning))'} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.progress >= 80
+                            ? 'hsl(var(--success))'
+                            : entry.progress >= 40
+                            ? 'hsl(var(--primary))'
+                            : 'hsl(var(--warning))'
+                        }
+                      />
                     ))}
                   </Bar>
                 </BarChart>
@@ -136,6 +189,9 @@ export const PortfolioDashboard: React.FC = () => {
               Không có dự án nào đang chạy.
             </div>
           )}
+          <div className="text-center mt-2 text-sm text-[hsl(var(--text-muted))]">
+            Hiển thị <strong>{progressData.length}</strong> dự án đang thực hiện
+          </div>
         </div>
       </div>
 

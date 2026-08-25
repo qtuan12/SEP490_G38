@@ -19,6 +19,7 @@ public class UpdateTaskCommandHandlerTests
     private readonly Mock<IGenericRepository<ProjectTask>> _taskRepo = new();
     private readonly Mock<IGenericRepository<ProjectMember>> _memberRepo = new();
     private readonly Mock<ICurrentUserService> _currentUser = new();
+    private readonly Mock<INotificationService> _notificationService = new();
     private readonly UpdateTaskCommandHandler _handler;
 
     public UpdateTaskCommandHandlerTests()
@@ -32,7 +33,7 @@ public class UpdateTaskCommandHandlerTests
         var mapper = new Mock<IMapper>();
         mapper.Setup(x => x.Map(It.IsAny<UpdateTaskCommand>(), It.IsAny<ProjectTask>()))
             .Returns((UpdateTaskCommand _, ProjectTask task) => task);
-        _handler = new UpdateTaskCommandHandler(_uow.Object, ServiceStubFactory.RealtimeSender(), mapper.Object, ServiceStubFactory.ProgressRollupService(), _currentUser.Object);
+        _handler = new UpdateTaskCommandHandler(_uow.Object, ServiceStubFactory.RealtimeSender(), mapper.Object, ServiceStubFactory.ProgressRollupService(), _currentUser.Object, _notificationService.Object);
     }
 
     [Fact]

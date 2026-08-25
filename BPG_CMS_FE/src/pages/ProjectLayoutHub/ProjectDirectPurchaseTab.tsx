@@ -222,7 +222,7 @@ export const ProjectDirectPurchaseTab: React.FC<Props> = ({ projectId }) => {
                       <span className="flex items-center gap-1.5">
                         {dp.requestNumber}
                         {dp.boqCheckStatus === DP_BOQ_CHECK.OverBOQ && (
-                          <AlertTriangle size={13} className="text-[hsl(var(--warning))] flex-shrink-0" aria-label="Vượt định mức BOQ" />
+                          <AlertTriangle size={13} className="text-[hsl(var(--warning))] flex-shrink-0" aria-label="Vượt dự toán vật tư" />
                         )}
                       </span>
                     </td>

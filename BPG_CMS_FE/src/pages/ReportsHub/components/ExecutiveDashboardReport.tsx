@@ -170,7 +170,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-rose-50/50 dark:from-slate-900 dark:to-rose-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-rose-600" />
           <div className="flex justify-between items-start">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Vật tư vượt BOQ</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Vật tư vượt dự toán</span>
             <div className="p-2.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl">
               <AlertTriangle size={20} />
             </div>
@@ -179,11 +179,11 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
             <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{execDashboard.materialsExceedingBOQ}</div>
             {execDashboard.periodComparison && (
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                {execDashboard.periodComparison.currentProcurementCost > 0 ? `${(execDashboard.periodComparison.currentProcurementCost / 1000000).toFixed(1)}M VNĐ PO` : '0 VNĐ PO'}
+                {execDashboard.periodComparison.currentProcurementCost > 0 ? `${(execDashboard.periodComparison.currentProcurementCost / 1000000).toFixed(1)}M VNĐ` : '0 VNĐ'}
               </span>
             )}
           </div>
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Yêu cầu vật tư vượt định mức</div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Yêu cầu vật tư vượt dự toán</div>
         </div>
       </div>
 

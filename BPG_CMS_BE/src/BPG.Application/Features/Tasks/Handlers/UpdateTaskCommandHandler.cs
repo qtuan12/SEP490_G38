@@ -17,25 +17,29 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
     private readonly AutoMapper.IMapper _mapper;
     private readonly IProgressRollupService _rollupService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly INotificationService _notificationService;
 
     public UpdateTaskCommandHandler(
         IUnitOfWork unitOfWork, 
         IRealtimeNotificationSender realtimeSender, 
         AutoMapper.IMapper mapper, 
         IProgressRollupService rollupService,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _realtimeSender = realtimeSender;
         _mapper = mapper;
         _rollupService = rollupService;
         _currentUserService = currentUserService;
+        _notificationService = notificationService;
     }
 
     public async Task<ApiResponse> Handle(UpdateTaskCommand request, CancellationToken ct)
     {
         var task = await _unitOfWork.Repository<ProjectTask>()
             .Query()
+            .Include(t => t.Assignees)
             .Include(t => t.Phase)
             .ThenInclude(p => p.Project)
             .FirstOrDefaultAsync(t => t.TaskId == request.TaskId, ct);
@@ -128,6 +132,21 @@ public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, ApiRe
         if (task.Phase != null)
         {
             await _realtimeSender.SendToGroupAsync($"Project_{task.Phase.ProjectId}", "WbsTreeUpdated", new { TaskId = task.TaskId }, ct);
+        }
+
+        if (isContentOrDateChanged && task.Assignees.Any())
+        {
+            foreach (var assignee in task.Assignees)
+            {
+                await _notificationService.SendNotificationAsync(
+                    userId: assignee.UserId,
+                    title: "Công việc được cập nhật",
+                    content: $"Công việc \"{task.Name}\" mà bạn đang phụ trách vừa có sự thay đổi.",
+                    notificationType: BPG.Domain.Constants.NotificationType.Progress,
+                    referenceType: BPG.Domain.Constants.NotificationReferenceType.Task,
+                    referenceId: task.TaskId,
+                    ct: ct);
+            }
         }
 
         return ApiResponse.SuccessResult("Cập nhật công việc thành công.");
