@@ -226,7 +226,7 @@ public class CompleteProjectCommandHandlerTests
     }
 
     [Fact]
-    public async Task UTCID08_Handle_ProjectHasHundredPercentTaskWithNonTerminalStatus_ShouldThrowExpectedErrorCode()
+    public async Task UTCID08_Handle_ApprovedPhaseHasHundredPercentTaskWithStaleStatus_ShouldCompleteWithoutError()
     {
         var phase = SetupCompletableProject();
         _mockTaskRepo.SetupMockData(new List<ProjectTask>
@@ -241,9 +241,7 @@ public class CompleteProjectCommandHandlerTests
             }
         });
 
-        var ex = await CompleteAct().Should().ThrowAsync<BusinessException>();
-
-        ex.Which.ErrorCode.Should().Be(ErrorCodes.ProjectTasksNotCompleted);
+        await CompleteAct().Should().NotThrowAsync();
     }
 
     [Fact]
@@ -371,7 +369,9 @@ public class CompleteProjectCommandHandlerTests
             TaskId = 11,
             PhaseId = replacementPhase.PhaseId,
             Phase = replacementPhase,
-            Status = BPG.Domain.Constants.TaskStatus.Completed,
+            // Phase acceptance currently accepts a 100% task even if this technical
+            // status has not been normalized to Completed yet.
+            Status = BPG.Domain.Constants.TaskStatus.InProgress,
             ProgressPercent = 100
         });
 

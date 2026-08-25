@@ -1980,13 +1980,37 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         )
       )}
 
-      {/* TPKT lập báo cáo khắc phục */}
+      {/* TPKT lập báo cáo khắc phục hoặc từ chối sự cố không hợp lệ */}
       {incident.isEmergency && incident.status === 'WaitingRecoveryPlan' && isTPKT && !isPlanModalOpen && (
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-          <button onClick={() => setIsPlanModalOpen(true)} className="btn btn-primary" style={{ minWidth: '240px', fontSize: '0.85rem', padding: '10px' }}>
-            Lập báo cáo và Kế hoạch Khắc phục
-          </button>
-        </div>
+        isRejecting ? (
+          <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+            <textarea
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              className="input"
+              rows={3}
+              placeholder="Nhập lý do từ chối chi tiết..."
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
+                Hủy
+              </button>
+              <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
+                {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
+              ❌ Từ chối
+            </button>
+            <button onClick={() => setIsPlanModalOpen(true)} className="btn btn-primary" style={{ minWidth: '240px', fontSize: '0.85rem', padding: '10px' }}>
+              Lập báo cáo và Kế hoạch Khắc phục
+            </button>
+          </div>
+        )
       )}
 
       {/* Giám đốc phê duyệt hồ sơ khắc phục */}

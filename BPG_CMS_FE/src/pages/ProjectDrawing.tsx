@@ -19,7 +19,9 @@ import {
   ZoomOut,
   RotateCcw,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 export const ProjectDrawing: React.FC = () => {
@@ -35,6 +37,32 @@ export const ProjectDrawing: React.FC = () => {
   const [currentViewUrl, setCurrentViewUrl] = useState<string>('');
   const [blobUrl, setBlobUrl] = useState<string>('');
   const [showSelectModal, setShowSelectModal] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const mainContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!mainContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      mainContainerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error entering fullscreen: ${err.message}`);
+      });
+    } else {
+      document.exitFullscreen().catch(err => {
+        console.error(`Error exiting fullscreen: ${err.message}`);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   const canEdit =
     hasAnyRole(RoleGroup.ProjectManagers) &&
@@ -177,7 +205,19 @@ export const ProjectDrawing: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px - 48px)', margin: '-24px', backgroundColor: 'hsl(var(--bg-main))' }}>
+    <div
+      ref={mainContainerRef}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: isFullscreen ? '100vh' : 'calc(100vh - 64px - 48px)',
+        margin: isFullscreen ? '0' : '-24px',
+        backgroundColor: 'hsl(var(--bg-main))',
+        position: isFullscreen ? 'fixed' : 'relative',
+        inset: isFullscreen ? 0 : undefined,
+        zIndex: isFullscreen ? 9999 : undefined
+      }}
+    >
       {/* Top bar control */}
       <div style={{
         display: 'flex',
@@ -192,7 +232,13 @@ export const ProjectDrawing: React.FC = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <button
-            onClick={() => navigate(`/projects/${projectId}`)}
+            onClick={() => {
+              if (isFullscreen) {
+                toggleFullscreen();
+              } else {
+                navigate(`/projects/${projectId}`);
+              }
+            }}
             style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '6px 14px', border: '1px solid hsl(var(--border))',
@@ -201,7 +247,7 @@ export const ProjectDrawing: React.FC = () => {
               fontSize: '0.85rem', fontWeight: 500,
             }}
           >
-            <ArrowLeft size={15} /><span>Quay lại dự án</span>
+            <ArrowLeft size={15} /><span>{isFullscreen ? 'Thoát toàn màn hình' : 'Quay lại dự án'}</span>
           </button>
           <div>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -253,6 +299,17 @@ export const ProjectDrawing: React.FC = () => {
                 </button>
               )}
             </div>
+
+            {/* Fullscreen button */}
+            <button
+              onClick={toggleFullscreen}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '6px 12px' }}
+              title={isFullscreen ? 'Thu nhỏ (Esc)' : 'Xem toàn màn hình'}
+            >
+              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              <span>{isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}</span>
+            </button>
 
             {/* Change file (Everyone can select from existing) */}
             {project.drawingUrls && project.drawingUrls.length > 1 && (
