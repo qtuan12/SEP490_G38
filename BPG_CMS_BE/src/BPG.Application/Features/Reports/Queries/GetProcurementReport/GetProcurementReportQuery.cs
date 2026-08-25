@@ -189,10 +189,10 @@ public class GetProcurementReportQueryHandler
             : null;
         bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
 
-        if (fromDt.HasValue)
+        if (request.FromDate.HasValue)
         {
-            startMonth = fromDt.Value;
-            endMonth = toDt ?? now;
+            startMonth = request.FromDate.Value.Date;
+            endMonth = request.ToDate?.Date ?? now;
         }
         else if (isProjectFinished)
         {
@@ -204,7 +204,7 @@ public class GetProcurementReportQueryHandler
             int startYear = Math.Min(poMin, dpMin);
             int endYear = Math.Max(poMax, dpMax);
             startMonth = new DateTime(startYear, 1, 1);
-            endMonth = toDt ?? new DateTime(endYear, 12, 31);
+            endMonth = request.ToDate?.Date ?? new DateTime(endYear, 12, 31);
         }
         else
         {
@@ -213,7 +213,7 @@ public class GetProcurementReportQueryHandler
             var minDt = poMin < dpMin ? poMin : dpMin;
             int startYear = Math.Min(minDt.Year, now.Year);
             startMonth = new DateTime(startYear, 1, 1);
-            endMonth = toDt ?? new DateTime(now.Year, 12, 31);
+            endMonth = request.ToDate?.Date ?? new DateTime(now.Year, 12, 31);
         }
 
         var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);

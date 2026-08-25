@@ -45,6 +45,8 @@ public class ActivateProjectCommandHandler : IRequestHandler<ActivateProjectComm
             throw new BusinessException("ERR_PROJECT_NOT_DRAFT", "Dự án phải ở trạng thái Bản Nháp để kích hoạt.");
 
         var hasAnyTask = project.Phases.Any(ph => ph.Tasks.Any());
+        if (!hasAnyTask)
+            throw new BusinessException("ERR_PROJECT_NO_TASKS", "Dự án phải có ít nhất một công việc để kích hoạt.");
         var currentUserId = _currentUserService?.UserId;
         var userName = "Hệ thống";
         if (currentUserId.HasValue)

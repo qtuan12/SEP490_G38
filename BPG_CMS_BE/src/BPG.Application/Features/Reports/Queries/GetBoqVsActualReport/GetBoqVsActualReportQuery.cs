@@ -333,10 +333,10 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             : null;
         bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
 
-        if (fromDt.HasValue)
+        if (request.FromDate.HasValue)
         {
-            startMonth = fromDt.Value;
-            endMonth = toDt ?? now;
+            startMonth = request.FromDate.Value.Date;
+            endMonth = request.ToDate?.Date ?? now;
         }
         else if (isProjectFinished)
         {
@@ -345,14 +345,14 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             int startYear = Math.Min(issMin, issMax);
             int endYear = Math.Max(issMin, issMax);
             startMonth = new DateTime(startYear, 1, 1);
-            endMonth = toDt ?? new DateTime(endYear, 12, 31);
+            endMonth = request.ToDate?.Date ?? new DateTime(endYear, 12, 31);
         }
         else
         {
             var issMin = issuanceItems.Any() ? issuanceItems.Min(i => i.Issuance!.CreatedAt) : now;
             int startYear = Math.Min(issMin.Year, now.Year);
             startMonth = new DateTime(startYear, 1, 1);
-            endMonth = toDt ?? new DateTime(now.Year, 12, 31);
+            endMonth = request.ToDate?.Date ?? new DateTime(now.Year, 12, 31);
         }
 
         var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
