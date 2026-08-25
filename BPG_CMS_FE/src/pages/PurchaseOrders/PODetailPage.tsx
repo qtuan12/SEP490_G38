@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { getPOSupplierDisplayName } from '../../utils/purchaseOrderHelpers';
-import { formatDateOnly } from '../../utils/dateHelpers';
+import { formatDateOnly, formatDateVietnam } from '../../utils/dateHelpers';
 import toast from 'react-hot-toast';
 
 const fmt = (v: number) =>
