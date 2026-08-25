@@ -461,7 +461,7 @@ export const PhaseBOQ: React.FC = () => {
                   className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3"
                 >
                   <Upload size={15} />
-                  <span>Import Excel</span>
+                  <span>Nhập từ Excel</span>
                 </Button>
                 <Button
                   type="button"
