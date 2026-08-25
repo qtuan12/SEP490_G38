@@ -33,6 +33,16 @@ public class CloseSurplusRequestItemCommandHandler
             .FirstOrDefaultAsync(i => i.SurplusRequestItemId == request.SurplusRequestItemId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequestItem), request.SurplusRequestItemId);
 
+        var userId = _currentUser.GetRequiredUserId();
+
+        if (!_currentUser.IsInRole(BPG.Domain.Constants.UserRole.TechnicalManager))
+        {
+            var isLeader = await _uow.Repository<ProjectMember>().Query()
+                .AnyAsync(pm => pm.ProjectId == item.SurplusRequest.ProjectId && pm.UserId == userId && pm.IsLeader, ct);
+            if (!isLeader)
+                throw new ForbiddenException("Chỉ Trưởng phòng kỹ thuật hoặc Trưởng dự án mới được đóng vật tư thừa.");
+        }
+
         if (item.SurplusRequest.Project.Status != ProjectStatus.InProgress)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Dự án phải đang hoạt động để thực hiện thao tác này.");
 
@@ -48,7 +58,6 @@ public class CloseSurplusRequestItemCommandHandler
         if (hasActiveTransfer)
             throw new BusinessException(ErrorCodes.InvalidTransition, "Không thể đóng khi vật tư còn phiếu điều chuyển đang chờ xử lý.");
 
-        var userId = _currentUser.GetRequiredUserId();
         var now = DateTime.UtcNow;
         item.Status = SurplusRequestItemStatus.Cancelled;
         item.CloseReason = request.Reason.Trim();

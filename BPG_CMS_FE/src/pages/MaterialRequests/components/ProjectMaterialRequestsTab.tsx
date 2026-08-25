@@ -398,7 +398,7 @@ export const ProjectMaterialRequestsTab: React.FC<ProjectMaterialRequestsTabProp
         return <Badge variant="success"><CheckCircle size={12} className="mr-1" /> {getProjectMaterialRequestBusinessStatus(request)}</Badge>;
       case 'rejected':
         return (
-          <Badge variant={getProjectMaterialRequestBusinessStatusVariant(request)}>
+          <Badge variant={request.procurementDecision === 'WaitSupply' ? 'info' : getProjectMaterialRequestBusinessStatusVariant(request)}>
             {canResubmitProjectMaterialRequest(request)
               ? <XCircle size={12} className="mr-1" />
               : <Clock size={12} className="mr-1" />}

@@ -86,7 +86,7 @@ export const PhaseAcceptance: React.FC = () => {
       setPhase(targetPhase);
 
       const allTasks = await projectService.getTasks(projectId);
-      const phaseTasks = allTasks.filter(t => t.phaseId === phaseId);
+      const phaseTasks = allTasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
       setTasks(phaseTasks);
 
       if (targetPhase?.status === 'frozen') {

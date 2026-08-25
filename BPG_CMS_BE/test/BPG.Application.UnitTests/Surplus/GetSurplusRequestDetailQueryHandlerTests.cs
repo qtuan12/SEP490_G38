@@ -18,6 +18,7 @@ public class GetSurplusRequestDetailQueryHandlerTests
     private readonly Mock<IGenericRepository<CurrentInventory>> _inventoryRepo = new();
     private readonly Mock<IGenericRepository<User>> _userRepo = new();
     private readonly Mock<ISurplusMaterialSupplierService> _supplierService = new();
+    private readonly Mock<IProjectAccessService> _projectAccessService = new();
     private readonly GetSurplusRequestDetailQueryHandler _handler;
 
     public GetSurplusRequestDetailQueryHandlerTests()
@@ -37,7 +38,9 @@ public class GetSurplusRequestDetailQueryHandlerTests
             {
                 [4] = new SurplusMaterialSupplier(8, "Approved Supplier")
             });
-        _handler = new GetSurplusRequestDetailQueryHandler(_uow.Object, _supplierService.Object);
+        _projectAccessService.Setup(x => x.GetAccessibleProjectIdsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlySet<long>)new HashSet<long> { 3 });
+        _handler = new GetSurplusRequestDetailQueryHandler(_uow.Object, _supplierService.Object, _projectAccessService.Object);
     }
 
     [Fact]

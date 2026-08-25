@@ -56,8 +56,13 @@ export const resolveNotificationUrl = (noti: any): string | null => {
         if (tab === 'surplus') {
           return `/projects/${projectId}?tab=surplus&surplusRequestId=${referenceId}`;
         }
+        if (tab === 'surplus-incoming') {
+          return `/projects/${projectId}?tab=surplus&incoming=true`;
+        }
       }
-
+      if (tab === 'surplus-incoming') {
+        return `/projects/${projectId}?tab=surplus&incoming=true`;
+      }
       return `/projects/${projectId}?tab=${tab}`;
     }
 

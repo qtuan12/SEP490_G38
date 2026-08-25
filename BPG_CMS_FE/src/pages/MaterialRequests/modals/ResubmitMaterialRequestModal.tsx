@@ -155,7 +155,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
 
   // Nguồn vật tư gốc để chọn
   const sourceMaterials = task ? phaseRequestedMaterials : (phase?.materials || []);
-  const displayMaterials = sourceMaterials.length > 0 ? sourceMaterials : allCatalogs;
+  const displayMaterials = sourceMaterials;
 
   // Preload conversions and units for all displayMaterials on open
   useEffect(() => {
@@ -372,7 +372,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Gửi lại Yêu cầu Vật tư" width="lg">
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-red-600">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <div className="text-sm">
@@ -416,7 +416,7 @@ export const ResubmitMaterialRequestModal: React.FC<ResubmitMaterialRequestModal
             </button>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1">
             {fields.map((item, idx) => {
               const rowComparison = getRowComparison(idx);
               return (

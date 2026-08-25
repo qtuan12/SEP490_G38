@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, FormItem, Input } from '../../../components/ui';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, UploadCloud, FileText } from 'lucide-react';
 import { isDiscreteUnit } from '../../../utils/unitHelpers';
 import { getSurplusMaxActionQuantity } from '../../../utils/surplusHelpers';
 import { surplusService } from '../../../services/surplusService';
@@ -29,6 +29,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
 
   const remaining = item.quantity - item.processedQuantity;
   const maxReturnQuantity = getSurplusMaxActionQuantity(item);
@@ -66,7 +67,7 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
       const formData = new FormData();
       formData.append('supplierId', supplierId);
       formData.append('returnQuantity', qty.toString());
-      if (refundAmount) formData.append('refundAmount', refundAmount);
+      if (refundAmount) formData.append('refundAmount', refundAmount.replace(/\./g, ''));
       if (note.trim()) formData.append('note', note.trim());
       files.forEach(f => formData.append('Attachments', f));
 
@@ -165,10 +166,12 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
           </FormItem>
           <FormItem label="Số tiền thu hồi (VNĐ)">
             <Input
-              type="number"
-              min={0}
+              type="text"
               value={refundAmount}
-              onChange={e => setRefundAmount(e.target.value)}
+              onChange={e => {
+                const raw = e.target.value.replace(/\D/g, '');
+                setRefundAmount(raw ? parseInt(raw, 10).toLocaleString('vi-VN') : '');
+              }}
               placeholder="0"
               disabled={submitting}
             />
@@ -187,26 +190,52 @@ export const CreateReturnModal: React.FC<CreateReturnModalProps> = ({
         </FormItem>
 
         <FormItem label="File minh chứng (Bắt buộc)" required>
-          <input
-            type="file"
-            multiple
-            accept="image/*,.pdf"
-            onChange={e => {
-              if (e.target.files) {
-                setFiles(Array.from(e.target.files));
+          <div
+            className={`mt-2 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+              dragging
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              if (e.dataTransfer.files) {
+                setFiles(Array.from(e.dataTransfer.files));
               }
             }}
-            disabled={submitting}
-            className="block w-full text-sm text-slate-500
-              file:mr-4 file:py-2 file:px-4
-              file:rounded file:border-0
-              file:text-sm file:font-medium
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"
-          />
+            onClick={() => document.getElementById('return-file-upload')?.click()}
+          >
+            <input
+              id="return-file-upload"
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                if (e.target.files) {
+                  setFiles(Array.from(e.target.files));
+                }
+              }}
+              className="hidden"
+              disabled={submitting}
+            />
+            <UploadCloud size={28} className="text-slate-400 mx-auto mb-2" />
+            <p className="text-sm text-slate-600 font-medium mb-1">
+              Nhấn để chọn hoặc kéo thả file vào đây
+            </p>
+            <p className="text-xs text-slate-400">
+              Hỗ trợ ảnh và PDF
+            </p>
+          </div>
           {files.length > 0 && (
-            <ul className="mt-2 text-sm text-slate-600 list-disc pl-5">
-              {files.map((f, i) => <li key={i}>{f.name}</li>)}
+            <ul className="mt-3 space-y-1">
+              {files.map((f, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                  <FileText size={14} className="text-slate-400 shrink-0" />
+                  <span className="truncate">{f.name}</span>
+                </li>
+              ))}
             </ul>
           )}
         </FormItem>
