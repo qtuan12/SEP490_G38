@@ -97,7 +97,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
               <ArrowLeft size={14} /> Quay lại Dự án
             </button>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white m-0">Báo cáo Đối chiếu BOQ vs Thực tế</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white m-0">Báo cáo Đối chiếu Dự toán vs Thực tế</h2>
               {project && <p className="text-xs text-slate-500 m-0 mt-0.5">Dự án: {project.name}</p>}
             </div>
           </div>
@@ -118,8 +118,8 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11, fontWeight: 600 }} />
-                  <RechartsTooltip formatter={(value) => [`${value} mã vật tư`, 'Vượt dự toán']} />
-                  <Bar dataKey="exceedCount" name="Mã vật tư vượt dự toán" fill="#ef4444" radius={[0, 6, 6, 0]} maxBarSize={36} />
+                  <RechartsTooltip formatter={(value) => [`${value} loại vật tư`, 'Vượt dự toán']} />
+                  <Bar dataKey="exceedCount" name="Loại vật tư vượt dự toán" fill="#ef4444" radius={[0, 6, 6, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -135,10 +135,10 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Dự toán BOQ</span>
+                <span>Dự toán Khối lượng</span>
                 <PackageCheck size={18} className="text-indigo-500" />
               </div>
-              <div className="text-xl font-black text-slate-900 dark:text-white mt-2">{items.length} Chủng loại</div>
+              <div className="text-xl font-black text-slate-900 dark:text-white mt-2">{items.length} Loại vật tư</div>
               <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">
                 {items.reduce((acc, i) => acc + (i.boqTotalValue || 0), 0) > 0
                   ? `~${(items.reduce((acc, i) => acc + (i.boqTotalValue || 0), 0) / 1000000).toFixed(1)} triệu VNĐ`
@@ -152,7 +152,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                 <PackageCheck size={18} className="text-emerald-500" />
               </div>
               <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
-                {items.filter(i => i.netConsumption < i.boqLimit && i.netConsumption > 0).length} Chủng loại
+                {items.filter(i => i.netConsumption < i.boqLimit && i.netConsumption > 0).length} Loại vật tư
               </div>
               <div className="text-xs font-semibold text-emerald-600 mt-1">Tiêu thụ ít hơn dự toán vật tư</div>
             </div>
@@ -162,7 +162,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                 <span>Vượt Dự toán vật tư</span>
                 <AlertTriangle size={18} className="text-red-500" />
               </div>
-              <div className="text-xl font-black text-red-600 dark:text-red-400 mt-2">{exceedingItemsCount} Chủng loại</div>
+              <div className="text-xl font-black text-red-600 dark:text-red-400 mt-2">{exceedingItemsCount} Loại vật tư</div>
               <div className="text-xs font-semibold text-red-600 mt-1">Cần phê duyệt xuất vượt dự toán</div>
             </div>
 
@@ -194,7 +194,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
-                      <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Xu hướng Tiêu thụ BOQ 12 Tháng Theo Năm
+                      <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Xu hướng Tiêu thụ Khối lượng 12 Tháng Theo Năm
                     </h4>
                     <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh chi phí tiêu thụ vật tư & số lượng phiếu xuất hàng tháng</p>
                   </div>
@@ -268,10 +268,10 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                 <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-slate-900 dark:text-white">
-                      Bảng kiểm soát đối chiếu BOQ
+                      Bảng kiểm soát đối chiếu Dự toán
                     </span>
                     <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                      Hiển thị {filteredItems.length} / {items.length} chủng loại
+                      Hiển thị {filteredItems.length} / {items.length} loại vật tư
                     </span>
                   </div>
 
@@ -307,7 +307,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                         <option value="all">Tất cả trạng thái</option>
                         <option value="safe">✅ An toàn</option>
                         <option value="earnedExceeding">⚠️ Cảnh báo tiến độ</option>
-                        <option value="exceeding">🚨 Vượt tổng BOQ</option>
+                        <option value="exceeding">🚨 Vượt tổng Dự toán</option>
                       </select>
                     </div>
 
@@ -350,8 +350,8 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                         <th className="w-[12%] px-1.5 py-2.5 truncate">Mã VT</th>
                         <th className="w-[23%] px-2 py-2.5">Tên vật tư</th>
                         <th className="w-[45px] px-1 py-2.5 text-center shrink-0">ĐVT</th>
-                        <th className="w-[8%] px-1.5 py-2.5 text-right">BOQ Tổng</th>
-                        <th className="w-[8.5%] px-1.5 py-2.5 text-right text-amber-600 font-bold">BOQ N.Thu</th>
+                        <th className="w-[8%] px-1.5 py-2.5 text-right">Tổng Dự toán</th>
+                        <th className="w-[8.5%] px-1.5 py-2.5 text-right text-amber-600 font-bold">Dự toán N.Thu</th>
                         <th className="w-[7%] px-1.5 py-2.5 text-right">Đã xuất</th>
                         <th className="w-[6%] px-1.5 py-2.5 text-right">Trả lại</th>
                         <th className="w-[8%] px-1.5 py-2.5 text-right text-indigo-600 font-bold">Tiêu thụ</th>
@@ -418,7 +418,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                                   }}
                                   className="text-xs text-indigo-600 dark:text-indigo-400 underline font-semibold cursor-pointer"
                                 >
-                                  Xóa bộ lọc để xem tất cả ({items.length} chủng loại)
+                                  Xóa bộ lọc để xem tất cả ({items.length} loại vật tư)
                                 </button>
                               </div>
                             ) : (

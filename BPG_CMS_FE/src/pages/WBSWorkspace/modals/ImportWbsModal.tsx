@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useWBS } from '../components/WBSContext';
 import { wbsService } from '../../../services/wbsService';
-import { X, UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { X, UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2, Download } from 'lucide-react';
 
 export const ImportWbsModal: React.FC = () => {
   const { isImportWbsOpen, setIsImportWbsOpen, projectId, loadWBSData, handleSuccess, handleError } = useWBS();
@@ -214,7 +214,7 @@ export const ImportWbsModal: React.FC = () => {
                     <AlertCircle size={16} className="text-blue-600" /> Lưu ý quan trọng
                   </p>
                   <ul className="list-disc pl-5 space-y-1.5 marker:text-blue-400">
-                    <li>Sử dụng đúng <button type="button" onClick={handleDownloadTemplate} className="text-blue-600 font-semibold hover:underline">Tệp mẫu</button> và không đổi tên cột.</li>
+                    <li>Sử dụng đúng định dạng tệp mẫu và không đổi tên cột.</li>
                     <li>Sử dụng <strong>Chỉ mục</strong> để phân cấp. Ví dụ: 1 ➔ 1.1 ➔ 1.1.1</li>
                     <li className="text-red-700 font-semibold">CHỈ hỗ trợ cấu trúc công việc tối đa 3 cấp.</li>
                     <li>Thời gian công việc con phải nằm trong công việc cha.</li>
@@ -222,9 +222,14 @@ export const ImportWbsModal: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold mb-2 text-slate-800">
-                    Tệp Excel chứa cấu trúc công việc
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-bold text-slate-800 m-0">
+                      Tệp Excel chứa cấu trúc công việc
+                    </label>
+                    <button type="button" onClick={handleDownloadTemplate} className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded flex items-center gap-1.5 hover:bg-blue-100 transition-colors">
+                      <Download size={14} /> Tải tệp mẫu
+                    </button>
+                  </div>
                   <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-all
                     ${selectedFile ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400'}`}>
                     <div className="space-y-2 text-center w-full">
