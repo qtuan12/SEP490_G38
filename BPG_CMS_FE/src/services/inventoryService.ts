@@ -95,6 +95,12 @@ export interface PurchaseOrderDetailDto {
   projectName: string;
   cancelledReason?: string;
   closedReason?: string;
+  creatorName?: string;
+  createdAt?: string;
+  cancelledByName?: string;
+  cancelledAt?: string;
+  closedByName?: string;
+  closedAt?: string;
   approverName?: string;
   approvedAt?: string;
   approvalNote?: string;
