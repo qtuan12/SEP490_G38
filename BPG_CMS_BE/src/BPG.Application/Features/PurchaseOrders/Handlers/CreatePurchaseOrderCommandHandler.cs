@@ -139,10 +139,13 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 var remaining = requestedQty - alreadyOrdered;
 
                 if (item.Quantity > remaining)
+                    // :0.### bỏ số 0 thập phân thừa — cột lưu decimal(18,3) nên in trực tiếp sẽ
+                    // luôn kèm ".000", nhìn như dấu chấm phân cách nghìn kiểu Việt Nam (10.000 =
+                    // mười nghìn) dù giá trị thật chỉ là 10, gây hiểu lầm số lượng.
                     throw new BusinessException(ErrorCodes.PoQtyExceedsRequest,
                         $"Vật tư '{materialNames[item.MaterialId]}' vượt số lượng yêu cầu. " +
-                        $"Đã yêu cầu {requestedQty}, đã đặt {alreadyOrdered} qua các đơn hàng trước, " +
-                        $"chỉ còn được đặt tối đa {(remaining < 0 ? 0 : remaining)}.");
+                        $"Đã yêu cầu {requestedQty:0.###}, đã đặt {alreadyOrdered:0.###} qua các đơn hàng trước, " +
+                        $"chỉ còn được đặt tối đa {(remaining < 0 ? 0 : remaining):0.###}.");
 
                 var reqItem = linkedRequest.Items.FirstOrDefault(ri => ri.MaterialId == item.MaterialId);
                 if (reqItem == null || item.UnitId != reqItem.UnitId)
