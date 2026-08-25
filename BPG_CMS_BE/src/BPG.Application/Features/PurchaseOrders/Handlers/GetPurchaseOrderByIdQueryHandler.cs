@@ -67,21 +67,30 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     .FirstOrDefaultAsync(supplier => supplier.SupplierId == po.SupplierId.Value, cancellationToken)
                 : null;
 
-            // Người trình (người lập đơn hàng) — không có navigation property nên tra theo CreatedBy.
-            var creator = po.CreatedBy.HasValue
-                ? await _uow.Repository<User>().Query()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.UserId == po.CreatedBy.Value, cancellationToken)
-                : null;
-
-            // Người hủy/đóng — Cancelled/Closed là trạng thái kết thúc nên UpdatedBy/UpdatedAt
-            // tại thời điểm này chính là người và ngày thực hiện thao tác hủy/đóng.
+            // Người trình (CreatedBy) và người hủy/đóng (UpdatedBy — Cancelled/Closed là trạng thái
+            // kết thúc nên UpdatedBy/UpdatedAt tại thời điểm này chính là người và ngày thực hiện
+            // thao tác hủy/đóng). Không có navigation property nên tra theo Id, gộp một câu truy
+            // vấn cho cả hai thay vì hai round-trip. IgnoreQueryFilters() bắt buộc: giống
+            // historicalSupplier ở trên, tài khoản bị xóa mềm (IsDeleted) vẫn phải hiện được tên
+            // trong lịch sử phiếu, không được vô tình biến mất chỉ vì đã nghỉ việc.
             var isCancelledOrClosed = po.Status == PurchaseOrderStatus.Cancelled || po.Status == PurchaseOrderStatus.Closed;
-            var updater = isCancelledOrClosed && po.UpdatedBy.HasValue
-                ? await _uow.Repository<User>().Query()
+            var actorIds = new List<long>();
+            if (po.CreatedBy.HasValue) actorIds.Add(po.CreatedBy.Value);
+            if (isCancelledOrClosed && po.UpdatedBy.HasValue) actorIds.Add(po.UpdatedBy.Value);
+
+            var actorsById = actorIds.Count == 0
+                ? new Dictionary<long, User>()
+                : (await _uow.Repository<User>().Query()
+                    .IgnoreQueryFilters()
                     .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.UserId == po.UpdatedBy.Value, cancellationToken)
-                : null;
+                    .Where(u => actorIds.Contains(u.UserId))
+                    .ToListAsync(cancellationToken))
+                    .ToDictionary(u => u.UserId, u => u);
+
+            var creator = po.CreatedBy.HasValue && actorsById.TryGetValue(po.CreatedBy.Value, out var creatorUser)
+                ? creatorUser : null;
+            var updater = isCancelledOrClosed && po.UpdatedBy.HasValue && actorsById.TryGetValue(po.UpdatedBy.Value, out var updaterUser)
+                ? updaterUser : null;
 
 
             var quotationFiles = await _uow.Repository<Attachment>().Query()
