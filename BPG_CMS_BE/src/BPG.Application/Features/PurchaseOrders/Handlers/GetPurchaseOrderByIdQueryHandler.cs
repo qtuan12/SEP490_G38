@@ -67,6 +67,22 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                     .FirstOrDefaultAsync(supplier => supplier.SupplierId == po.SupplierId.Value, cancellationToken)
                 : null;
 
+            // Người trình (người lập đơn hàng) — không có navigation property nên tra theo CreatedBy.
+            var creator = po.CreatedBy.HasValue
+                ? await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.UserId == po.CreatedBy.Value, cancellationToken)
+                : null;
+
+            // Người hủy/đóng — Cancelled/Closed là trạng thái kết thúc nên UpdatedBy/UpdatedAt
+            // tại thời điểm này chính là người và ngày thực hiện thao tác hủy/đóng.
+            var isCancelledOrClosed = po.Status == PurchaseOrderStatus.Cancelled || po.Status == PurchaseOrderStatus.Closed;
+            var updater = isCancelledOrClosed && po.UpdatedBy.HasValue
+                ? await _uow.Repository<User>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.UserId == po.UpdatedBy.Value, cancellationToken)
+                : null;
+
 
             var quotationFiles = await _uow.Repository<Attachment>().Query()
                 .AsNoTracking()
@@ -96,6 +112,12 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
                 CancelledReason = po.CancelledReason,
                 ClosedReason = po.ClosedReason,
                 TotalAmount = po.TotalAmount,
+                CreatorName = creator?.FullName,
+                CreatedAt = po.CreatedAt,
+                CancelledByName = po.Status == PurchaseOrderStatus.Cancelled ? updater?.FullName : null,
+                CancelledAt = po.Status == PurchaseOrderStatus.Cancelled ? po.UpdatedAt : null,
+                ClosedByName = po.Status == PurchaseOrderStatus.Closed ? updater?.FullName : null,
+                ClosedAt = po.Status == PurchaseOrderStatus.Closed ? po.UpdatedAt : null,
                 ApproverName = po.Approver?.FullName,
                 ApprovedAt = po.ApprovedAt,
                 ApprovalNote = po.ApprovalNote,

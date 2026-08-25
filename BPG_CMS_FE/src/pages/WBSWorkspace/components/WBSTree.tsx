@@ -53,6 +53,7 @@ export const WBSTree = () => {
   const canCreatePhase = isProjectEditable && hasAnyRole(RoleGroup.Technical);
 
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'default' | 'date' | 'weight'>('default');
 
   const toggleTask = (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation();
@@ -124,6 +125,17 @@ export const WBSTree = () => {
                   ))}
                 </select>
               </div>
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'default' | 'date' | 'weight')}
+                  className="px-3 py-1 border border-[hsl(var(--border))] rounded-sm text-[0.85rem] bg-[hsl(var(--bg-main))] text-[hsl(var(--text-primary))] focus:outline-none focus:border-[hsl(var(--primary))] w-full sm:w-auto min-w-[120px]"
+                >
+                  <option value="default">Mặc định</option>
+                  <option value="date">Theo ngày</option>
+                  <option value="weight">Quan trọng</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -145,9 +157,15 @@ export const WBSTree = () => {
                 .filter(t => t.phaseId === ph.id && !t.parentTaskId)
                 .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
                 .sort((a, b) => {
-                  const wA = a.weight ?? 0;
-                  const wB = b.weight ?? 0;
-                  if (wA !== wB) return wB - wA;
+                  if (sortBy === 'weight') {
+                    const wA = a.weight ?? 0;
+                    const wB = b.weight ?? 0;
+                    if (wA !== wB) return wB - wA;
+                  } else if (sortBy === 'date') {
+                    const dA = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+                    const dB = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+                    if (dA !== dB) return dA - dB;
+                  }
                   return a.sortOrder - b.sortOrder;
                 });
 
@@ -162,9 +180,15 @@ export const WBSTree = () => {
                   .filter(t => t.parentTaskId === parent.id)
                   .map((t, i) => ({ ...t, sortOrder: t.sortOrder ?? (i + 1) }))
                   .sort((a, b) => {
-                    const wA = a.weight ?? 0;
-                    const wB = b.weight ?? 0;
-                    if (wA !== wB) return wB - wA;
+                    if (sortBy === 'weight') {
+                      const wA = a.weight ?? 0;
+                      const wB = b.weight ?? 0;
+                      if (wA !== wB) return wB - wA;
+                    } else if (sortBy === 'date') {
+                      const dA = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+                      const dB = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+                      if (dA !== dB) return dA - dB;
+                    }
                     return a.sortOrder - b.sortOrder;
                   });
                 phaseTasks.push(...children);
@@ -229,16 +253,16 @@ export const WBSTree = () => {
                       aria-label={`${isExpanded ? 'Thu gọn' : 'Mở rộng'} ${ph.name}`}
                       aria-expanded={!!isExpanded}
                       onClick={() => togglePhase(ph.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--text-secondary))', flexShrink: 0 }}
                     >
-                      {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
                     </button>
 
                     <Folder size={15} style={{ color: isFrozen ? 'hsl(var(--success))' : 'hsl(var(--primary))', flexShrink: 0 }} />
 
                     {/* Name */}
                     <div
-                      style={{ flex: 1, minWidth: '100px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                      style={{ flex: '1 1 150px', minWidth: '150px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
                       title={canEdit && !isFrozen && phaseProgress === 0 ? "Double-click để chỉnh sửa" : ""}
                       onDoubleClick={(e) => { e.stopPropagation(); if (canEdit && !isFrozen && phaseProgress === 0) { setSelectedPhaseForEdit(ph); setIsEditPhaseOpen(true); setPhaseMenuId(null); } }}
                     >
@@ -586,13 +610,13 @@ export const WBSTree = () => {
                                     onClick={(e) => toggleTask(e, t.id)}
                                     style={{ 
                                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      width: '16px', height: '16px', 
-                                      marginRight: '2px', cursor: 'pointer',
+                                      width: '24px', height: '24px', 
+                                      marginRight: '4px', cursor: 'pointer',
                                       color: 'hsl(var(--primary))',
                                       borderRadius: '4px',
                                     }}
                                   >
-                                    {isTaskExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                    {isTaskExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                   </div>
                                 )}
                                 <FileText size={13} style={{ color: t.progress === 100 ? 'hsl(var(--success))' : 'hsl(var(--text-muted))', flexShrink: 0 }} />
@@ -601,7 +625,7 @@ export const WBSTree = () => {
 
                             {/* Name */}
                             <div
-                              style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+                              style={{ flex: '1 1 150px', minWidth: '150px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
                               title={isWorkedOn && t.status !== 'obsolete' ? 'Task đã có tiến độ — không thể chỉnh sửa. Dùng "Hủy việc" và tạo lại.' : canEdit && !isFrozen && t.status !== 'obsolete' ? 'Double-click để chỉnh sửa' : ''}
                               onDoubleClick={e => { e.stopPropagation(); if (canEdit && !isFrozen && t.status !== 'obsolete' && !isWorkedOn) { setSelectedTaskForEdit(t); setIsEditTaskOpen(true); setTaskMenuId(null); } }}
                             >
@@ -663,7 +687,7 @@ export const WBSTree = () => {
 
                               return (
                                 <span style={{ padding: '2px 6px', fontSize: '0.65rem', fontWeight: 600, backgroundColor: bgColor, color: color, borderRadius: '4px', border: `1px solid ${borderColor}`, whiteSpace: 'nowrap', marginRight: '4px' }} title="Mức độ quan trọng">
-                                  Mức độ: {t.weight === 1 ? 'Bình thường' : t.weight === 2 ? 'Cao' : t.weight === 3 ? 'Quan trọng' : t.weight === 4 ? 'Rất quan trọng' : t.weight}
+                                  {t.weight === 1 ? 'Bình thường' : t.weight === 2 ? 'Cao' : t.weight === 3 ? 'Quan trọng' : t.weight === 4 ? 'Rất quan trọng' : t.weight}
                                 </span>
                               );
                             })()}

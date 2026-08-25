@@ -165,6 +165,9 @@ public static class NotificationLink
     public static string ProjectSurplus(long projectId) =>
         $"/projects/{projectId}/workspace/surplus";
 
+    public static string ProjectSurplusIncoming(long projectId) =>
+        $"/projects/{projectId}/workspace/surplus-incoming";
+
     public static string ProjectIncidents(long projectId) =>
         $"/projects/{projectId}/workspace/incidents";
 }

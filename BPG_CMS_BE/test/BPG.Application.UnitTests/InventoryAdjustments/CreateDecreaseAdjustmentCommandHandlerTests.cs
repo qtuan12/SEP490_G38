@@ -30,6 +30,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         private readonly Mock<IGenericRepository<MaterialConversion>> _mockConversionRepo;
         private readonly Mock<IGenericRepository<CurrentInventory>> _mockInventoryRepo;
         private readonly Mock<IGenericRepository<InventoryAdjustment>> _mockAdjustmentRepo;
+        private readonly Mock<IGenericRepository<AdjustmentItem>> _mockAdjustmentItemRepo;
         private readonly Mock<IGenericRepository<Incident>> _mockIncidentRepo;
         private InventoryAdjustment? _addedAdjustment;
         private readonly CreateDecreaseAdjustmentCommandHandler _handler;
@@ -44,6 +45,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockConversionRepo = new Mock<IGenericRepository<MaterialConversion>>();
             _mockInventoryRepo = new Mock<IGenericRepository<CurrentInventory>>();
             _mockAdjustmentRepo = new Mock<IGenericRepository<InventoryAdjustment>>();
+            _mockAdjustmentItemRepo = new Mock<IGenericRepository<AdjustmentItem>>();
             _mockIncidentRepo = new Mock<IGenericRepository<Incident>>();
 
             _mockUow.Setup(uow => uow.Repository<Project>()).Returns(_mockProjectRepo.Object);
@@ -52,6 +54,7 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
             _mockUow.Setup(uow => uow.Repository<MaterialConversion>()).Returns(_mockConversionRepo.Object);
             _mockUow.Setup(uow => uow.Repository<CurrentInventory>()).Returns(_mockInventoryRepo.Object);
             _mockUow.Setup(uow => uow.Repository<InventoryAdjustment>()).Returns(_mockAdjustmentRepo.Object);
+            _mockUow.Setup(uow => uow.Repository<AdjustmentItem>()).Returns(_mockAdjustmentItemRepo.Object);
             _mockUow.Setup(uow => uow.Repository<Incident>()).Returns(_mockIncidentRepo.Object);
 
             _mockMaterialRepo.SetupMockData(new List<MaterialCatalog>());
@@ -272,30 +275,66 @@ namespace BPG.Application.UnitTests.InventoryAdjustments
         }
 
         [Fact]
-        public async Task Handle_IncidentWithRevisionRequiredAdjustment_ShouldAllowNewAttempt()
+        public async Task Handle_IncidentWithRevisionRequiredAdjustment_ShouldUpdateAndResubmitSameAdjustment()
         {
             SetupValidPreconditions();
             SetupMaterials(Material(isDiscrete: false));
-            SetupInventories(Inventory(quantity: 10));
+            var inventory = Inventory(quantity: 10);
+            SetupInventories(inventory);
             var incident = Incident(status: IncidentStatus.UnderResolution);
             SetupIncident(incident);
+            var oldItem = new AdjustmentItem
+            {
+                AdjustmentItemId = 501,
+                AdjustmentId = 99,
+                MaterialId = MaterialId,
+                UnitId = 3,
+                Quantity = 1,
+                ConversionRate = 1
+            };
+            var existingAdjustment = new InventoryAdjustment
+            {
+                AdjustmentId = 99,
+                ProjectId = ProjectId,
+                PhaseId = PhaseId,
+                IncidentId = IncidentId,
+                AdjustmentType = InventoryAdjustmentType.Decrease,
+                Reason = "Nội dung cũ",
+                Description = "Mô tả cũ",
+                Status = InventoryAdjustmentStatus.RevisionRequired,
+                RejectedReason = "Cần làm rõ số lượng",
+                ApprovedBy = 88,
+                ApprovedAt = DateTime.UtcNow,
+                Items = new List<AdjustmentItem> { oldItem }
+            };
             _mockAdjustmentRepo.SetupMockData(new List<InventoryAdjustment>
             {
-                new()
-                {
-                    AdjustmentId = 99,
-                    IncidentId = IncidentId,
-                    Status = InventoryAdjustmentStatus.RevisionRequired
-                }
+                existingAdjustment
             });
 
-            await _handler.Handle(
+            var result = await _handler.Handle(
                 Command(quantity: 2, incidentId: IncidentId),
                 CancellationToken.None);
 
-            _addedAdjustment.Should().NotBeNull();
-            _addedAdjustment!.Status.Should().Be(InventoryAdjustmentStatus.Pending);
+            result.Data.Should().Be(99);
+            _addedAdjustment.Should().BeNull();
+            existingAdjustment.Status.Should().Be(InventoryAdjustmentStatus.Pending);
+            existingAdjustment.Reason.Should().Be("Giảm tồn do hư hỏng");
+            existingAdjustment.Description.Should().Be("Sự cố vật tư");
+            existingAdjustment.RejectedReason.Should().BeNull();
+            existingAdjustment.ApprovedBy.Should().BeNull();
+            existingAdjustment.ApprovedAt.Should().BeNull();
+            existingAdjustment.Items.Should().ContainSingle()
+                .Which.Quantity.Should().Be(2);
+            inventory.ReservedQuantity.Should().Be(2);
             incident.Status.Should().Be(IncidentStatus.UnderResolution);
+            _mockAdjustmentRepo.Verify(
+                repository => repository.Update(existingAdjustment),
+                Times.Once);
+            _mockAdjustmentItemRepo.Verify(
+                repository => repository.RemoveRange(
+                    It.Is<IEnumerable<AdjustmentItem>>(items => items.Single() == oldItem)),
+                Times.Once);
         }
 
         [Fact]

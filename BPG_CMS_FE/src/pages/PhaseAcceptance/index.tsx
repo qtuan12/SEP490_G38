@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import type { WBSPhase, WBSTask, Project } from '../../types/common';
@@ -30,6 +31,7 @@ type AcceptanceSummary = Pick<
 export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { canManageAcceptance } = useProjectAccess(projectId);
 
   const [project, setProject] = useState<Project | null>(null);
@@ -86,7 +88,7 @@ export const PhaseAcceptance: React.FC = () => {
       setPhase(targetPhase);
 
       const allTasks = await projectService.getTasks(projectId);
-      const phaseTasks = allTasks.filter(t => t.phaseId === phaseId);
+      const phaseTasks = allTasks.filter(t => t.phaseId === phaseId && t.status !== 'obsolete');
       setTasks(phaseTasks);
 
       if (targetPhase?.status === 'frozen') {
@@ -129,6 +131,16 @@ export const PhaseAcceptance: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const invalidateWbsCache = React.useCallback(async () => {
+    if (!projectId) return;
+    await queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+  }, [projectId, queryClient]);
+
+  const refreshAfterAcceptanceMutation = React.useCallback(async () => {
+    await invalidateWbsCache();
+    await loadData();
+  }, [invalidateWbsCache, loadData]);
 
   // Realtime notification via SignalR
   useSignalREvent('ReceiveNotification', (noti: any) => {
@@ -189,6 +201,8 @@ export const PhaseAcceptance: React.FC = () => {
       setIsRevoking(false);
       setRevokeReason('');
       console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
+
+      await invalidateWbsCache();
 
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
@@ -298,7 +312,7 @@ export const PhaseAcceptance: React.FC = () => {
               allCompleted={allCompleted}
               onSuccess={(msg) => console.log(msg)}
               onError={(msg) => toast.error(msg)}
-              onPhaseUpdated={loadData}
+              onPhaseUpdated={refreshAfterAcceptanceMutation}
             />
           )}
 

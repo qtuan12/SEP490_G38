@@ -179,7 +179,7 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
             <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{execDashboard.materialsExceedingBOQ}</div>
             {execDashboard.periodComparison && (
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                {execDashboard.periodComparison.currentProcurementCost > 0 ? `${(execDashboard.periodComparison.currentProcurementCost / 1000000).toFixed(1)}M VNĐ PO` : '0 VNĐ PO'}
+                {execDashboard.periodComparison.currentProcurementCost > 0 ? `${(execDashboard.periodComparison.currentProcurementCost / 1000000).toFixed(1)}M VNĐ` : '0 VNĐ'}
               </span>
             )}
           </div>

@@ -165,7 +165,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   // Nguồn vật tư gốc để chọn
   const sourceMaterials = task ? phaseRequestedMaterials : (phase?.materials || []);
-  const displayMaterials = sourceMaterials.length > 0 ? sourceMaterials : allCatalogs;
+  const displayMaterials = sourceMaterials;
 
   // Preload conversions and units for all displayMaterials on open
   useEffect(() => {
@@ -375,7 +375,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={task ? "Đề xuất Vật tư cho Công việc" : "Yêu cầu Vật tư cho Giai đoạn"} width="lg" mobileFullScreen>
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4 max-h-[75vh] overflow-y-auto pr-1">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <div className="text-sm bg-blue-50 text-blue-800 p-3 rounded-md border border-blue-100">
           {task ? (
             <span>Công việc: <strong>{task.name}</strong></span>
@@ -400,7 +400,7 @@ export const CreateMaterialRequestModal: React.FC<CreateMaterialRequestModalProp
             </button>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 max-h-[350px] overflow-y-auto pr-1">
             {fields.map((item, idx) => {
               const rowComparison = getRowComparison(idx);
               return (

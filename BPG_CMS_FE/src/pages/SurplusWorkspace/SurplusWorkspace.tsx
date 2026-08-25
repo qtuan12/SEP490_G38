@@ -49,8 +49,9 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
 
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSurplusRequestId = searchParams.get('surplusRequestId');
+  const isIncoming = searchParams.get('incoming') === 'true';
 
-  const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>('outbound');
+  const [activeTab, setActiveTab] = useState<'outbound' | 'inbound'>(isIncoming ? 'inbound' : 'outbound');
   const [view, setView] = useState<'list' | 'detail'>(initialSurplusRequestId ? 'detail' : 'list');
   const [selectedBatchId, setSelectedBatchId] = useState<number | null>(
     initialSurplusRequestId ? Number(initialSurplusRequestId) : null
@@ -183,9 +184,6 @@ export const SurplusWorkspace: React.FC<SurplusWorkspaceProps> = ({
         <div className="flex items-center gap-2">
           <PackageX size={20} className="text-orange-500" />
           <span className="font-semibold text-slate-700 text-base">Quản lý Vật tư Thừa</span>
-          {activeTab === 'outbound' && view === 'detail' && selectedBatchId && (
-            <span className="text-slate-400 text-sm">/ Đề xuất #{selectedBatchId}</span>
-          )}
         </div>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
           <div className="flex flex-nowrap bg-slate-100 p-1 rounded-lg overflow-x-auto w-full md:w-auto hide-scrollbar">

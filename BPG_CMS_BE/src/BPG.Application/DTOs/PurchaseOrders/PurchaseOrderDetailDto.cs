@@ -13,6 +13,17 @@ namespace BPG.Application.DTOs.PurchaseOrders
         public string? ClosedReason { get; set; }
         public decimal TotalAmount { get; set; }
 
+        // Người/ngày hủy hoặc đóng đơn — lấy từ UpdatedBy/UpdatedAt vì đây luôn là thao tác
+        // ghi đè cuối cùng lên PO một khi đã Cancelled/Closed (trạng thái kết thúc).
+        public string? CancelledByName { get; set; }
+        public DateTime? CancelledAt { get; set; }
+        public string? ClosedByName { get; set; }
+        public DateTime? ClosedAt { get; set; }
+
+        // Thông tin người trình (người lập/gửi duyệt đơn hàng)
+        public string? CreatorName { get; set; }
+        public DateTime? CreatedAt { get; set; }
+
         // Thông tin duyệt của Giám đốc
         public string? ApproverName { get; set; }
         public DateTime? ApprovedAt { get; set; }

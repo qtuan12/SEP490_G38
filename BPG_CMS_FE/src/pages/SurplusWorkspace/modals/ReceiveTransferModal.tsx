@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal, Button } from '../../../components/ui';
 import { surplusService } from '../../../services/surplusService';
 import toast from 'react-hot-toast';
+import { UploadCloud, FileText } from 'lucide-react';
 
 interface ReceiveTransferModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const ReceiveTransferModal: React.FC<ReceiveTransferModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
 
   const handleSubmit = async () => {
     if (files.length === 0) {
@@ -60,24 +62,52 @@ export const ReceiveTransferModal: React.FC<ReceiveTransferModalProps> = ({
           <label className="block text-sm font-medium text-slate-700 mb-1">
             File minh chứng (Bắt buộc)
           </label>
-          <input
-            type="file"
-            multiple
-            onChange={(e) => {
-              if (e.target.files) {
-                setFiles(Array.from(e.target.files));
+          <div
+            className={`mt-2 border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+              dragging
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-slate-300 bg-slate-50 hover:bg-slate-100'
+            }`}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              if (e.dataTransfer.files) {
+                setFiles(Array.from(e.dataTransfer.files));
               }
             }}
-            className="block w-full text-sm text-slate-500
-              file:mr-4 file:py-2 file:px-4
-              file:rounded file:border-0
-              file:text-sm file:font-medium
-              file:bg-blue-50 file:text-blue-700
-              hover:file:bg-blue-100"
-          />
+            onClick={() => document.getElementById('receive-file-upload')?.click()}
+          >
+            <input
+              id="receive-file-upload"
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                if (e.target.files) {
+                  setFiles(Array.from(e.target.files));
+                }
+              }}
+              className="hidden"
+              disabled={loading}
+            />
+            <UploadCloud size={28} className="text-slate-400 mx-auto mb-2" />
+            <p className="text-sm text-slate-600 font-medium mb-1">
+              Nhấn để chọn hoặc kéo thả file vào đây
+            </p>
+            <p className="text-xs text-slate-400">
+              Hỗ trợ ảnh và PDF
+            </p>
+          </div>
           {files.length > 0 && (
-            <ul className="mt-2 text-xs text-slate-500 list-disc list-inside">
-              {files.map((f, i) => <li key={i}>{f.name}</li>)}
+            <ul className="mt-3 space-y-1">
+              {files.map((f, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                  <FileText size={14} className="text-slate-400 shrink-0" />
+                  <span className="truncate">{f.name}</span>
+                </li>
+              ))}
             </ul>
           )}
         </div>

@@ -95,21 +95,21 @@ public class CompleteProjectCommandHandler : IRequestHandler<CompleteProjectComm
         if (phaseCount == 0)
             throw new BusinessException(ErrorCodes.ProjectHasNoPhases, "Dự án chưa có giai đoạn thi công nên chưa thể hoàn thành.");
 
-        // Obsolete tasks are no longer part of the valid execution plan. Every
-        // remaining task must be both 100% and in a terminal work status.
+        // Obsolete tasks are no longer part of the valid execution plan. Phase
+        // acceptance uses 100% progress as its task-completion contract, so project
+        // completion must use the same rule. The approved phase below is the formal
+        // acceptance evidence; historical data may still carry a stale task status.
         var uncompletedTaskCount = await _uow.Repository<ProjectTask>()
             .Query()
             .AsNoTracking()
             .Where(t => t.Phase.ProjectId == request.ProjectId
                         && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete
-                        && (t.ProgressPercent < 100
-                            || (t.Status != BPG.Domain.Constants.TaskStatus.Completed
-                                && t.Status != BPG.Domain.Constants.TaskStatus.Approved)))
+                        && t.ProgressPercent < 100)
             .CountAsync(cancellationToken);
 
         if (uncompletedTaskCount > 0)
         {
-            throw new BusinessException(ErrorCodes.ProjectTasksNotCompleted, $"Dự án còn {uncompletedTaskCount} công việc chưa hoàn thành. Mọi công việc còn hiệu lực phải đạt 100% và có trạng thái Hoàn thành/Đã duyệt.");
+            throw new BusinessException(ErrorCodes.ProjectTasksNotCompleted, $"Dự án còn {uncompletedTaskCount} công việc chưa hoàn thành 100%.");
         }
 
         var unacceptedPhaseCount = await _uow.Repository<Phase>()

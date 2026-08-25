@@ -7,6 +7,7 @@ using BPG.Domain.Entities;
 using BPG.Domain.Exceptions;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using BPG.Domain.Constants;
 
 namespace BPG.Application.Features.Surplus.Handlers;
 
@@ -36,7 +37,9 @@ public class GetIncomingTransfersQueryHandler : IRequestHandler<GetIncomingTrans
             .Include(t => t.SurplusRequestItem)
                 .ThenInclude(i => i.Unit)
             .Include(t => t.Approver)
-            .Where(t => t.ToProjectId == request.ProjectId)
+            .Where(t => t.ToProjectId == request.ProjectId && 
+                        t.Status != SurplusTransferStatus.Pending && 
+                        t.Status != SurplusTransferStatus.Rejected)
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => new IncomingSurplusTransferDto
             {
