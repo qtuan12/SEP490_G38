@@ -518,6 +518,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
                         <th>Phân loại</th>
                         <th>Công việc / Giai đoạn bị sự cố</th>
                         <th>Người báo cáo</th>
+                        <th>Người phê duyệt</th>
                         <th>Trạng thái</th>
                         <th className="text-center">Chi tiết</th>
                       </tr>
@@ -545,6 +546,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
                             </strong>
                           </td>
                           <td className="text-sm">{inc.reporterName}</td>
+                          <td className="text-sm">{inc.reviewerName || '—'}</td>
                           <td className="whitespace-nowrap">{getStatusBadge(inc.status, inc.incidentType)}</td>
                           <td className="text-center">
                             <Button variant="secondary" className="py-1 px-2 text-[0.75rem] h-auto">Xem</Button>
