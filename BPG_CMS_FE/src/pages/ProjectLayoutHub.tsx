@@ -102,21 +102,22 @@ const cleanPauseReason = (reason: string): string => {
 };
 
 interface StatusHistoryItem {
-  type: 'pause' | 'resume';
+  type: 'pause' | 'resume' | 'activate' | 'start' | 'complete' | 'close';
   reason?: string;
   timestamp: string;
   user: string;
 }
 
-const parseStatusHistory = (rawReason: string | null | undefined): StatusHistoryItem[] => {
-  if (!rawReason) return [];
-  const trimmed = rawReason.trim();
+const parseStatusHistory = (rawReason: string | null | undefined, proj?: Project | null): StatusHistoryItem[] => {
+  let list: StatusHistoryItem[] = [];
+  const trimmed = rawReason?.trim() || '';
+
   if (trimmed.startsWith('[')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
-        return parsed.map((item: any) => ({
-          type: String(item.type || item.Type || 'pause').toLowerCase() as 'pause' | 'resume',
+        list = parsed.map((item: any) => ({
+          type: String(item.type || item.Type || 'pause').toLowerCase() as any,
           reason: item.reason || item.Reason,
           timestamp: item.timestamp || item.Timestamp,
           user: item.user || item.User
@@ -125,13 +126,45 @@ const parseStatusHistory = (rawReason: string | null | undefined): StatusHistory
     } catch {
       // Fallback
     }
+  } else if (trimmed) {
+    list = [{
+      type: 'pause',
+      reason: rawReason || undefined,
+      timestamp: proj?.pausedAt || '',
+      user: 'Hệ thống'
+    }];
   }
-  return [{
-    type: 'pause',
-    reason: rawReason,
-    timestamp: '',
-    user: 'Hệ thống'
-  }];
+
+  // Fallback / Synthesize initial activation entry if project is not draft and no activate entry exists
+  if (proj && proj.status !== 'draft') {
+    const hasActivate = list.some(i => i.type === 'activate' || i.type === 'start');
+    if (!hasActivate) {
+      const earliestTimestamp = list.length > 0 && list[0].timestamp
+        ? new Date(new Date(list[0].timestamp).getTime() - 1000).toISOString()
+        : (proj.startDate ? new Date(proj.startDate).toISOString() : '');
+
+      list.unshift({
+        type: 'activate',
+        reason: 'Kích hoạt bắt đầu thi công dự án',
+        timestamp: earliestTimestamp,
+        user: 'Ban quản lý dự án'
+      });
+    }
+
+    if (proj.status === 'done') {
+      const hasComplete = list.some(i => i.type === 'complete' || i.type === 'close');
+      if (!hasComplete) {
+        list.push({
+          type: 'complete',
+          reason: 'Hoàn thành dự án',
+          timestamp: proj.endDate ? new Date(proj.endDate).toISOString() : '',
+          user: 'Ban quản lý dự án'
+        });
+      }
+    }
+  }
+
+  return list;
 };
 
 export const ProjectLayoutHub: React.FC = () => {
@@ -314,18 +347,9 @@ export const ProjectLayoutHub: React.FC = () => {
   useSignalREvent('ProjectMemberAdded', refreshProjectFromRealtime);
   useSignalREvent('ProjectMemberRemoved', refreshProjectFromRealtime);
   useSignalREvent('ProjectLeaderUpdated', refreshProjectFromRealtime);
-
-  useSignalREvent('IncidentUpdated', () => {
-    refreshProjectFromRealtime();
-  });
-
-  useSignalREvent('ProjectUpdated', () => {
-    refreshProjectFromRealtime();
-  });
-
-  useSignalREvent('IncidentCreated', () => {
-    refreshProjectFromRealtime();
-  });
+  useSignalREvent('IncidentUpdated', refreshProjectFromRealtime);
+  useSignalREvent('ProjectUpdated', refreshProjectFromRealtime);
+  useSignalREvent('IncidentCreated', refreshProjectFromRealtime);
 
   const handleStatusChange = async (newStatus: 'inprogress' | 'paused' | 'done') => {
     if (!project) return;
@@ -447,7 +471,7 @@ export const ProjectLayoutHub: React.FC = () => {
               {project.status === 'inprogress' && <span className="badge badge-success">Đang chạy</span>}
               {project.status === 'paused' && <span className="badge badge-warning">Tạm dừng </span>}
               {project.status === 'done' && <span className="badge badge-success">Hoàn thành </span>}
-              {project.pauseReason && (
+              {(project.pauseReason || project.status !== 'draft') && (
                 <button
                   onClick={() => setIsHistoryModalOpen(true)}
                   style={{
@@ -463,7 +487,7 @@ export const ProjectLayoutHub: React.FC = () => {
                     cursor: 'pointer',
                     fontWeight: 500,
                   }}
-                  title="Xem lịch sử dừng & tiếp tục dự án"
+                  title="Xem lịch sử trạng thái & hoạt động dự án"
                 >
                   <History size={13} />
                   Lịch sử hoạt động
@@ -480,11 +504,10 @@ export const ProjectLayoutHub: React.FC = () => {
                 <Calendar size={14} style={{ color: 'hsl(var(--text-muted))' }} />
                 Hạn: {project.startDate?.split('-').reverse().join('-')} → {project.endDate?.split('-').reverse().join('-')}
               </span>
-
             </div>
 
             {project.status === 'paused' && project.pauseReason && (() => {
-              const history = parseStatusHistory(project.pauseReason);
+              const history = parseStatusHistory(project.pauseReason, project);
               const lastPause = [...history].reverse().find(h => h.type === 'pause');
               const pauseUser = lastPause?.user || "Hệ thống";
               const pauseTime = lastPause?.timestamp
@@ -519,8 +542,8 @@ export const ProjectLayoutHub: React.FC = () => {
                 <button onClick={() => navigate(`/projects/${projectId}/reports/boq`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Package size={16} /> Báo cáo BOQ
                 </button>
-                <button onClick={() => navigate(`/projects/${projectId}/reports/cost`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertCircle size={16} /> Báo cáo Chi phí
+                <button onClick={() => navigate(`/reports?projectId=${projectId}&tab=procurement`)} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={16} /> Mua sắm & Chi phí
                 </button>
               </>
             )}
@@ -1016,7 +1039,7 @@ export const ProjectLayoutHub: React.FC = () => {
         <Modal
           isOpen={isHistoryModalOpen}
           onClose={() => setIsHistoryModalOpen(false)}
-          title="Lịch sử dừng & tiếp tục dự án"
+          title="Lịch sử trạng thái dự án"
           width="lg"
           footer={
             <Button variant="outline" onClick={() => setIsHistoryModalOpen(false)}>
@@ -1026,13 +1049,37 @@ export const ProjectLayoutHub: React.FC = () => {
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '10px 0' }}>
             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-secondary))' }}>
-              Nhật ký ghi nhận lịch sử các lần tạm dừng thi công khẩn cấp (sự cố) hoặc tạm dừng chủ động, và kích hoạt hoạt động lại dự án.
+              Nhật ký ghi nhận lịch sử các mốc kích hoạt dự án, tạm dừng thi công, tiếp tục thi công và hoàn thành dự án.
             </p>
 
             <div style={{ position: 'relative', paddingLeft: '24px', borderLeft: '2px solid hsl(var(--border))', marginLeft: '12px', display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '10px' }}>
-              {parseStatusHistory(project.pauseReason).map((item, index) => {
+              {parseStatusHistory(project.pauseReason, project).map((item, index) => {
                 const isPause = item.type === 'pause';
+                const isActivate = item.type === 'activate' || item.type === 'start';
+                const isComplete = item.type === 'complete' || item.type === 'close';
                 const formattedDate = item.timestamp ? new Date(item.timestamp).toLocaleString('vi-VN') : 'Không rõ thời gian';
+
+                let dotBg = 'hsl(var(--success-glow))';
+                let dotBorder = 'hsl(var(--success))';
+                let dotColor = 'hsl(var(--success))';
+                let title = '⚡ Tiếp tục thi công';
+
+                if (isPause) {
+                  dotBg = 'hsl(var(--danger-glow))';
+                  dotBorder = 'hsl(var(--danger))';
+                  dotColor = 'hsl(var(--danger))';
+                  title = '🛑 Tạm dừng dự án';
+                } else if (isActivate) {
+                  dotBg = 'hsl(var(--primary-glow))';
+                  dotBorder = 'hsl(var(--primary))';
+                  dotColor = 'hsl(var(--primary))';
+                  title = '🚀 Kích hoạt dự án';
+                } else if (isComplete) {
+                  dotBg = 'rgba(139, 92, 246, 0.15)';
+                  dotBorder = '#8b5cf6';
+                  dotColor = '#8b5cf6';
+                  title = '🎉 Hoàn thành dự án';
+                }
 
                 return (
                   <div key={index} style={{ position: 'relative' }}>
@@ -1044,15 +1091,21 @@ export const ProjectLayoutHub: React.FC = () => {
                       width: '20px',
                       height: '20px',
                       borderRadius: '50%',
-                      backgroundColor: isPause ? 'hsl(var(--danger-glow))' : 'hsl(var(--success-glow))',
-                      border: `2px solid ${isPause ? 'hsl(var(--danger))' : 'hsl(var(--success))'}`,
+                      backgroundColor: dotBg,
+                      border: `2px solid ${dotBorder}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: isPause ? 'hsl(var(--danger))' : 'hsl(var(--success))',
+                      color: dotColor,
                       zIndex: 1
                     }}>
-                      {isPause ? <Pause size={10} style={{ color: 'inherit' }} /> : <Play size={10} style={{ color: 'inherit' }} />}
+                      {isPause ? (
+                        <Pause size={10} style={{ color: 'inherit' }} />
+                      ) : isComplete ? (
+                        <CheckCircle size={10} style={{ color: 'inherit' }} />
+                      ) : (
+                        <Play size={10} style={{ color: 'inherit' }} />
+                      )}
                     </div>
 
                     {/* Timeline Content card */}
@@ -1070,9 +1123,9 @@ export const ProjectLayoutHub: React.FC = () => {
                         <span style={{
                           fontWeight: 700,
                           fontSize: '0.95rem',
-                          color: isPause ? 'hsl(var(--danger))' : 'hsl(var(--success))'
+                          color: dotColor
                         }}>
-                          {isPause ? '🛑 Tạm dừng dự án' : '🚀 Tiếp tục thi công'}
+                          {title}
                         </span>
                         <span style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Clock size={12} />
@@ -1084,10 +1137,10 @@ export const ProjectLayoutHub: React.FC = () => {
                         Thực hiện bởi: <strong>{item.user || 'Hệ thống'}</strong>
                       </div>
 
-                      {isPause && item.reason && (
+                      {item.reason && (
                         <div style={{
-                          backgroundColor: 'hsl(var(--muted)/0.3)',
-                          borderLeft: '3px solid hsl(var(--danger))',
+                          backgroundColor: isPause ? 'hsl(var(--muted)/0.3)' : 'hsl(var(--bg-main))',
+                          borderLeft: `3px solid ${dotBorder}`,
                           padding: '8px 12px',
                           borderRadius: '4px',
                           fontSize: '0.88rem',
@@ -1095,7 +1148,7 @@ export const ProjectLayoutHub: React.FC = () => {
                           marginTop: '4px',
                           whiteSpace: 'pre-wrap'
                         }}>
-                          <strong>Lý do dừng:</strong> {cleanPauseReason(item.reason)}
+                          <strong>{isPause ? 'Lý do dừng:' : isActivate ? 'Nội dung:' : isComplete ? 'Nội dung:' : 'Ghi chú:'}</strong> {isPause ? cleanPauseReason(item.reason) : item.reason}
                         </div>
                       )}
                     </div>

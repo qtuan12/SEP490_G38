@@ -822,7 +822,7 @@ export const WBSTree = () => {
 
                                         {project?.status !== 'draft' && (
                                           <>
-                                            {isPL ? (
+                                            {isPL && !hasChildren ? (
                                               <div
                                                 style={menuItemStyle}
                                                 onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -851,7 +851,7 @@ export const WBSTree = () => {
                                               <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                             </div>
 
-                                            {isPL && (() => {
+                                            {isPL && !hasChildren && (() => {
                                               const hasIncompletePredecessor = t.predecessorTaskIds && t.predecessorTaskIds.length > 0 && t.predecessorTaskIds.some(preId => {
                                                 const predecessor = tasks.find(p => p.id === String(preId) || p.id === `t-${preId}`);
                                                 if (!predecessor) return false;

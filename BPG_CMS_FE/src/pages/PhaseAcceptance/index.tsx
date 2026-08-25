@@ -204,6 +204,12 @@ export const PhaseAcceptance: React.FC = () => {
 
       await invalidateWbsCache();
 
+      // Invalidate WBS data cache so WBSWorkspace reflects the updated phase status
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['wbsData', `p-${projectId}`] });
+      }
+
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });
       await loadData(true, String(targetId));

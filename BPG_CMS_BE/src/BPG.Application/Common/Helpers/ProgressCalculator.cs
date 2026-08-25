@@ -45,6 +45,31 @@ public static class ProgressCalculator
         return Math.Round(weightedSum / totalWeight, 1);
     }
 
+    public static decimal GetWbsEffectiveWeight(ProjectTask task)
+    {
+        var durationDays = task.EndDate.DayNumber - task.StartDate.DayNumber + 1;
+        var durationWeight = Math.Max(1, durationDays);
+        return task.Weight.HasValue && task.Weight.Value > 0m
+            ? durationWeight * task.Weight.Value
+            : durationWeight;
+    }
+
+    public static decimal CalculateWbsWeightedProgress(
+        IEnumerable<ProjectTask> tasks,
+        Func<ProjectTask, decimal>? progressSelector = null)
+    {
+        var validTasks = tasks.Where(t => t.Status != TaskStatus.Obsolete).ToList();
+        if (validTasks.Count == 0) return 0m;
+
+        var totalWeight = validTasks.Sum(GetWbsEffectiveWeight);
+        if (totalWeight <= 0m) return 0m;
+
+        progressSelector ??= GetEffectiveProgress;
+        return Math.Round(
+            validTasks.Sum(t => GetWbsEffectiveWeight(t) * progressSelector(t)) / totalWeight,
+            1);
+    }
+
     public static decimal CalculateExpectedTaskProgress(ProjectTask task, DateTime now)
     {
         var sDate = task.StartDate.ToDateTime(TimeOnly.MinValue);
@@ -69,5 +94,18 @@ public static class ProgressCalculator
 
         decimal weightedSum = validTasks.Sum(t => GetEffectiveWeight(t) * CalculateExpectedTaskProgress(t, now));
         return Math.Round(weightedSum / totalWeight, 1);
+    }
+
+    public static decimal CalculateWbsWeightedExpectedProgress(IEnumerable<ProjectTask> tasks, DateTime asOf)
+    {
+        var validTasks = tasks.Where(t => t.Status != TaskStatus.Obsolete).ToList();
+        if (validTasks.Count == 0) return 0m;
+
+        var totalWeight = validTasks.Sum(GetWbsEffectiveWeight);
+        if (totalWeight <= 0m) return 0m;
+
+        return Math.Round(
+            validTasks.Sum(t => GetWbsEffectiveWeight(t) * CalculateExpectedTaskProgress(t, asOf)) / totalWeight,
+            1);
     }
 }

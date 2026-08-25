@@ -1013,7 +1013,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'hsl(var(--bg-muted))', borderRadius: '10px', border: '1px solid hsl(var(--border))' }}>
           {[
             { n: 1, label: 'Trưởng dự án Báo cáo', done: true },
-            { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'TPKT Thẩm định', done: isInventoryIncident ? !['Reported', 'WaitingAccountant'].includes(incident.status) : !['Reported', 'WaitingReview'].includes(incident.status) },
+            { n: 2, label: isInventoryIncident ? 'Kế toán Xác minh' : 'Trưởng phòng kĩ thuật Thẩm định', done: isInventoryIncident ? !['Reported', 'WaitingAccountant'].includes(incident.status) : !['Reported', 'WaitingReview'].includes(incident.status) },
             { n: 3, label: isInventoryIncident ? 'Xử lý tổn thất' : 'Hoàn tất', done: ['Approved', 'Closed', 'Resolved'].includes(incident.status) },
           ].map((step, idx) => (
             <React.Fragment key={step.n}>
@@ -1919,42 +1919,42 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
         && (incident.status === 'WaitingAccountant'
           || (incident.status === 'UnderResolution' && incident.latestAdjustmentStatus !== 'Pending'))
         && isAccountant && (
-        isRejecting ? (
-          <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
-            <textarea
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              className="input"
-              rows={3}
-              placeholder="Nhập lý do từ chối chi tiết..."
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
-                Hủy
+          isRejecting ? (
+            <div style={{ padding: '12px', background: 'hsl(var(--bg-muted))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Lý do từ chối <span style={{ color: 'hsl(var(--danger))' }}>*</span></label>
+              <textarea
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                className="input"
+                rows={3}
+                placeholder="Nhập lý do từ chối chi tiết..."
+              />
+              <div style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setIsRejecting(false)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem' }} disabled={rejectMutation.isPending}>
+                  Hủy
+                </button>
+                <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
+                  {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
+              <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
+                ❌ Từ chối
               </button>
-              <button onClick={() => rejectMutation.mutate()} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'hsl(var(--danger))' }} disabled={!rejectReason.trim() || rejectMutation.isPending}>
-                {rejectMutation.isPending ? 'Đang xử lý...' : 'Xác nhận Từ chối'}
+              <button
+                onClick={onResolveClick}
+                className="btn btn-primary"
+                style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}
+                disabled={!isProjectActive}
+                title={!isProjectActive ? 'Chỉ có thể tạo phiếu khi dự án đang thực hiện' : undefined}
+              >
+                📦 {incident.latestAdjustmentStatus === 'RevisionRequired' ? 'Chỉnh sửa và gửi lại phiếu giảm tồn' : 'Tạo phiếu giảm tồn'}
               </button>
             </div>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid hsl(var(--border))' }}>
-            <button onClick={() => setIsRejecting(true)} className="btn btn-outline" style={{ minWidth: '140px', fontSize: '0.85rem', padding: '10px', color: 'hsl(var(--danger))', border: '1px solid hsl(var(--danger))' }}>
-              ❌ Từ chối
-            </button>
-            <button
-              onClick={onResolveClick}
-              className="btn btn-primary"
-              style={{ minWidth: '220px', fontSize: '0.85rem', padding: '10px', background: 'hsl(210, 70%, 45%)' }}
-              disabled={!isProjectActive}
-              title={!isProjectActive ? 'Chỉ có thể tạo phiếu khi dự án đang thực hiện' : undefined}
-            >
-              📦 {incident.latestAdjustmentStatus === 'RevisionRequired' ? 'Chỉnh sửa và gửi lại phiếu giảm tồn' : 'Tạo phiếu giảm tồn'}
-            </button>
-          </div>
-        )
-      )}
+          )
+        )}
 
 
 

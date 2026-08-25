@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle, Clock, AlertTriangle, AlertCircle, TrendingUp, ChevronRight, ShieldAlert, Layers } from 'lucide-react';
+import { CheckCircle, AlertTriangle, AlertCircle, TrendingUp, ChevronRight, ShieldAlert, Layers } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/ui';
 import { reportService, type ExecutiveDashboardDto } from '../../../services/reportService';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -16,7 +16,6 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
   const [execDashboard, setExecDashboard] = useState<ExecutiveDashboardDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filterWarning, setFilterWarning] = useState<'All' | 'Red' | 'Yellow'>('All');
   const [filterPhase, setFilterPhase] = useState<string>('All');
   const navigate = useNavigate();
 
@@ -60,13 +59,12 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
     return <div className="p-10 text-center text-[hsl(var(--text-muted))]">Không có dữ liệu báo cáo.</div>;
   }
 
-  const pendingTasks = Math.max(0, execDashboard.totalTasks - execDashboard.completedTasks - execDashboard.delayedTasks - execDashboard.atRiskTasks);
+  const pendingTasks = Math.max(0, execDashboard.totalTasks - execDashboard.completedTasks - execDashboard.delayedTasks);
 
   const taskStatusData = [
     { name: 'Hoàn thành', value: execDashboard.completedTasks, color: '#10b981' },
     { name: 'Đang triển khai', value: pendingTasks, color: '#6366f1' },
-    { name: 'Trễ hạn (Đỏ)', value: execDashboard.delayedTasks, color: '#ef4444' },
-    { name: 'Nguy cơ (Vàng)', value: execDashboard.atRiskTasks, color: '#f59e0b' },
+    { name: 'Trễ hạn', value: execDashboard.delayedTasks, color: '#ef4444' },
   ].filter(d => d.value > 0);
 
   const phaseChartData = (execDashboard.phaseBreakdown || []).map(p => ({
@@ -87,9 +85,9 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
   /** Hạn công việc là ngày thuần (DateOnly) — không quy đổi múi giờ. */
   const formatDate = (dateStr: string) => formatPlainDate(dateStr);
 
-  const uniquePhases = Array.from(new Set((execDashboard.delayedTasksList || []).map(t => t.phaseName)));
-  const filteredTasks = (execDashboard.delayedTasksList || []).filter(t => {
-    if (filterWarning !== 'All' && t.warningType !== filterWarning) return false;
+  const overdueTasks = (execDashboard.delayedTasksList || []).filter(t => t.warningType === 'Red');
+  const uniquePhases = Array.from(new Set(overdueTasks.map(t => t.phaseName)));
+  const filteredTasks = overdueTasks.filter(t => {
     if (filterPhase !== 'All' && t.phaseName !== filterPhase) return false;
     return true;
   });
@@ -98,13 +96,13 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Top Metric Cards Row with Period-over-Period Badges */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Top Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* KPI 1 */}
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-indigo-50/50 dark:from-slate-900 dark:to-indigo-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-emerald-500" />
           <div className="flex justify-between items-start">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Tiến độ công việc</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Công việc hoàn thành</span>
             <div className="p-2.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
               <CheckCircle size={20} />
             </div>
@@ -113,15 +111,10 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
             <div className="text-3xl font-black text-slate-900 dark:text-white">
               {execDashboard.completedTasks} <span className="text-sm text-slate-400 font-semibold">/ {execDashboard.totalTasks}</span>
             </div>
-            <div className="mt-2 flex items-center justify-between">
+            <div className="mt-2">
               <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                 <TrendingUp size={14} /> {completionRate}% Hoàn thành
               </span>
-              {execDashboard.periodComparison && (
-                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${execDashboard.periodComparison.completedTasksDeltaPercent >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                  {execDashboard.periodComparison.completedTasksDeltaPercent >= 0 ? `+${execDashboard.periodComparison.completedTasksDeltaPercent}%` : `${execDashboard.periodComparison.completedTasksDeltaPercent}%`} vs kỳ trước
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -130,60 +123,30 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-red-50/50 dark:from-slate-900 dark:to-red-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
           <div className="flex justify-between items-start">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Trễ hạn (Đỏ)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Trễ hạn</span>
             <div className="p-2.5 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl">
               <AlertCircle size={20} />
             </div>
           </div>
-          <div className="mt-4 flex items-baseline justify-between">
+          <div className="mt-4">
             <div className="text-3xl font-black text-red-600 dark:text-red-400">{execDashboard.delayedTasks}</div>
-            {execDashboard.periodComparison && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                {execDashboard.periodComparison.previousCompletedTasks} xong kỳ trước
-              </span>
-            )}
           </div>
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Cần xử lý & đẩy tiến độ ngay</div>
         </div>
 
         {/* KPI 3 */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-white to-amber-50/50 dark:from-slate-900 dark:to-amber-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-          <div className="flex justify-between items-start">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nguy cơ trễ (Vàng)</span>
-            <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
-              <Clock size={20} />
-            </div>
-          </div>
-          <div className="mt-4 flex items-baseline justify-between">
-            <div className="text-3xl font-black text-amber-600 dark:text-amber-400">{execDashboard.atRiskTasks}</div>
-            {execDashboard.periodComparison && (
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${execDashboard.periodComparison.incidentsDeltaPercent <= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                {execDashboard.periodComparison.currentIncidents} sự cố kỳ này
-              </span>
-            )}
-          </div>
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Chậm tiến độ so với kế hoạch</div>
-        </div>
-
-        {/* KPI 4 */}
         <div className="relative overflow-hidden bg-gradient-to-br from-white to-rose-50/50 dark:from-slate-900 dark:to-rose-950/30 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
           <div className="absolute top-0 left-0 right-0 h-1 bg-rose-600" />
           <div className="flex justify-between items-start">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Vật tư vượt dự toán</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Yêu cầu vật tư vượt dự toán</span>
             <div className="p-2.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 rounded-xl">
               <AlertTriangle size={20} />
             </div>
           </div>
-          <div className="mt-4 flex items-baseline justify-between">
+          <div className="mt-4">
             <div className="text-3xl font-black text-rose-600 dark:text-rose-400">{execDashboard.materialsExceedingBOQ}</div>
-            {execDashboard.periodComparison && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                {execDashboard.periodComparison.currentProcurementCost > 0 ? `${(execDashboard.periodComparison.currentProcurementCost / 1000000).toFixed(1)}M VNĐ` : '0 VNĐ'}
-              </span>
-            )}
           </div>
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Yêu cầu vật tư vượt dự toán</div>
+          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Số loại vật tư có trong yêu cầu vượt dự toán trong kỳ</div>
         </div>
       </div>
 
@@ -255,22 +218,13 @@ export const ExecutiveDashboardReport: React.FC<Props> = ({ projectId, fromDate,
 
 
       {/* Actionable Warning Tasks Table */}
-      {(execDashboard.delayedTasksList || []).length > 0 && (
+      {overdueTasks.length > 0 && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
           <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50 dark:bg-slate-900/50">
             <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
               <ShieldAlert size={18} className="text-red-500" /> Danh sách công việc cần chú ý ({filteredTasks.length})
             </h4>
             <div className="flex flex-wrap items-center gap-3">
-              <select
-                className="px-3 py-1.5 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                value={filterWarning}
-                onChange={e => setFilterWarning(e.target.value as any)}
-              >
-                <option value="All">Tất cả mức độ</option>
-                <option value="Red">🔴 Trễ hạn (Đỏ)</option>
-                <option value="Yellow">🟡 Nguy cơ (Vàng)</option>
-              </select>
               <select
                 className="px-3 py-1.5 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 value={filterPhase}

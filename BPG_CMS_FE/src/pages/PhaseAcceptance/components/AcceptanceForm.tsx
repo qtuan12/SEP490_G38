@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import MDEditor from '@uiw/react-md-editor';
 import rehypeSanitize from 'rehype-sanitize';
 import { phaseAcceptanceService } from '../../../services/phaseAcceptanceService';
@@ -33,6 +33,7 @@ export const AcceptanceForm: React.FC<AcceptanceFormProps> = ({
   onError,
   onPhaseUpdated
 }) => {
+  const queryClient = useQueryClient();
   const [repAName, setRepAName] = useState('');
   const [repARole, setRepARole] = useState('');
   const [repBName, setRepBName] = useState('');
@@ -86,6 +87,10 @@ ${conclusion2 ? `- ${conclusion2}` : ''}`;
       });
     },
     onSuccess: (result) => {
+      // Invalidate WBS data cache so WBSWorkspace reflects the updated phase status (frozen)
+      const projectKey = `p-${project.id}`;
+      queryClient.invalidateQueries({ queryKey: ['wbsData', projectKey] });
+      queryClient.invalidateQueries({ queryKey: ['wbsData', String(project.id)] });
       onSuccess(result.message || 'Đã nghiệm thu giai đoạn.');
       onPhaseUpdated();
     },
