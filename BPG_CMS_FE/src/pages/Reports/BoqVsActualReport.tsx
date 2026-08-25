@@ -306,7 +306,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                       >
                         <option value="all">Tất cả trạng thái</option>
                         <option value="safe">✅ An toàn</option>
-                        <option value="earnedExceeding">⚠️ Cảnh báo tiến độ</option>
+                        <option value="earnedExceeding">⚠️ Cảnh báo vượt dự toán</option>
                         <option value="exceeding">🚨 Vượt tổng Dự toán</option>
                       </select>
                     </div>
@@ -393,7 +393,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                                 </span>
                               ) : isEarnedExceeding ? (
                                 <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap">
-                                  <AlertTriangle size={10} /> CẢNH BÁO TIẾN ĐỘ
+                                  <AlertTriangle size={10} /> CẢNH BÁO VƯỢT DỰ TOÁN
                                 </span>
                               ) : (
                                 <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 px-2 py-0.5 rounded-full text-[9.5px] font-bold whitespace-nowrap">

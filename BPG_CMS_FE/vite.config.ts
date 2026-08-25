@@ -26,7 +26,9 @@ export default defineConfig({
       injectRegister: 'script-defer',
       includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'logo.png'],
       devOptions: {
-        enabled: true,
+        // A development service worker easily leaves stale source bundles in
+        // the browser. Enable it only for an explicit PWA test run.
+        enabled: process.env.VITE_ENABLE_PWA_DEV === 'true',
         type: 'module'
       },
       manifest: {
@@ -46,6 +48,10 @@ export default defineConfig({
       workbox: {
         navigateFallbackDenylist: [/^\/api/],
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // Activate a deployed worker immediately so a newly opened tab is not
+        // controlled by the previous release's precache.
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],

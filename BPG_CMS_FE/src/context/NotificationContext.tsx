@@ -27,7 +27,7 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-
+const INITIAL_CONNECTION_RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 30_000] as const;
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
@@ -214,12 +214,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const connection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
-        accessTokenFactory: () => token || '',
+        // Always read the latest token. The API client may refresh it without
+        // recreating this callback immediately.
+        accessTokenFactory: () => localStorage.getItem('bpg_token') || '',
       })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
       .build();
     let disposed = false;
+    let initialRetryAttempt = 0;
+    let initialRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
     connection.on('ReceiveNotification', (noti: Notification) => {
       console.log('Nhận thông báo realtime:', noti);
@@ -274,9 +278,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     });
 
-    connection
-      .start()
-      .then(() => {
+    const startConnection = async () => {
+      try {
+        await connection.start();
         if (disposed) {
           void connection.stop().catch(error => {
             console.error('Không thể ngắt kết nối SignalR đã hủy:', error);
@@ -286,13 +290,29 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         console.log('Đã kết nối SignalR Notification Hub thành công.');
         connectionRef.current = connection;
         setConnection(connection);
-      })
-      .catch((err: any) => {
-        if (!disposed) console.error('Lỗi kết nối SignalR Hub:', err);
-      });
+      } catch (err) {
+        if (disposed) return;
+
+        const delay = INITIAL_CONNECTION_RETRY_DELAYS_MS[
+          Math.min(initialRetryAttempt, INITIAL_CONNECTION_RETRY_DELAYS_MS.length - 1)
+        ];
+        initialRetryAttempt += 1;
+        console.error(`Lỗi kết nối SignalR Hub. Thử lại sau ${delay / 1000}s:`, err);
+        initialRetryTimer = setTimeout(() => {
+          initialRetryTimer = null;
+          void startConnection();
+        }, delay);
+      }
+    };
+
+    void startConnection();
 
     return () => {
       disposed = true;
+      if (initialRetryTimer !== null) {
+        clearTimeout(initialRetryTimer);
+        initialRetryTimer = null;
+      }
       if (dataChangedTimerRef.current !== null) {
         clearTimeout(dataChangedTimerRef.current);
         dataChangedTimerRef.current = null;
