@@ -129,7 +129,7 @@ export const ReportsHub: React.FC = () => {
     { id: 'executive', label: 'Tổng quan', icon: <LayoutDashboard size={16} />, showForAll: true },
     { id: 'construction', label: 'Tiến độ Thi công', icon: <HardHat size={16} />, showForAll: false },
     { id: 'incidents', label: 'Sự cố', icon: <AlertOctagon size={16} />, showForAll: false },
-    { id: 'boq', label: 'Định mức BOQ', icon: <Package size={16} />, showForAll: true },
+    { id: 'boq', label: 'Dự toán vật tư', icon: <Package size={16} />, showForAll: true },
     { id: 'procurement', label: 'Mua sắm & Chi phí', icon: <ShoppingCart size={16} />, showForAll: true },
     { id: 'returns-surplus', label: 'Hoàn trả & Vật tư thừa', icon: <RotateCcw size={16} />, showForAll: true },
   ];

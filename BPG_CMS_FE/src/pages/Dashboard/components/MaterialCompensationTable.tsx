@@ -53,7 +53,7 @@ export const MaterialCompensationTable: React.FC<MaterialCompensationTableProps>
           <span>Phê duyệt Vật tư bù đắp Sự cố (Over BOQ Approval)</span>
         </h3>
         <p className="text-[0.75rem] text-[hsl(var(--text-muted))] mt-1">
-          Cấp vật tư đền bù cho các Rework Task · Tự động phát hiện vượt định mức (Over BOQ) · Soát xét Kế toán & Phê duyệt của Giám đốc (Bước 5)
+          Cấp vật tư đền bù cho các Rework Task · Tự động phát hiện vượt dự toán (Over BOQ) · Soát xét Kế toán & Phê duyệt của Giám đốc (Bước 5)
         </p>
       </div>
 
@@ -112,9 +112,9 @@ export const MaterialCompensationTable: React.FC<MaterialCompensationTableProps>
                             {req.type === 'emergency' ? (
                               <Badge variant="warning" className="text-[9px] bg-[hsl(38_92%_95%)] text-[hsl(38_90%_40%)] py-0.5 px-1.5 normal-case font-semibold">Khẩn cấp (Direct Purchase)</Badge>
                             ) : req.isOverBOQ ? (
-                              <Badge variant="danger" className="text-[9px] py-0.5 px-1.5 normal-case font-semibold">Over BOQ (Vượt định mức)</Badge>
+                              <Badge variant="danger" className="text-[9px] py-0.5 px-1.5 normal-case font-semibold">Over BOQ (Vượt dự toán)</Badge>
                             ) : (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full font-semibold bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[9px]">Trong định mức</span>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full font-semibold bg-[hsl(210_20%_90%)] text-[hsl(var(--text-secondary))] text-[9px]">Trong dự toán</span>
                             )}
                           </td>
                           <td className="px-3 py-3 align-top whitespace-nowrap">{getStatusBadgeMR(req.status)}</td>

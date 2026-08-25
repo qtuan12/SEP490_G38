@@ -15,16 +15,22 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
     private readonly IUnitOfWork _uow;
     private readonly ISurplusMaterialSupplierService _supplierService;
 
+    private readonly IProjectAccessService _projectAccessService;
+
     public GetSurplusRequestDetailQueryHandler(
         IUnitOfWork uow,
-        ISurplusMaterialSupplierService supplierService)
+        ISurplusMaterialSupplierService supplierService,
+        IProjectAccessService projectAccessService)
     {
         _uow = uow;
         _supplierService = supplierService;
+        _projectAccessService = projectAccessService;
     }
 
     public async Task<ApiResponse<SurplusRequestDetailDto>> Handle(GetSurplusRequestDetailQuery request, CancellationToken ct)
     {
+        var accessibleProjectIds = await _projectAccessService.GetAccessibleProjectIdsAsync(ct);
+
         var sr = await _uow.Repository<SurplusRequest>().Query()
             .Include(x => x.Project)
             .Include(x => x.Items)
@@ -40,6 +46,9 @@ public class GetSurplusRequestDetailQueryHandler : IRequestHandler<GetSurplusReq
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.SurplusRequestId == request.SurplusRequestId, ct)
             ?? throw new NotFoundException(nameof(SurplusRequest), request.SurplusRequestId);
+
+        if (!accessibleProjectIds.Contains(sr.ProjectId))
+            throw new ForbiddenException("Bạn không có quyền xem yêu cầu vật tư thừa của dự án này.");
 
         // Fetch creator name
         string createdByName = "N/A";

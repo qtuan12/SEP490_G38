@@ -226,6 +226,24 @@ public class ReviewSurplusTransferCommandHandler : IRequestHandler<ReviewSurplus
             transfer.SurplusRequestItem.SurplusRequestId,
             ct);
 
+        // 3. Thông báo đến Leader dự án đích (chỉ khi được phê duyệt)
+        if (request.IsApproved)
+        {
+            var receiverLeader = await _uow.Repository<ProjectMember>().Query()
+                .Where(m => m.ProjectId == transfer.ToProjectId && m.IsLeader && m.UserId != userId)
+                .Select(m => m.UserId)
+                .FirstOrDefaultAsync(ct);
+            if (receiverLeader != 0)
+            {
+                var receivePendingTitle = "Vật tư sắp được chuyển đến";
+                var receivePendingMsg = $"Có vật tư sắp được chuyển đến từ dự án {transfer.FromProject.Name} đang chờ gửi.";
+                await _notificationService.SendNotificationAsync(
+                    receiverLeader, receivePendingTitle, receivePendingMsg,
+                    NotificationType.Procurement, NotificationLink.ProjectSurplusIncoming(transfer.ToProjectId),
+                    null, ct);
+            }
+        }
+
         return ApiResponse.SuccessResult(request.IsApproved ? ResponseMessages.ApproveSuccess : ResponseMessages.RejectSuccess);
     }
 }
@@ -313,8 +331,8 @@ public class DispatchSurplusTransferCommandHandler : IRequestHandler<DispatchSur
         {
             await _notificationService.SendNotificationAsync(
                 receiverLeader, dispatchTitle, dispatchMsg,
-                NotificationType.Procurement, NotificationLink.ProjectSurplus(transfer.ToProjectId),
-                transfer.SurplusRequestItem.SurplusRequestId, ct);
+                NotificationType.Procurement, NotificationLink.ProjectSurplusIncoming(transfer.ToProjectId),
+                null, ct);
         }
 
         // 2. Thông báo đến Trưởng phòng kỹ thuật (trừ người dispatch)

@@ -72,7 +72,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
   // Pending là trạng thái duy nhất thỏa cả hai điều kiện đó.
   const canDoAudit = canAudit && detail?.status === DP_STATUS.Pending;
   // Giám đốc chỉ thao tác khi Kế toán đã soát hóa đơn. Mọi phiếu đều qua bước này,
-  // kể cả phiếu nằm trong định mức BOQ.
+  // kể cả phiếu nằm trong dự toán vật tư.
   const canDoDirector = !!canApproveSpending && detail?.status === DP_STATUS.WaitingApproval;
 
   // Message thành công do backend quyết định. Tham số fallback chỉ dùng khi không có message.
@@ -218,7 +218,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
             <div>
               {/* Một trục trạng thái duy nhất. Diễn biến chi tiết (ai kiểm toán, ai duyệt chi,
                   ghi chú/lý do) nằm ở khối lịch sử xử lý phía dưới.
-                  Không lặp lại trạng thái định mức ở đây: dòng vật tư vượt định mức đã có cảnh
+                  Không lặp lại trạng thái dự toán ở đây: dòng vật tư vượt dự toán đã có cảnh
                   báo riêng kèm số lượng vượt, cụ thể hơn hẳn một nhãn ở đầu phiếu. */}
               <span style={{ color: 'hsl(var(--text-muted))', fontSize: '0.8rem' }}>Trạng thái</span>
               <div style={{ marginTop: '2px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -273,7 +273,7 @@ export const DirectPurchaseDetailModal: React.FC<Props> = ({
                         [{it.materialCode}] {it.materialName}
                         {it.isOverBOQ && (
                           <div style={{ marginTop: 2, fontSize: '0.75rem', color: 'hsl(var(--warning))', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <AlertTriangle size={12} /> {it.explanation ?? 'Vượt định mức BOQ'}
+                            <AlertTriangle size={12} /> {it.explanation ?? 'Vượt dự toán vật tư'}
                           </div>
                         )}
                       </td>

@@ -254,7 +254,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                       Chuyển kho
                     </button>
                   )}
-                  {canAct && isTPKT && (
+                  {canAct && (isTPKT || isLeader) && (
                     <button
                       disabled={closingItemId === item.surplusRequestItemId}
                       onClick={() => openCloseModal(item)}
@@ -294,6 +294,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                           <th className="py-2 px-3 font-semibold">Loại xử lý</th>
                           <th className="py-2 px-3 font-semibold text-right">Số lượng</th>
                           <th className="py-2 px-3 font-semibold text-center">Trạng thái</th>
+                          <th className="py-2 px-3 font-semibold text-right w-24"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -304,7 +305,7 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                           return (
                             <React.Fragment key={idx}>
                               <tr 
-                                className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${isActionExpanded ? 'bg-slate-50 dark:bg-slate-800/50' : ''}`}
+                                className={`group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${isActionExpanded ? 'bg-slate-50 dark:bg-slate-800/50' : ''}`}
                                 onClick={() => {
                                   if (isActionExpanded) {
                                     setExpandedActionId(null);
@@ -331,12 +332,18 @@ export const SurplusRequestDetailTab: React.FC<SurplusRequestDetailTabProps> = (
                                     {getGeneralActionStatusName(action.status)}
                                   </span>
                                 </td>
+                                <td className="py-2 px-3 text-right">
+                                  <span className="inline-flex items-center gap-1 text-blue-600 font-semibold text-[11px] opacity-70 group-hover:opacity-100 transition-opacity">
+                                    Chi tiết
+                                    {isActionExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                  </span>
+                                </td>
                               </tr>
                               
                               {/* Expanded Inline Detail */}
                               {isActionExpanded && (
                                 <tr>
-                                  <td colSpan={4} className="p-0 border-b border-slate-200">
+                                  <td colSpan={5} className="p-0 border-b border-slate-200">
                                     <div className="bg-slate-50/30 overflow-hidden">
                                       <SurplusActionInlineDetail
                                         itemId={item.surplusRequestItemId}

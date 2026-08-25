@@ -67,7 +67,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
           setSelectedYear(getPreferredReportYear(trends, (t: MonthlyBoqConsumptionTrendDto) => (t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0));
         }
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Lỗi tải báo cáo đối chiếu định mức');
+        setError(err instanceof Error ? err.message : 'Lỗi tải báo cáo đối chiếu dự toán');
       } finally {
         setLoading(false);
       }
@@ -75,7 +75,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
   }, [projectId, fromDate, toDate]);
 
   if (loading) {
-    return <LoadingSpinner size="md" label="Đang tải Báo cáo Định mức BOQ..." className="py-20" />;
+    return <LoadingSpinner size="md" label="Đang tải Báo cáo Dự toán vật tư..." className="py-20" />;
   }
 
   if (error) {
@@ -106,7 +106,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
       {projectId === 'all' ? (
         <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Dự án có vật tư vượt Định mức (Toàn công ty)</h4>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Dự án có vật tư vượt Dự toán (Toàn công ty)</h4>
           {allProjectsData.length > 0 ? (
             <div className="h-[360px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -118,14 +118,14 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 11, fontWeight: 600 }} />
-                  <RechartsTooltip formatter={(value) => [`${value} mã vật tư`, 'Vượt định mức']} />
-                  <Bar dataKey="exceedCount" name="Mã vật tư vượt BOQ" fill="#ef4444" radius={[0, 6, 6, 0]} maxBarSize={36} />
+                  <RechartsTooltip formatter={(value) => [`${value} mã vật tư`, 'Vượt dự toán']} />
+                  <Bar dataKey="exceedCount" name="Mã vật tư vượt dự toán" fill="#ef4444" radius={[0, 6, 6, 0]} maxBarSize={36} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
             <div className="p-10 text-center text-emerald-600 font-bold text-sm">
-              ✨ Không có dự án nào có vật tư vượt định mức BOQ.
+              ✨ Không có dự án nào có vật tư vượt dự toán vật tư.
             </div>
           )}
         </div>
@@ -154,16 +154,16 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
               <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-2">
                 {items.filter(i => i.netConsumption < i.boqLimit && i.netConsumption > 0).length} Chủng loại
               </div>
-              <div className="text-xs font-semibold text-emerald-600 mt-1">Tiêu thụ ít hơn định mức BOQ</div>
+              <div className="text-xs font-semibold text-emerald-600 mt-1">Tiêu thụ ít hơn dự toán vật tư</div>
             </div>
 
             <div className="bg-gradient-to-br from-red-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Vượt Định mức BOQ</span>
+                <span>Vượt Dự toán vật tư</span>
                 <AlertTriangle size={18} className="text-red-500" />
               </div>
               <div className="text-xl font-black text-red-600 dark:text-red-400 mt-2">{exceedingItemsCount} Chủng loại</div>
-              <div className="text-xs font-semibold text-red-600 mt-1">Cần phê duyệt xuất vượt BOQ</div>
+              <div className="text-xs font-semibold text-red-600 mt-1">Cần phê duyệt xuất vượt dự toán</div>
             </div>
 
             <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm">
@@ -389,7 +389,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                             <td className="px-1.5 py-2.5 text-center whitespace-nowrap">
                               {isExceeding ? (
                                 <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap">
-                                  <AlertTriangle size={10} /> VƯỢT ĐỊNH MỨC
+                                  <AlertTriangle size={10} /> VƯỢT DỰ TOÁN
                                 </span>
                               ) : isEarnedExceeding ? (
                                 <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap">
@@ -422,7 +422,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                                 </button>
                               </div>
                             ) : (
-                              'Chưa có dữ liệu định mức BOQ cho dự án này.'
+                              'Chưa có dữ liệu dự toán vật tư cho dự án này.'
                             )}
                           </td>
                         </tr>

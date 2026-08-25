@@ -259,7 +259,7 @@ export const PhaseBOQ: React.FC = () => {
       // Đánh dấu dữ liệu vừa lưu là trạng thái gốc để các cập nhật realtime tiếp theo
       // không bị chặn bởi guard bảo vệ thay đổi chưa lưu.
       reset(savedForm);
-      const msg = `Đã cập nhật bảng định mức vật tư giai đoạn thành công.`;
+      const msg = `Đã cập nhật bảng dự toán vật tư giai đoạn thành công.`;
       console.log(msg);
       toast.success(msg);
 
@@ -365,7 +365,7 @@ export const PhaseBOQ: React.FC = () => {
 
   if (loadingPhase || loadingMaterials || loadingUnits) {
     return (
-      <TableLoader isTable={false} message="Đang tải thông tin định mức vật tư giai đoạn..." minHeight="350px" />
+      <TableLoader isTable={false} message="Đang tải thông tin dự toán vật tư giai đoạn..." minHeight="350px" />
     );
   }
 
@@ -392,7 +392,7 @@ export const PhaseBOQ: React.FC = () => {
           <ArrowLeft size={16} />
           <span>Quay lại</span>
         </button>
-        <h1 className="text-[1.75rem] font-extrabold m-0">Bảng định mức vật tư</h1>
+        <h1 className="text-[1.75rem] font-extrabold m-0">Bảng dự toán vật tư</h1>
         <p className="text-[0.875rem] text-[hsl(var(--text-secondary))] m-0">
           Dự án: <strong className="font-semibold">{project.name}</strong> &rarr; Giai đoạn: <strong className="font-semibold">{phase.name}</strong>
         </p>
@@ -404,7 +404,7 @@ export const PhaseBOQ: React.FC = () => {
           <AlertTriangle size={20} className="shrink-0 text-slate-600" />
           <div className="text-xs text-slate-700 leading-relaxed">
             <strong className="text-sm text-slate-900 block font-semibold mb-0.5"></strong>
-            Đã khóa chỉnh sửa định mức vật tư.
+            Đã khóa chỉnh sửa dự toán vật tư.
           </div>
         </div>
       ) : isPhaseApproved ? (
@@ -412,7 +412,7 @@ export const PhaseBOQ: React.FC = () => {
           <AlertTriangle size={20} className="shrink-0 text-slate-600" />
           <div className="text-xs text-slate-700 leading-relaxed">
             <strong className="text-sm text-slate-900 block font-semibold mb-0.5"></strong>
-            Đã khóa chỉnh sửa định mức vật tư.
+            Đã khóa chỉnh sửa dự toán vật tư.
           </div>
         </div>
       ) : (hasActiveMRs || hasActiveDPs) ? (
@@ -420,7 +420,7 @@ export const PhaseBOQ: React.FC = () => {
           <AlertTriangle size={20} className="shrink-0" />
           <div className="text-xs text-[hsl(var(--text-secondary))] leading-relaxed">
             <strong className="text-sm text-[hsl(var(--danger))] block font-semibold mb-0.5"></strong>
-            Đã khóa chỉnh sửa định mức vật tư.
+            Đã khóa chỉnh sửa dự toán vật tư.
           </div>
         </div>
       ) : null}
@@ -430,7 +430,7 @@ export const PhaseBOQ: React.FC = () => {
         <div className="flex justify-between items-center pb-3 border-b border-[hsl(var(--border-light))] gap-3 flex-wrap">
           <h3 className="text-lg font-bold flex items-center gap-2 m-0 text-[hsl(var(--text-primary))]">
             <ClipboardList size={20} className="text-[hsl(var(--primary))]" />
-            <span>Định mức Vật tư Giai đoạn</span>
+            <span>Dự toán Vật tư Giai đoạn</span>
           </h3>
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -461,7 +461,7 @@ export const PhaseBOQ: React.FC = () => {
                   className="flex items-center gap-1.5 text-xs font-semibold py-1.5 px-3"
                 >
                   <Upload size={15} />
-                  <span>Import Excel</span>
+                  <span>Nhập từ Excel</span>
                 </Button>
                 <Button
                   type="button"
@@ -480,14 +480,14 @@ export const PhaseBOQ: React.FC = () => {
           {fields.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 bg-[hsl(var(--bg-main))/0.2] border border-dashed border-[hsl(var(--border))] rounded-lg text-slate-500">
               <ClipboardList size={40} className="text-slate-400 mb-2" />
-              <p className="text-sm m-0">Chưa có vật tư định mức cho giai đoạn này.</p>
+              <p className="text-sm m-0">Chưa có vật tư dự toán cho giai đoạn này.</p>
               {!isReadOnly && (
                 <button
                   type="button"
                   onClick={() => append({ materialId: 0, quantity: 1, unitId: 0, unit: '' })}
                   className="mt-3 text-xs font-semibold py-1.5 px-3 rounded-md bg-[hsl(var(--primary))] text-white hover:bg-[hsl(var(--primary-hover))] cursor-pointer border-none transition-colors"
                 >
-                  Thêm vật tư định mức đầu tiên
+                  Thêm vật tư dự toán đầu tiên
                 </button>
               )}
             </div>
@@ -498,7 +498,7 @@ export const PhaseBOQ: React.FC = () => {
                   <tr className="border-b border-[hsl(var(--border))] text-[hsl(var(--text-secondary))] font-semibold">
                     <th className="pb-3 pl-3 w-[60px] text-center">STT</th>
                     <th className="pb-3 min-w-[300px]">Tên vật tư</th>
-                    <th className="pb-3 w-[200px] text-center">Số lượng định mức</th>
+                    <th className="pb-3 w-[200px] text-center">Số lượng dự toán</th>
                     <th className="pb-3 w-[220px]">Đơn vị tính (ĐVT)</th>
                     {!isReadOnly && <th className="pb-3 pr-3 text-center w-[70px]">Xóa</th>}
                   </tr>
@@ -629,7 +629,7 @@ export const PhaseBOQ: React.FC = () => {
                 Hủy bỏ
               </Button>
               <Button type="submit" variant="primary" disabled={mutation.isPending}>
-                {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng định mức'}
+                {mutation.isPending ? <Loader2 size={16} className="animate-spin" /> : 'Lưu bảng dự toán'}
               </Button>
             </div>
           )}

@@ -72,15 +72,15 @@ export const LeaderApprovalModal: React.FC<LeaderApprovalModalProps> = ({
 
       if (!boqItem) {
         isOverBOQ = true;
-        overBOQWarnings.push(`Vật tư "${matName}" không có trong định mức giai đoạn.`);
+        overBOQWarnings.push(`Vật tư "${matName}" không có trong dự toán giai đoạn.`);
       } else if (totalRequested > boqItem.quantity) {
         isOverBOQ = true;
-        overBOQWarnings.push(`Vật tư "${matName}" vượt định mức. Yêu cầu đợt này + Đã xuất: ${totalRequested} > Định mức: ${boqItem.quantity}.`);
+        overBOQWarnings.push(`Vật tư "${matName}" vượt dự toán. Yêu cầu đợt này + Đã xuất: ${totalRequested} > Dự toán: ${boqItem.quantity}.`);
       }
     });
   } else if (Object.keys(mergedItems).length > 0) {
     isOverBOQ = true;
-    overBOQWarnings.push('Giai đoạn này chưa thiết lập bảng định mức vật tư. Yêu cầu sẽ bị tính là vượt định mức.');
+    overBOQWarnings.push('Giai đoạn này chưa thiết lập bảng dự toán vật tư. Yêu cầu sẽ bị tính là vượt dự toán.');
   }
 
   const mutation = useMutation({
@@ -172,7 +172,7 @@ export const LeaderApprovalModal: React.FC<LeaderApprovalModalProps> = ({
             {isOverBOQ && (
               <div className="text-sm bg-red-50 p-3 rounded-md border border-red-200">
                 <span className="text-red-600 font-semibold flex items-center gap-1">
-                  ⚠️ Cảnh báo Vượt Định mức
+                  ⚠️ Cảnh báo Vượt Dự toán
                 </span>
                 <ul className="mt-1 pl-5 text-red-600 list-disc">
                   {overBOQWarnings.map((w, idx) => <li key={idx}>{w}</li>)}
