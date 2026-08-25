@@ -4251,8 +4251,8 @@ public static class DbSeeder
             var surplus = new SurplusRequest
             {
                 ProjectId = moLao.Project.ProjectId,
-                Reason = $"{moLaoSurplusReason}; phân loại điều chuyển, trả nhà cung cấp, thanh lý và chờ xử lý.",
-                Status = SurplusRequestStatus.Processing,
+                Reason = $"{moLaoSurplusReason}; đã điều chuyển, trả nhà cung cấp và thanh lý toàn bộ trước khi đóng dự án.",
+                Status = SurplusRequestStatus.Processed,
                 CreatedAt = new DateTime(2025, 11, 27, 2, 0, 0, DateTimeKind.Utc),
                 CreatedBy = moLao.Leader.UserId
             };
@@ -4295,7 +4295,7 @@ public static class DbSeeder
             var tile = await AddSurplusItemAsync("GACH-POR-600", "M2", 10m, 10m, SurplusRequestItemStatus.Completed);
             var adhesive = await AddSurplusItemAsync("WEBER-ST250", "BAO", 3m, 3m, SurplusRequestItemStatus.Completed);
             var paint = await AddSurplusItemAsync("SON-NOI-18", "THUNG", 1m, 1m, SurplusRequestItemStatus.Completed);
-            await AddSurplusItemAsync("XM-VICEM-PCB40", "BAO", 5m, 0m, SurplusRequestItemStatus.Pending);
+            var cement = await AddSurplusItemAsync("XM-VICEM-PCB40", "BAO", 5m, 5m, SurplusRequestItemStatus.Completed);
 
             var transfer = new SurplusTransfer
             {
@@ -4352,6 +4352,83 @@ public static class DbSeeder
             await ApplyStockAsync(context, moLao.Project, materials["SON-NOI-18"], -(1m / paint.ConversionRate),
                 InventoryTransactionType.Liquidation, liquidation.SurplusLiquidationId, EntityType.SurplusLiquidation,
                 accountant.UserId, liquidation.CreatedAt);
+
+            var cementSupplierReturn = new SurplusReturnSupplier
+            {
+                SurplusRequestItemId = cement.SurplusRequestItemId,
+                SupplierId = master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"].SupplierId,
+                ReturnQuantity = 5m,
+                RefundAmount = 510_000m,
+                Note = "Nhà cung cấp nhận lại 5 bao xi măng còn nguyên và hoàn tiền theo đơn giá lô mua.",
+                CreatedAt = new DateTime(2025, 12, 3, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = accountant.UserId
+            };
+            context.SurplusReturnSuppliers.Add(cementSupplierReturn);
+            await context.SaveChangesAsync();
+            await ApplyStockAsync(context, moLao.Project, materials["XM-VICEM-PCB40"], -(5m / cement.ConversionRate),
+                InventoryTransactionType.ReturnToSupplier, cementSupplierReturn.SurplusReturnSupplierId,
+                EntityType.SurplusReturnSupplier, accountant.UserId, cementSupplierReturn.CreatedAt);
+        }
+
+        // Nâng cấp idempotent cho database đã chạy phiên bản seed cũ: phiếu của Mỗ Lao
+        // từng để 5 bao xi măng ở trạng thái Pending dù dự án đã Completed.
+        var moLaoSurplus = await context.SurplusRequests
+            .Include(request => request.Items)
+            .SingleAsync(request =>
+                request.ProjectId == moLao.Project.ProjectId &&
+                request.Reason != null && request.Reason.StartsWith(moLaoSurplusReason));
+        moLaoSurplus.Reason = $"{moLaoSurplusReason}; đã điều chuyển, trả nhà cung cấp và thanh lý toàn bộ trước khi đóng dự án.";
+        moLaoSurplus.Status = SurplusRequestStatus.Processed;
+        foreach (var item in moLaoSurplus.Items)
+        {
+            item.ProcessedQuantity = item.Quantity;
+            item.Status = SurplusRequestItemStatus.Completed;
+            item.CloseReason = "Đã xử lý đủ toàn bộ số lượng trước khi đóng dự án.";
+        }
+        await context.SaveChangesAsync();
+
+        var moLaoCement = moLaoSurplus.Items.Single(item =>
+            item.MaterialId == materials["XM-VICEM-PCB40"].MaterialId);
+        var existingCementReturn = await context.SurplusReturnSuppliers
+            .SingleOrDefaultAsync(action => action.SurplusRequestItemId == moLaoCement.SurplusRequestItemId);
+        if (existingCementReturn == null)
+        {
+            existingCementReturn = new SurplusReturnSupplier
+            {
+                SurplusRequestItemId = moLaoCement.SurplusRequestItemId,
+                SupplierId = master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"].SupplierId,
+                ReturnQuantity = moLaoCement.Quantity,
+                RefundAmount = 510_000m,
+                Note = "Nhà cung cấp nhận lại 5 bao xi măng còn nguyên và hoàn tiền theo đơn giá lô mua.",
+                CreatedAt = new DateTime(2025, 12, 3, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = accountant.UserId
+            };
+            context.SurplusReturnSuppliers.Add(existingCementReturn);
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            existingCementReturn.ReturnQuantity = moLaoCement.Quantity;
+            existingCementReturn.RefundAmount = 510_000m;
+            existingCementReturn.Note = "Nhà cung cấp nhận lại 5 bao xi măng còn nguyên và hoàn tiền theo đơn giá lô mua.";
+            await context.SaveChangesAsync();
+        }
+
+        var cementReturnMovementExists = await context.InventoryTransactions.AnyAsync(transaction =>
+            transaction.ProjectId == moLao.Project.ProjectId &&
+            transaction.MaterialId == moLaoCement.MaterialId &&
+            transaction.ReferenceId == existingCementReturn.SurplusReturnSupplierId &&
+            transaction.ReferenceType == EntityType.SurplusReturnSupplier);
+        if (!cementReturnMovementExists)
+        {
+            await ApplyStockAsync(
+                context, moLao.Project, materials["XM-VICEM-PCB40"],
+                -(moLaoCement.Quantity / moLaoCement.ConversionRate),
+                InventoryTransactionType.ReturnToSupplier,
+                existingCementReturn.SurplusReturnSupplierId,
+                EntityType.SurplusReturnSupplier,
+                accountant.UserId,
+                existingCementReturn.CreatedAt);
         }
 
         foreach (var bundle in new[] { moLao, nguyenXien })
@@ -4740,9 +4817,53 @@ public static class DbSeeder
         }
 
         await ValidateMaterialRequestDocumentLinksAsync(context);
+        await SynchronizeActiveSurplusCoverageAsync(context);
         await ValidateInventoryAndSurplusAsync(context);
         await ValidateMaterialRequestAssessmentCoverageAsync(context);
         await ValidateMaterialRequestStateCoverageAsync(context);
+    }
+
+    private static async Task SynchronizeActiveSurplusCoverageAsync(AppDbContext context)
+    {
+        var activeItems = await context.SurplusRequestItems
+            .Where(item =>
+                item.SurplusRequest.Status == SurplusRequestStatus.Processing &&
+                (item.Status == SurplusRequestItemStatus.Pending ||
+                 item.Status == SurplusRequestItemStatus.Processing))
+            .Include(item => item.SurplusRequest)
+            .Include(item => item.Transfers)
+            .ToListAsync();
+
+        var duplicateSources = activeItems
+            .GroupBy(item => (item.SurplusRequest.ProjectId, item.MaterialId))
+            .Where(group => group.Count() > 1)
+            .Select(group => $"project {group.Key.ProjectId}, material {group.Key.MaterialId}")
+            .ToList();
+        if (duplicateSources.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Seed có nhiều dòng surplus đang hoạt động cho cùng tồn kho: {string.Join("; ", duplicateSources)}.");
+        }
+
+        foreach (var item in activeItems)
+        {
+            var inventory = await context.CurrentInventories.SingleAsync(entry =>
+                entry.ProjectId == item.SurplusRequest.ProjectId &&
+                entry.MaterialId == item.MaterialId);
+            var committedQuantity = item.Transfers
+                .Where(transfer => transfer.Status != SurplusTransferStatus.Rejected &&
+                                   transfer.Status != SurplusTransferStatus.Received)
+                .Sum(transfer => transfer.TransferQuantity);
+            var conversionRate = item.ConversionRate > 0 ? item.ConversionRate : 1m;
+
+            // Một dự án có thể nhận thêm hàng điều chuyển lịch sử sau khi dòng surplus demo
+            // được tạo theo thứ tự code. Đồng bộ lại như runtime: toàn bộ tồn hiện có là nguồn
+            // khả dụng và được tạm khóa, không làm thay đổi ledger hay số lượng tồn thực tế.
+            item.Quantity = item.ProcessedQuantity + committedQuantity + inventory.Quantity * conversionRate;
+            inventory.ReservedQuantity = inventory.Quantity;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private static async Task ValidateMaterialRequestDocumentLinksAsync(AppDbContext context)
@@ -4835,13 +4956,25 @@ public static class DbSeeder
     private static async Task ValidateInventoryAndSurplusAsync(AppDbContext context)
     {
         var invalidSurplusProjects = await context.SurplusRequests
-            .Where(request => request.Project.Status != ProjectStatus.InProgress)
-            .Select(request => $"surplus {request.SurplusRequestId} / project {request.ProjectId} ({request.Project.Status})")
+            .Where(request =>
+                (request.Project.Status != ProjectStatus.InProgress &&
+                 request.Project.Status != ProjectStatus.Completed &&
+                 request.Project.Status != ProjectStatus.Closed) ||
+                ((request.Project.Status == ProjectStatus.Completed ||
+                  request.Project.Status == ProjectStatus.Closed) &&
+                 (request.Status != SurplusRequestStatus.Processed ||
+                  request.Items.Any(item =>
+                      item.Status != SurplusRequestItemStatus.Completed ||
+                      item.ProcessedQuantity != item.Quantity))))
+            .Select(request =>
+                $"surplus {request.SurplusRequestId} / project {request.ProjectId} " +
+                $"({request.Project.Status}, request {request.Status})")
             .ToListAsync();
         if (invalidSurplusProjects.Count > 0)
         {
             throw new InvalidOperationException(
-                $"Seed chỉ được tạo surplus cho dự án InProgress: {string.Join("; ", invalidSurplusProjects)}.");
+                "Surplus của dự án đang thi công có thể còn xử lý; dự án Completed/Closed chỉ được giữ lịch sử đã xử lý hết: " +
+                $"{string.Join("; ", invalidSurplusProjects)}.");
         }
 
         var inventoryByKey = await context.CurrentInventories
