@@ -150,7 +150,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       <div className="flex flex-col gap-6 animate-fade-in">
         <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 rounded-2xl text-xs font-semibold">
           <AlertCircle size={18} className="shrink-0 text-amber-600" />
-          <span><strong>Lưu ý:</strong> Dữ liệu chi phí dựa trên tổng giá trị PO và mua trực tiếp khẩn cấp. Hạch toán chính thức theo kỳ cần phần mềm kế toán riêng.</span>
+          <span><strong>Lưu ý:</strong> Dữ liệu chi phí dựa trên tổng giá trị đơn hàng và mua trực tiếp khẩn cấp. Hạch toán chính thức theo kỳ cần phần mềm kế toán riêng.</span>
         </div>
         <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
           <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">So sánh Chi phí Mua sắm giữa các Dự án</h4>
@@ -171,7 +171,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
                   <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend verticalAlign="top" height={36} />
-                  <Bar dataKey="po" name="PO Đã duyệt" stackId="a" fill="#6366f1" maxBarSize={50} />
+                  <Bar dataKey="po" name="Đơn hàng đã duyệt" stackId="a" fill="#6366f1" maxBarSize={50} />
                   <Bar dataKey="dp" name="Mua ngoài khẩn cấp" stackId="a" fill="#ef4444" maxBarSize={50} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -191,7 +191,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       {/* Notice Banner */}
       <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 rounded-2xl text-xs font-semibold">
         <AlertCircle size={18} className="shrink-0 text-amber-600" />
-        <span><strong>Lưu ý:</strong> Báo cáo chi phí dựa trên tổng giá trị PO đã duyệt và các phiếu mua trực tiếp khẩn cấp.</span>
+        <span><strong>Lưu ý:</strong> Báo cáo chi phí dựa trên tổng giá trị đơn hàng đã duyệt và các phiếu mua trực tiếp khẩn cấp.</span>
       </div>
 
       {/* KPI Cards */}
@@ -256,7 +256,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
                   <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Chi phí Mua sắm 12 Tháng Theo Năm
                 </h4>
-                <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh chi phí đơn PO vs Mua ngoài khẩn cấp hàng tháng</p>
+                <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh chi phí đơn đặt hàng vs Mua ngoài khẩn cấp hàng tháng</p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -280,7 +280,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 11 }} />
                   <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  <Bar dataKey="poCostVnd" name="Đơn PO" stackId="month" fill="#6366f1" maxBarSize={36} />
+                  <Bar dataKey="poCostVnd" name="Đơn đặt hàng" stackId="month" fill="#6366f1" maxBarSize={36} />
                   <Bar dataKey="directPurchaseCostVnd" name="Mua khẩn cấp" stackId="month" fill="#ef4444" maxBarSize={36} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -295,7 +295,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
           onClick={() => setActiveTab('po')}
           className={`px-4 py-2 text-xs font-bold rounded-t-xl transition-all border-b-2 cursor-pointer flex items-center gap-2 ${activeTab === 'po' ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/20' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
         >
-          <Package size={14} /> Danh sách PO ({data.purchaseOrders.length})
+          <Package size={14} /> Danh sách đơn hàng ({data.purchaseOrders.length})
         </button>
         <button
           onClick={() => setActiveTab('dp')}
@@ -334,7 +334,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-xs text-slate-900 dark:text-white">
-                  Danh sách đơn hàng PO
+                  Danh sách đơn hàng
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                   Hiển thị {filteredPOs.length} / {data.purchaseOrders.length} đơn hàng
@@ -349,7 +349,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                     type="text"
                     value={poSearchTerm}
                     onChange={(e) => setPoSearchTerm(e.target.value)}
-                    placeholder="Tìm theo số PO, nhà cung cấp..."
+                    placeholder="Tìm theo số đơn hàng, nhà cung cấp..."
                     className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                   {poSearchTerm && (
@@ -419,7 +419,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
-                            title="Xem chi tiết đơn hàng PO"
+                            title="Xem chi tiết đơn hàng"
                           >
                             {po.poNumber}
                             <ExternalLink size={11} className="opacity-70 hover:opacity-100" />
@@ -442,7 +442,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                       <td colSpan={7} className="px-4 py-28 text-center text-slate-400">
                         {isPoFiltering ? (
                           <div className="flex flex-col items-center justify-center gap-2">
-                            <span className="font-medium">Không tìm thấy đơn PO nào phù hợp với bộ lọc.</span>
+                            <span className="font-medium">Không tìm thấy đơn hàng nào phù hợp với bộ lọc.</span>
                             <button
                               onClick={() => {
                                 setPoSearchTerm('');
@@ -454,7 +454,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                             </button>
                           </div>
                         ) : (
-                          'Chưa có PO nào.'
+                          'Chưa có đơn hàng nào.'
                         )}
                       </td>
                     </tr>
