@@ -18,7 +18,7 @@ import { RoleGroup } from '../../../../auth/roles';
 
 const PAGE_SIZE = 4;
 
-import { formatDateVietnam } from '../../../../utils/dateHelpers';
+import { formatDateVietnam, getVnDateISO } from '../../../../utils/dateHelpers';
 
 const formatDateTime = (dateStr?: string) => formatDateVietnam(dateStr || '');
 
@@ -478,8 +478,8 @@ export const DailyLogFeed: React.FC<DailyLogFeedProps> = ({ projectId, taskId, o
   }, [filteredLogs]);
 
   const formatDateLabel = (dateStr: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = getVnDateISO();
+    const yesterday = getVnDateISO(-1);
     const formatted = formatYYYYMMDDtoDDMMYYYY(dateStr);
 
     if (dateStr === today) return 'Hôm nay, ' + formatted;

@@ -10,6 +10,7 @@ import { UploadCloud, FileText, Loader2, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressAndUploadFile } from '../../../utils/uploadHelper';
 import type { UploadedFileState } from '../../../utils/uploadHelper';
+import { todayVnISO } from '../../../utils/dateHelpers';
 
 const schema = z.object({
   name: z.string().min(3, 'Tên dự án phải có ít nhất 3 ký tự'),
@@ -60,7 +61,7 @@ interface CreateProjectModalProps {
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [dragging, setDragging] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileState[]>([]);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayVnISO();
 
   const { register, handleSubmit, formState: { errors, isSubmitting }, setValue, reset, watch } = useForm<FormData>({
     resolver: zodResolver(schema) as any,

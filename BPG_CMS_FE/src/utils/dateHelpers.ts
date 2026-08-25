@@ -17,11 +17,14 @@ export const todayLocalISO = (): string => {
  * xem VietnamTime bên backend). Nếu dùng todayLocalISO ở những chỗ đó, máy người dùng đặt sai
  * múi giờ sẽ thấy FE cho chọn một ngày mà backend lại từ chối.
  */
-export const todayVnISO = (): string => {
+export const getVnDateISO = (dayOffset = 0): string => {
   const vnNow = new Date(Date.now() + 7 * 60 * 60 * 1000);
+  vnNow.setUTCDate(vnNow.getUTCDate() + dayOffset);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${vnNow.getUTCFullYear()}-${pad(vnNow.getUTCMonth() + 1)}-${pad(vnNow.getUTCDate())}`;
 };
+
+export const todayVnISO = (): string => getVnDateISO();
 
 /** Lấy phần ngày yyyy-mm-dd từ chuỗi ngày của backend, không đổi múi giờ. */
 export const toInputDate = (dateString: string): string =>
