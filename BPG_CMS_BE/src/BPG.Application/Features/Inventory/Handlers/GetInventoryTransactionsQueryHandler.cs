@@ -80,6 +80,7 @@ namespace BPG.Application.Features.Inventory.Handlers
                 MaterialName = t.Material.Name,
                 TransactionType = t.TransactionType,
                 ReferenceId = t.ReferenceId,
+                ReferenceType = t.ReferenceType,
                 QuantityChange = t.QuantityChange,
                 BalanceAfter = t.BalanceAfter,
                 UnitName = t.Material.BaseUnit?.UnitName ?? string.Empty,

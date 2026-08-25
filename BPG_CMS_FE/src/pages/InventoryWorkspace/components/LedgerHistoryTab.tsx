@@ -112,7 +112,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
               { label: 'Nhận chuyển kho', value: '3' },
               { label: 'Chuyển kho đi', value: '4' },
               { label: 'Trả hàng nhà cung cấp', value: '5' },
-              { label: 'Tăng tồn', value: '6' },
+              { label: 'Điều chỉnh kho (Tăng/Giảm)', value: '6' },
               { label: 'Thanh lý', value: '7' },
               { label: 'Hoàn trả thi công', value: '8' },
               { label: 'Giảm tồn do sự cố', value: '9' }
@@ -167,7 +167,7 @@ export const LedgerHistoryTab: React.FC<LedgerHistoryTabProps> = ({
                       </tr>
                     )}
                     {virtualTransactions.visibleRows.map(({ item: t, index }) => {
-                      const typeInfo = getTransactionTypeDetails(t.transactionType);
+                      const typeInfo = getTransactionTypeDetails(t.transactionType, t.quantityChange, t.referenceType);
                       return (
                         <tr key={t.transactionId} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-3.5 text-center text-slate-500 text-sm font-medium tabular-nums">

@@ -11,6 +11,7 @@ namespace BPG.Application.DTOs.Inventory
         public string MaterialName { get; set; } = string.Empty;
         public byte TransactionType { get; set; }
         public long ReferenceId { get; set; }
+        public string ReferenceType { get; set; } = string.Empty;
         public decimal QuantityChange { get; set; }
         public decimal BalanceAfter { get; set; }
         public string UnitName { get; set; } = string.Empty;
