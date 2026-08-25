@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { getPOSupplierDisplayName } from '../../utils/purchaseOrderHelpers';
+import { formatDateOnly } from '../../utils/dateHelpers';
 import toast from 'react-hot-toast';
 
 const fmt = (v: number) =>
@@ -274,7 +275,7 @@ export const PODetailPage: React.FC = () => {
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--danger))' }}>
               Giám đốc từ chối{po.approverName ? ` — ${po.approverName}` : ''}
-              {po.approvedAt ? ` (${fmtDate(po.approvedAt)})` : ''}
+              {po.approvedAt ? ` (${formatDateOnly(po.approvedAt)})` : ''}
             </div>
             <div style={{ fontSize: 13, color: 'hsl(346 84% 35%)', marginTop: 2 }}>{po.rejectedReason || '—'}</div>
             <div style={{ fontSize: 12, color: 'hsl(var(--text-muted))', marginTop: 4 }}>
@@ -294,7 +295,7 @@ export const PODetailPage: React.FC = () => {
           <CheckCircle2 size={16} style={{ color: 'hsl(142 70% 35%)', flexShrink: 0, marginTop: 2 }} />
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(142 70% 30%)' }}>
-              Đã được Giám đốc {po.approverName} duyệt{po.approvedAt ? ` ngày ${fmtDate(po.approvedAt)}` : ''}
+              Đã được Giám đốc {po.approverName} duyệt{po.approvedAt ? ` ngày ${formatDateOnly(po.approvedAt)}` : ''}
             </div>
             {po.approvalNote && (
               <div style={{ fontSize: 13, color: 'hsl(var(--text-secondary))', marginTop: 2 }}>{po.approvalNote}</div>

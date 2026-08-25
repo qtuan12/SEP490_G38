@@ -3,7 +3,7 @@ import { Search, AlertTriangle, AlertCircle, CheckCircle2, Info, ChevronDown, Ch
 import ExcelJS from 'exceljs';
 import type { CurrentInventory } from '../../../types/inventory';
 import { Pagination } from '../../../components/ui';
-import { formatDateVietnam } from '../../../utils/dateHelpers';
+import { formatDateVietnam, todayVnISO } from '../../../utils/dateHelpers';
 
 interface CurrentStockTabProps {
   inventoryList: CurrentInventory[];
@@ -233,7 +233,7 @@ export const CurrentStockTab: React.FC<CurrentStockTabProps> = ({ inventoryList 
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const date = new Date().toISOString().split('T')[0];
+    const date = todayVnISO();
     link.download = `Bao_cao_ton_kho_${date}.xlsx`;
     document.body.appendChild(link);
     link.click();

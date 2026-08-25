@@ -14,7 +14,7 @@ import { DailyLogFormModal } from './ProjectDailyLogs/modals/DailyLogFormModal';
 import { useRealtimeDataRefresh } from '../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities } from '../constants/realtimeEntities';
 import { RoleGroup } from '../auth/roles';
-import { formatDateOnly, formatPlainDate } from '../utils/dateHelpers';
+import { formatDateOnly, formatPlainDate, todayVnISO, toInputDate } from '../utils/dateHelpers';
 
 const STATUS_LABEL: Record<string, string> = {
   New: 'Mới',
@@ -105,7 +105,8 @@ export const TaskDetailSE: React.FC = () => {
     );
   }
 
-  const overdue = !['Completed', 'Approved', 'Obsolete'].includes(detail.status) && new Date(detail.endDate) < new Date();
+  const overdue = !['Completed', 'Approved', 'Obsolete'].includes(detail.status)
+    && toInputDate(detail.endDate) < todayVnISO();
 
   // Chỉ Site Engineer được gán vào task hoặc Site Engineer là Project Leader được tạo nhật ký.
   const taskForModal: WBSTask = {
