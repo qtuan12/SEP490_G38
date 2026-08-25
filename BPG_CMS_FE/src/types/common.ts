@@ -92,6 +92,10 @@ export interface WBSPhase {
   deadline?: string; // Phase deadline for schedule reserve checks
   startDate?: string;
   endDate?: string;
+  /** Ngày bắt đầu thực tế: MIN(actualStartDate của các task trong phase) — do BE tính */
+  actualStartDate?: string | null;
+  /** Ngày kết thúc thực tế: ngày nghiệm thu (ưu tiên) hoặc MAX(task.actualEndDate) khi 100% */
+  actualEndDate?: string | null;
   materials?: PhaseMaterialItem[];
 }
 
