@@ -33,7 +33,6 @@ export const PhaseAcceptance: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { canManageAcceptance } = useProjectAccess(projectId);
-  const queryClient = useQueryClient();
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);

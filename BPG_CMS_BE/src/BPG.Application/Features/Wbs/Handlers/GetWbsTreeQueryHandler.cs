@@ -251,7 +251,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 dto.SubTasks = BuildTaskTree(children, allTasks, project);
 
                 // For parent tasks, derive ActualStartDate and ActualEndDate from subtasks
-                var childStarts = dto.SubTasks.Where(c => c.ActualStartDate.HasValue).Select(c => c.ActualStartDate.Value).ToList();
+                var childStarts = dto.SubTasks.Where(c => c.ActualStartDate.HasValue).Select(c => c.ActualStartDate!.Value).ToList();
                 if (childStarts.Any())
                 {
                     dto.ActualStartDate = childStarts.Min();
@@ -259,7 +259,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
                 if (dto.ProgressPercent == 100)
                 {
-                    var childEnds = dto.SubTasks.Where(c => c.ActualEndDate.HasValue).Select(c => c.ActualEndDate.Value).ToList();
+                    var childEnds = dto.SubTasks.Where(c => c.ActualEndDate.HasValue).Select(c => c.ActualEndDate!.Value).ToList();
                     if (childEnds.Any())
                     {
                         dto.ActualEndDate = childEnds.Max();
