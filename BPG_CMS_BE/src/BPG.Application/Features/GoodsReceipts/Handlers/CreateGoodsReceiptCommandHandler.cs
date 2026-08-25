@@ -166,7 +166,7 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
                 if (poItem.Material?.BaseUnit != null && poItem.Material.BaseUnit.IsDiscrete && receivedBaseQty % 1 != 0)
                 {
                     throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
-                        $"Vật tư [{poItem.Material.Name}] được quản lý bằng đơn vị gốc '{poItem.Material.BaseUnit.UnitName}' (số nguyên). Việc nhận {item.Quantity} {poItem.Unit?.UnitName ?? ""} sẽ dẫn đến tồn kho lẻ ({receivedBaseQty} {poItem.Material.BaseUnit.UnitName}), hệ thống không cho phép.");
+                        $"Vật tư [{poItem.Material.Name}] được quản lý bằng đơn vị gốc '{poItem.Material.BaseUnit.UnitName}' (số nguyên). Việc nhận {item.Quantity:0.###} {poItem.Unit?.UnitName ?? ""} sẽ dẫn đến tồn kho lẻ ({receivedBaseQty:0.###} {poItem.Material.BaseUnit.UnitName}), hệ thống không cho phép.");
                 }
 
                 receivedQtyMap.TryGetValue(item.MaterialId, out decimal totalReceivedBefore);
@@ -174,8 +174,11 @@ namespace BPG.Application.Features.GoodsReceipts.Handlers
 
                 if (item.Quantity > remainingQty)
                 {
+                    // :0.### bỏ số 0 thập phân thừa — Quantity là decimal(18,3), in trực tiếp sẽ
+                    // luôn kèm ".000" trông như dấu chấm phân cách nghìn kiểu Việt Nam, gây hiểu
+                    // lầm số lượng (xem lỗi tương tự đã sửa ở CreatePurchaseOrderCommandHandler).
                     throw new BusinessException("ERR_QUANTITY_EXCEEDED",
-                        $"Số lượng nhận ({item.Quantity}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material?.Name ?? item.MaterialId.ToString()}] (còn thiếu {remainingQty}).");
+                        $"Số lượng nhận ({item.Quantity:0.###}) vượt quá số lượng còn lại cần giao của đơn hàng cho vật tư [{poItem.Material?.Name ?? item.MaterialId.ToString()}] (còn thiếu {remainingQty:0.###}).");
                 }
 
                 validItems.Add(item);
