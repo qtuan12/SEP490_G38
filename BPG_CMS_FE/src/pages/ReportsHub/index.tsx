@@ -164,6 +164,11 @@ export const ReportsHub: React.FC = () => {
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
   };
+  const periodHint = activeTab === 'boq'
+    ? 'Đối chiếu BOQ lũy kế đến ngày kết thúc; ngày bắt đầu chỉ giới hạn biểu đồ.'
+    : activeTab === 'construction' || activeTab === 'executive'
+      ? 'Tiến độ được chụp tại ngày kết thúc; khoảng ngày giới hạn dữ liệu phát sinh đi kèm.'
+      : 'Chỉ tính chứng từ hoặc sự kiện phát sinh trong khoảng ngày đã chọn.';
 
   return (
     <div className="flex flex-col gap-4 animate-fade-in min-h-screen pb-10">
@@ -254,6 +259,7 @@ export const ReportsHub: React.FC = () => {
               onChange={e => setToDate(e.target.value)}
             />
           </div>
+          <span className="text-[11px] text-[hsl(var(--text-muted))] px-2">{periodHint}</span>
         </div>
 
         {/* Quick Presets & Export Button */}

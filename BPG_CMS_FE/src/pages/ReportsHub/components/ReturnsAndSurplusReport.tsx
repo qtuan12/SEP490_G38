@@ -12,7 +12,7 @@ import {
   type MaterialReturnReportItemDto
 } from '../../../services/reportService';
 import {
-  ResponsiveContainer, PieChart, Pie, Cell,
+  ResponsiveContainer,
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, BarChart
 } from 'recharts';
@@ -22,8 +22,6 @@ interface Props {
   fromDate?: string;
   toDate?: string;
 }
-
-const PIE_COLORS = ['#10b981', '#6366f1', '#a855f7', '#f59e0b'];
 
 export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, toDate }) => {
   const [data, setData] = useState<MaterialReturnsAndSurplusReportDto | null>(null);
@@ -89,18 +87,6 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
     );
   }, [data?.surplusActions, searchTerm]);
 
-  // Pie chart data for Surplus handling methods (by number of action logs / items)
-  const surplusPieData = useMemo(() => {
-    if (!data?.surplusMethodBreakdown) return [];
-    const b = data.surplusMethodBreakdown;
-    return [
-      { name: 'Trả lại NCC', value: b.returnSupplierActionsCount ?? (b.returnSupplierQuantity > 0 ? 1 : 0), amount: b.returnSupplierValueVnd, color: '#10b981' },
-      { name: 'Điều chuyển dự án', value: b.transferActionsCount ?? (b.transferQuantity > 0 ? 1 : 0), amount: 0, color: '#6366f1' },
-      { name: 'Bán thanh lý', value: b.liquidationActionsCount ?? (b.liquidationQuantity > 0 ? 1 : 0), amount: b.liquidationValueVnd, color: '#a855f7' },
-      { name: 'Chờ xử lý (Tồn)', value: b.pendingRemainingItemsCount ?? 0, amount: 0, color: '#f59e0b' },
-    ].filter(x => x.value > 0);
-  }, [data?.surplusMethodBreakdown]);
-
   if (loading) {
     return <LoadingSpinner size="md" label="Đang tổng hợp số liệu hoàn trả & xử lý thừa..." className="py-20" />;
   }
@@ -112,6 +98,16 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
       </div>
     );
   }
+
+  const monthlyTrends = data.monthlyTrends || [];
+  const trendReturnSlipCount = monthlyTrends.reduce((sum, month) => sum + (month.returnSlipCount || 0), 0);
+  const trendRecoveryAmount = monthlyTrends.reduce((sum, month) => sum + (month.financialRecoveryAmountVnd || 0), 0);
+  const hasTrendReturns = trendReturnSlipCount > 0;
+  const hasTrendRecovery = trendRecoveryAmount > 0;
+  const hasMonthlyTrendData = hasTrendReturns || hasTrendRecovery;
+  const trendPeriodLabel = monthlyTrends.length > 0
+    ? `${monthlyTrends[0].monthLabel} – ${monthlyTrends[monthlyTrends.length - 1].monthLabel}`
+    : '12 tháng gần nhất';
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
@@ -146,7 +142,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
             </div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
               <span>{data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư</span>
-              <span className="text-indigo-600 dark:text-indigo-400 font-bold">~{(data.totalReturnEstimatedValue / 1_000_000).toFixed(1)}M đ</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-bold">{data.totalReturnItemsCount} dòng vật tư</span>
             </div>
           </div>
         </div>
@@ -179,7 +175,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
               {formatNumber(data.totalTransferredActionsCount)} <span className="text-xs font-medium text-slate-500">lượt điều chuyển</span>
             </div>
             <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-1">
-              Điều chuyển liên dự án ({data.totalTransferredMaterialsCount ?? data.totalTransferredItemsCount ?? 1} loại vật tư)
+              Điều chuyển liên dự án ({data.totalTransferredMaterialsCount ?? data.totalTransferredItemsCount ?? 0} loại vật tư)
             </div>
           </div>
         </div>
@@ -192,7 +188,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
           </div>
           <div className="mt-3">
             <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
-              {data.surplusResolutionRatePercent}% <span className="text-xs font-medium text-slate-500">giải phóng</span>
+              {data.surplusResolutionRatePercent}% <span className="text-xs font-medium text-slate-500">mặt hàng đã xử lý</span>
             </div>
             <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 flex items-center justify-between">
               <span className="text-emerald-600 dark:text-emerald-400">Đã xong: {data.totalSurplusResolvedItemsCount ?? (data.totalSurplusItems - (data.totalSurplusPendingItemsCount ?? 0))} mục</span>
@@ -203,85 +199,62 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
       </div>
 
       {/* Analytics Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Donut Chart: Surplus Handling Methods */}
+      {hasMonthlyTrendData ? (
+      <div className="grid grid-cols-1 gap-5">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col justify-between">
-          <div>
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white m-0">Cơ Cấu Phương Thức Xử Lý Thừa</h4>
-            <p className="text-xs text-slate-500 m-0 mt-0.5">Phân bổ theo số lượt và mặt hàng xử lý</p>
-          </div>
-
-          <div className="h-60 w-full flex items-center justify-center my-2">
-            {surplusPieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={surplusPieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={85}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {surplusPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    formatter={(value, name) => [`${formatNumber(Number(value || 0))} lượt / mặt hàng`, name]}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="text-xs font-semibold text-slate-400 text-center">Chưa có dữ liệu xử lý vật tư thừa</div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-[11px] pt-3 border-t border-slate-100 dark:border-slate-800">
-            <div className="text-slate-500">Hoàn tiền NCC: <strong className="text-emerald-600 font-bold">{formatNumber(data.totalSupplierRefundAmount)} đ</strong></div>
-            <div className="text-slate-500">Thu thanh lý: <strong className="text-purple-600 font-bold">{formatNumber(data.totalLiquidationAmount)} đ</strong></div>
-          </div>
-        </div>
-
-        {/* 12-Month Trends Chart */}
-        <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-sm flex flex-col justify-between ${projectId === 'all' ? 'lg:col-span-2' : 'lg:col-span-2'}`}>
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white m-0">Xu Hướng Hoàn Trả & Thu Hồi Tài Chính 12 Tháng</h4>
-              <p className="text-xs text-slate-500 m-0 mt-0.5">Biến động số lượng phiếu hoàn trả công trường và giá trị thu hồi qua từng tháng</p>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white m-0">Xu hướng hoàn trả & thu hồi tài chính</h4>
+              <p className="text-xs text-slate-500 m-0 mt-0.5">12 tháng: {trendPeriodLabel}</p>
             </div>
           </div>
 
           <div className="h-60 w-full mt-3">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data.monthlyTrends} margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
+              <ComposedChart data={monthlyTrends} margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                 <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
-                <YAxis yAxisId="left" tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} label={{ value: 'Số phiếu hoàn trả', angle: -90, position: 'insideRight', style: { fontSize: 10 } }} />
+                <YAxis
+                  yAxisId="left"
+                  allowDecimals={!hasTrendReturns || hasTrendRecovery}
+                  tickFormatter={(value) => hasTrendRecovery
+                    ? `${formatNumber(Number(value || 0) / 1_000_000)}Tr`
+                    : formatNumber(Number(value || 0))}
+                  tick={{ fontSize: 10 }}
+                />
+                {hasTrendRecovery && hasTrendReturns && (
+                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 10 }} label={{ value: 'Số phiếu hoàn trả', angle: -90, position: 'insideRight', style: { fontSize: 10 } }} />
+                )}
                 <RechartsTooltip
                   formatter={(value, name) => [
-                    name === 'Giá trị thu hồi (VNĐ)' || name === 'Giá trị hoàn trả (VNĐ)'
+                    name === 'Giá trị thu hồi (VNĐ)'
                       ? `${formatNumber(Number(value || 0))} VNĐ`
                       : `${formatNumber(Number(value || 0))} phiếu`,
                     String(name || '')
                   ]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
-                <Bar yAxisId="left" dataKey="financialRecoveryAmountVnd" name="Giá trị thu hồi (VNĐ)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                <Line yAxisId="right" type="monotone" dataKey="returnSlipCount" name="Số phiếu hoàn trả (Phiếu)" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} />
+                {hasTrendRecovery && (
+                  <Bar yAxisId="left" dataKey="financialRecoveryAmountVnd" name="Giá trị thu hồi (VNĐ)" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                )}
+                {hasTrendReturns && (
+                  <Line yAxisId={hasTrendRecovery ? 'right' : 'left'} type="monotone" dataKey="returnSlipCount" name="Số phiếu hoàn trả (Phiếu)" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 3 }} />
+                )}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <span>Tổng số phiếu hoàn trả: <strong>{formatNumber(data.totalReturnSlips)} phiếu</strong> ({data.totalReturnDistinctMaterialsCount ?? data.totalReturnItemsCount} loại vật tư)</span>
-            <span>Tổng tài chính thu hồi: <strong className="text-emerald-600">{formatNumber(data.totalFinancialRecoveryAmount)} đ</strong></span>
+            <span>Trong 12 tháng: <strong>{formatNumber(trendReturnSlipCount)} phiếu hoàn trả</strong></span>
+            <span>Thu hồi trong 12 tháng: <strong className="text-emerald-600">{formatNumber(trendRecoveryAmount)} đ</strong></span>
           </div>
         </div>
       </div>
+      ) : (
+        <div className="bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
+          Không có phiếu hoàn trả hoặc khoản thu hồi tài chính trong {trendPeriodLabel}; ẩn biểu đồ trống.
+        </div>
+      )}
 
       {/* Cross-Project Comparison (When viewing 'all') */}
       {projectId === 'all' && data.crossProjectMatrix.length > 0 && (
@@ -398,7 +371,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                   <th className="px-4 py-3 text-center w-12">STT</th>
                   <th className="px-4 py-3 w-52">Phiếu hoàn trả & Người lập</th>
                   <th className="px-4 py-3">Lý do & Công việc thi công</th>
-                  <th className="px-4 py-3 text-right w-48">Quy mô & Giá trị</th>
+                  <th className="px-4 py-3 text-right w-48">Quy mô</th>
                   <th className="px-4 py-3 text-center w-16">Chi tiết</th>
                 </tr>
               </thead>
@@ -478,12 +451,7 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                       </div>
                     </td>
                     <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <div className="font-bold text-emerald-600 dark:text-emerald-400">
-                        {r.totalEstimatedValueVnd > 0 ? `${formatNumber(r.totalEstimatedValueVnd)} đ` : '—'}
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        {r.totalItems} chủng loại vật tư
-                      </div>
+                      <div className="font-bold text-slate-700 dark:text-slate-300">{r.totalItems} dòng vật tư</div>
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <button
@@ -729,8 +697,6 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                     <th className="px-3 py-2">Tên Vật Tư</th>
                     <th className="px-3 py-2 text-center">ĐVT</th>
                     <th className="px-3 py-2 text-right">Số Lượng Trả</th>
-                    <th className="px-3 py-2 text-right">Đơn Giá Ước Tính</th>
-                    <th className="px-3 py-2 text-right font-bold text-emerald-600">Thành Tiền</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -741,12 +707,6 @@ export const ReturnsAndSurplusReport: React.FC<Props> = ({ projectId, fromDate, 
                       <td className="px-3 py-2 font-bold text-slate-900 dark:text-white">{item.materialName}</td>
                       <td className="px-3 py-2 text-center text-slate-500">{item.unitName}</td>
                       <td className="px-3 py-2 text-right font-black text-indigo-600 dark:text-indigo-400">{formatNumber(item.quantity)}</td>
-                      <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">
-                        {item.unitPrice > 0 ? `${formatNumber(item.unitPrice)} đ` : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-bold text-emerald-600">
-                        {item.estimatedValueVnd > 0 ? `${formatNumber(item.estimatedValueVnd)} đ` : '—'}
-                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -272,7 +272,7 @@ export interface MonthlyBoqConsumptionTrendDto {
   year: number;
   month: number;
   monthLabel: string;
-  materialRequestCount: number;
+  issuanceSlipCount: number;
   consumedValueVnd: number;
 }
 

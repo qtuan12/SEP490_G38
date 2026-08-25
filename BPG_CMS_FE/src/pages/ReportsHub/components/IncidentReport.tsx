@@ -93,7 +93,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
         setLoadState({ requestIdentity, data: report, error: null });
         setSelectedYear(getPreferredReportYear(
           report.monthlyTrends || [],
-          trend => (trend.totalIncidentsCount || 0) > 0 || (trend.resolvedIncidentsCount || 0) > 0,
+          trend => (trend.totalIncidentsCount || 0) > 0,
         ));
       })
       .catch(err => {
@@ -136,10 +136,10 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
     const status = i?.status || '';
     const descInfo = getCleanDescription(i?.description);
     const reporterName = i?.reporterName || '';
-    const isResolved = resolvedStatuses.includes(status);
+    const isClosed = terminalStatuses.includes(status);
     const isOpen = !terminalStatuses.includes(status);
     if (filter === 'open' && !isOpen) return false;
-    if (filter === 'resolved' && !isResolved) return false;
+    if (filter === 'resolved' && !isClosed) return false;
     if (search) {
       const s = search.toLowerCase();
       const matchDesc = descInfo.title.toLowerCase().includes(s) || (descInfo.subText && descInfo.subText.toLowerCase().includes(s));
@@ -214,8 +214,8 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
               <CheckCircle size={20} />
             </div>
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Đã giải quyết</div>
-              <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{data.resolvedIncidents}</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">Đã đóng / xử lý</div>
+              <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{Math.max(0, data.totalIncidents - data.openIncidents)}</div>
             </div>
           </div>
         </div>
@@ -257,9 +257,9 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
         )}
 
         {(data.monthlyTrends || []).length > 0 && (() => {
-          const hasAnyDataYear = (data.monthlyTrends || []).some(t => (t.totalIncidentsCount || 0) > 0 || (t.resolvedIncidentsCount || 0) > 0);
+          const hasAnyDataYear = (data.monthlyTrends || []).some(t => (t.totalIncidentsCount || 0) > 0);
           const availableYears = Array.from(new Set((data.monthlyTrends || []).map(t => t.year)))
-            .filter(y => !hasAnyDataYear || (data.monthlyTrends || []).some(t => t.year === y && ((t.totalIncidentsCount || 0) > 0 || (t.resolvedIncidentsCount || 0) > 0)))
+            .filter(y => !hasAnyDataYear || (data.monthlyTrends || []).some(t => t.year === y && (t.totalIncidentsCount || 0) > 0))
             .sort((a, b) => b - a);
           const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
           const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === activeYear);
@@ -271,7 +271,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
                     <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Xu hướng Sự cố 12 Tháng
                   </h4>
-                  <p className="text-xs text-slate-500 m-0 mt-0.5">Số lượng sự cố phát sinh & đã giải quyết theo năm</p>
+                  <p className="text-xs text-slate-500 m-0 mt-0.5">Số lượng hồ sơ sự cố được lập theo từng tháng</p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -294,9 +294,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                     <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fontWeight: 600 }} />
                     <YAxis tick={{ fontSize: 10 }} />
                     <RechartsTooltip formatter={(value, name) => [`${value} sự cố`, String(name || '')]} />
-                    <Legend wrapperStyle={{ fontSize: '11px' }} />
                     <Bar dataKey="totalIncidentsCount" name="Sự cố phát sinh" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={24} />
-                    <Bar dataKey="resolvedIncidentsCount" name="Đã giải quyết" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={24} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -329,7 +327,7 @@ export const IncidentReport: React.FC<Props> = ({ projectId, fromDate, toDate })
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'}`}
                 >
-                  {f === 'all' ? 'Tất cả' : f === 'open' ? 'Chưa xử lý' : 'Đã xử lý'}
+                  {f === 'all' ? 'Tất cả' : f === 'open' ? 'Chưa xử lý' : 'Đã đóng / xử lý'}
                 </button>
               ))}
             </div>

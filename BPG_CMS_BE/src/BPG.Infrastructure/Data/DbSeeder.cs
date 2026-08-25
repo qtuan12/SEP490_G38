@@ -107,6 +107,7 @@ public static class DbSeeder
                         "Database đang chứa phiên bản seed YCVT cũ. Hãy reset database và seed lại để dựng đúng chuỗi BOQ -> YCVT -> PO -> GR/tồn/surplus và coverage 5/6 vật tư demo.");
                 }
 
+                await SeedCompletedProjectReportShowcaseAsync(context);
                 await NormalizeAndValidateMaterialRequestSeedAsync(context);
                 return;
             }
@@ -125,6 +126,8 @@ public static class DbSeeder
         await SeedMainDemoLifecycleAsync(context, projects, users, master, materials);
         await SeedMaterialRequestAssessmentScenariosAsync(context, projects, users, master, materials);
         await SeedCompletedMoLaoHistoryAsync(context, projects, users, master, materials);
+        await SeedCompletedProjectSurplusAsync(context, projects, users, master, materials);
+        await SeedCompletedProjectReportShowcaseAsync(context);
         await SeedNotificationsAsync(context, projects, users);
         await NormalizeAndValidateMaterialRequestSeedAsync(context);
     }
@@ -3306,6 +3309,1162 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 
+    private static ProjectTask FindLeafTask(ProjectBundle bundle, Phase phase, string nameFragment)
+    {
+        var phaseTasks = bundle.TasksByPhase[phase.PhaseId];
+        var parentIds = phaseTasks
+            .Where(task => task.ParentTaskId.HasValue)
+            .Select(task => task.ParentTaskId!.Value)
+            .ToHashSet();
+
+        return phaseTasks.First(task =>
+            !parentIds.Contains(task.TaskId) &&
+            task.Name.Contains(nameFragment, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static async Task SeedNguyenXienDailyLogHistoryAsync(
+        AppDbContext context,
+        ProjectBundle bundle)
+    {
+        var allTasks = bundle.TasksByPhase.Values.SelectMany(tasks => tasks).ToList();
+        var parentIds = allTasks
+            .Where(task => task.ParentTaskId.HasValue)
+            .Select(task => task.ParentTaskId!.Value)
+            .ToHashSet();
+        var completedLeafTasks = allTasks
+            .Where(task => !parentIds.Contains(task.TaskId))
+            .Where(task => task.ProgressPercent == 100 &&
+                           task.Status is TaskStatusConstants.Completed or TaskStatusConstants.Approved)
+            .ToList();
+        var leafTaskIds = completedLeafTasks.Select(task => task.TaskId).ToList();
+        var existingMilestones = await context.DailyLogs
+            .Where(log => leafTaskIds.Contains(log.TaskId))
+            .Select(log => new { log.TaskId, log.NewProgressPercent })
+            .ToListAsync();
+        var existingByTask = existingMilestones
+            .GroupBy(log => log.TaskId)
+            .ToDictionary(group => group.Key, group => group.Select(log => log.NewProgressPercent).ToHashSet());
+        var assigneeByTask = await context.TaskAssignees
+            .Where(assignee => leafTaskIds.Contains(assignee.TaskId))
+            .GroupBy(assignee => assignee.TaskId)
+            .Select(group => new { TaskId = group.Key, UserId = group.Select(item => item.UserId).First() })
+            .ToDictionaryAsync(item => item.TaskId, item => item.UserId);
+
+        foreach (var task in completedLeafTasks)
+        {
+            var duration = Math.Max(0, task.EndDate.DayNumber - task.StartDate.DayNumber);
+            var milestones = new List<(byte Progress, DateOnly Date, string Description)>();
+            if (duration <= 1)
+            {
+                milestones.Add((100, task.EndDate,
+                    $"Hoàn thành {task.Name.ToLowerInvariant()}; đã kiểm tra chất lượng, vệ sinh vị trí thi công và bàn giao nội bộ."));
+            }
+            else if (duration <= 3)
+            {
+                milestones.Add((30, task.StartDate,
+                    $"Triển khai {task.Name.ToLowerInvariant()}; đã kiểm tra hiện trạng, bố trí nhân lực và chuẩn bị đủ điều kiện thi công."));
+                milestones.Add((100, task.EndDate,
+                    $"Hoàn thành {task.Name.ToLowerInvariant()}; khối lượng và chất lượng đạt yêu cầu để chuyển bước tiếp theo."));
+            }
+            else
+            {
+                milestones.Add((30, task.StartDate.AddDays(Math.Max(1, duration * 30 / 100)),
+                    $"Đã triển khai {task.Name.ToLowerInvariant()}; mặt bằng, vật tư và biện pháp thi công đã được kiểm tra."));
+                milestones.Add((75, task.StartDate.AddDays(Math.Max(2, duration * 70 / 100)),
+                    $"{task.Name} đạt khoảng 75% khối lượng; đã tự kiểm tra kích thước, cao độ và chất lượng phần đã làm."));
+                milestones.Add((100, task.EndDate,
+                    $"Hoàn thành {task.Name.ToLowerInvariant()}; đã xử lý các điểm tồn tại và nghiệm thu nội bộ đạt yêu cầu."));
+            }
+
+            existingByTask.TryGetValue(task.TaskId, out var existingProgressValues);
+            var creatorId = assigneeByTask.GetValueOrDefault(task.TaskId, bundle.Leader.UserId);
+            foreach (var milestone in milestones.Where(item =>
+                         existingProgressValues == null || !existingProgressValues.Contains(item.Progress)))
+            {
+                var createdAt = DateTime.SpecifyKind(
+                    milestone.Date.ToDateTime(new TimeOnly(2 + milestone.Progress % 3, 0)),
+                    DateTimeKind.Utc);
+                context.DailyLogs.Add(new DailyLog
+                {
+                    TaskId = task.TaskId,
+                    LogDate = milestone.Date,
+                    NewProgressPercent = milestone.Progress,
+                    Description = milestone.Description,
+                    CreatedBy = creatorId,
+                    CreatedAt = createdAt
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedNguyenXienProcurementHistoryAsync(
+        AppDbContext context,
+        ProjectBundle bundle,
+        User accountant,
+        User director,
+        MasterData master,
+        Dictionary<string, MaterialCatalog> materials)
+    {
+        async Task<MaterialIssuance> SeedBatchAsync(
+            Phase phase,
+            ProjectTask task,
+            DateTime requestAt,
+            string numberSuffix,
+            Supplier supplier,
+            string reason,
+            (string MaterialCode, string UnitCode, decimal Quantity, decimal UnitPrice)[] lines)
+        {
+            var poNumber = $"PO-NGUYEN-XIEN-{numberSuffix}";
+            var issuanceNumber = $"PXK-NGUYEN-XIEN-{numberSuffix}";
+            var existingPo = await context.PurchaseOrders.SingleOrDefaultAsync(po => po.PONumber == poNumber);
+            if (existingPo != null)
+            {
+                var existingIssuance = await context.MaterialIssuances
+                    .SingleOrDefaultAsync(issuance => issuance.IssuanceNo == issuanceNumber);
+                return existingIssuance ?? throw new InvalidOperationException(
+                    $"Seed Nguyễn Xiển không nhất quán: đã có {poNumber} nhưng thiếu {issuanceNumber}.");
+            }
+
+            var request = await CreateMaterialRequestAsync(
+                context, phase, bundle.Leader, accountant, director,
+                MaterialRequestStatus.Approved, BOQCheckStatus.WithinBOQ, reason,
+                "Đã đối chiếu BOQ, tồn kho công trường và kế hoạch thi công trước khi đặt hàng.",
+                "Duyệt mua đúng định mức và tiến độ của giai đoạn.",
+                lines.Select(line =>
+                    (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, false, (string?)null)),
+                requestAt);
+            var po = await CreatePurchaseOrderAsync(
+                context, request, bundle.Project, supplier, accountant, director,
+                PurchaseOrderStatus.FullyReceived, poNumber, requestAt.AddDays(3),
+                lines.Select(line =>
+                    (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity, line.UnitPrice)),
+                "Nhà cung cấp giao đủ; số lượng, quy cách và chứng từ đã được đối chiếu.");
+            await CreateGoodsReceiptAsync(
+                context, po, bundle.Leader, GoodsReceiptStatus.Approved,
+                $"GR-NGUYEN-XIEN-{numberSuffix}", supplier.SupplierName, $"BBGH-NX-{numberSuffix}",
+                lines.Select(line =>
+                    (materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity)),
+                requestAt.AddDays(7));
+
+            var issuance = new MaterialIssuance
+            {
+                IssuanceNo = issuanceNumber,
+                TaskId = task.TaskId,
+                Purpose = $"Xuất đúng khối lượng đã nhập để thực hiện: {reason}",
+                CreatedAt = requestAt.AddDays(14),
+                CreatedBy = bundle.Leader.UserId
+            };
+            context.MaterialIssuances.Add(issuance);
+            await context.SaveChangesAsync();
+            foreach (var line in lines)
+            {
+                await AddIssuanceLineAsync(
+                    context, issuance, bundle.Project,
+                    materials[line.MaterialCode], master.Units[line.UnitCode], line.Quantity,
+                    bundle.Leader.UserId, issuance.CreatedAt);
+            }
+
+            return issuance;
+        }
+
+        var phase1 = bundle.Phases[0];
+        var phase2 = bundle.Phases[1];
+        var phase3 = bundle.Phases[2];
+
+        await SeedBatchAsync(
+            phase1, FindLeafTask(bundle, phase1, "Bố trí vách ngăn bụi"),
+            new DateTime(2026, 1, 11, 2, 0, 0, DateTimeKind.Utc), "202601-01",
+            master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"],
+            "Cấp vật tư làm vách ngăn bụi, bịt tạm ô mở và hoàn trả cục bộ sau tháo dỡ.",
+            new[]
+            {
+                ("DINH-THEP-5CM", "KG", 12m, 25_000m),
+                ("GACH-DAC-A1", "VIEN", 320m, 1_350m),
+                ("XM-INSEE-PCB40", "BAO", 22m, 103_000m),
+                ("CAT-XAY-TO", "M3", 3m, 390_000m)
+            });
+
+        var masonryIssuance = await SeedBatchAsync(
+            phase2, FindLeafTask(bundle, phase2, "Xây bù tường"),
+            new DateTime(2026, 2, 5, 2, 0, 0, DateTimeKind.Utc), "202602-01",
+            master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"],
+            "Cấp gạch, xi măng và cát cho xây bù tường, vá lỗ mở, tô rãnh và cán nền.",
+            new[]
+            {
+                ("XM-INSEE-PCB40", "BAO", 145m, 102_000m),
+                ("GACH-2LO-220", "VIEN", 1_300m, 1_250m),
+                ("GACH-DAC-A1", "VIEN", 420m, 1_350m),
+                ("CAT-XAY-TO", "M3", 18m, 385_000m)
+            });
+
+        await SeedBatchAsync(
+            phase2, FindLeafTask(bundle, phase2, "Lắp ống luồn D20/D25"),
+            new DateTime(2026, 2, 17, 2, 0, 0, DateTimeKind.Utc), "202602-02",
+            master.Suppliers["Đại lý điện nước An Phát"],
+            "Cấp đồng bộ ống luồn, dây điện và ống cấp thoát cho phần điện nước âm.",
+            new[]
+            {
+                ("CADIVI-CV1.5", "CUON", 6m, 1_650_000m),
+                ("ONG-LUON-D20", "CAY", 55m, 29_000m),
+                ("ONG-LUON-D25", "CAY", 22m, 42_000m),
+                ("PPR-D20", "CAY", 20m, 82_000m),
+                ("PVC-D90", "CAY", 14m, 118_000m),
+                ("CO-PPR-D25", "CAI", 24m, 18_000m)
+            });
+
+        await SeedBatchAsync(
+            phase2, FindLeafTask(bundle, phase2, "Thi công lớp chống thấm thứ nhất"),
+            new DateTime(2026, 2, 27, 2, 0, 0, DateTimeKind.Utc), "202602-03",
+            master.Suppliers["Sika Việt Nam"],
+            "Cấp vật liệu chống thấm và vữa không co ngót cho khu vệ sinh, ban công và cổ ống.",
+            new[]
+            {
+                ("SIKA-TOP-107", "BO", 16m, 1_380_000m),
+                ("SIKA-GROUT-214", "BAO", 6m, 310_000m)
+            });
+
+        await SeedBatchAsync(
+            phase3, FindLeafTask(bundle, phase3, "Lắp thanh treo và khung xương"),
+            new DateTime(2026, 3, 16, 2, 0, 0, DateTimeKind.Utc), "202603-01",
+            master.Suppliers["Kho thạch cao và phụ kiện hoàn thiện Hà Nội"],
+            "Cấp tấm, khung xương và vít cho trần thạch cao các tầng.",
+            new[]
+            {
+                ("TAM-THACH-CAO-9", "TAM", 100m, 125_000m),
+                ("KHUNG-XUONG-CHINH", "CAY", 70m, 43_000m),
+                ("KHUNG-XUONG-PHU", "CAY", 130m, 31_000m),
+                ("VIT-THACH-CAO", "HOP", 9m, 145_000m)
+            });
+
+        await SeedBatchAsync(
+            phase3, FindLeafTask(bundle, phase3, "Bả lớp thứ nhất"),
+            new DateTime(2026, 4, 2, 2, 0, 0, DateTimeKind.Utc), "202604-02",
+            master.Suppliers["Nhà phân phối sơn Dulux Hà Nội"],
+            "Cấp bột bả, sơn lót và sơn phủ theo mã màu đã được Chủ đầu tư xác nhận.",
+            new[]
+            {
+                ("BOT-BA-40", "BAO", 55m, 285_000m),
+                ("SON-LOT-NOI-18", "THUNG", 13m, 2_250_000m),
+                ("SON-NOI-18", "THUNG", 6m, 2_520_000m)
+            });
+
+        const string masonryReturnNo = "PTRA-NGUYEN-XIEN-20260224-01";
+        if (!await context.MaterialReturns.AnyAsync(materialReturn => materialReturn.ReturnNo == masonryReturnNo))
+        {
+            var materialReturn = new MaterialReturn
+            {
+                ReturnNo = masonryReturnNo,
+                OriginalIssuanceId = masonryIssuance.MaterialIssuanceId,
+                Reason = "Hoàn tạm 60 viên gạch và 3 bao xi măng còn nguyên khi Chủ đầu tư điều chỉnh vị trí tường ngăn.",
+                CreatedAt = new DateTime(2026, 2, 24, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = bundle.Leader.UserId
+            };
+            context.MaterialReturns.Add(materialReturn);
+            await context.SaveChangesAsync();
+            await AddReturnLineAsync(
+                context, materialReturn, bundle.Project,
+                materials["GACH-2LO-220"], master.Units["VIEN"], 60m,
+                bundle.Leader.UserId, materialReturn.CreatedAt);
+            await AddReturnLineAsync(
+                context, materialReturn, bundle.Project,
+                materials["XM-INSEE-PCB40"], master.Units["BAO"], 3m,
+                bundle.Leader.UserId, materialReturn.CreatedAt);
+        }
+
+        const string reissuanceNo = "PXK-NGUYEN-XIEN-20260301-BS";
+        if (!await context.MaterialIssuances.AnyAsync(issuance => issuance.IssuanceNo == reissuanceNo))
+        {
+            var reissuance = new MaterialIssuance
+            {
+                IssuanceNo = reissuanceNo,
+                TaskId = FindLeafTask(bundle, phase2, "Tô vá rãnh điện nước").TaskId,
+                Purpose = "Xuất lại vật tư đã hoàn kho sau khi chốt vị trí tường ngăn và phạm vi tô vá điều chỉnh.",
+                CreatedAt = new DateTime(2026, 3, 1, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = bundle.Leader.UserId
+            };
+            context.MaterialIssuances.Add(reissuance);
+            await context.SaveChangesAsync();
+            await AddIssuanceLineAsync(
+                context, reissuance, bundle.Project,
+                materials["GACH-2LO-220"], master.Units["VIEN"], 60m,
+                bundle.Leader.UserId, reissuance.CreatedAt);
+            await AddIssuanceLineAsync(
+                context, reissuance, bundle.Project,
+                materials["XM-INSEE-PCB40"], master.Units["BAO"], 3m,
+                bundle.Leader.UserId, reissuance.CreatedAt);
+        }
+    }
+
+    private static async Task SeedNguyenXienReturnedSurplusAsync(
+        AppDbContext context,
+        ProjectBundle source,
+        ProjectBundle target,
+        User accountant,
+        User technicalManager,
+        MasterData master,
+        Dictionary<string, MaterialCatalog> materials)
+    {
+        const string reasonMarker = "Đối soát riêng vật tư nguyên kiện đã hoàn lại từ công trường Nguyễn Xiển";
+        if (await context.SurplusRequests.AnyAsync(request =>
+                request.ProjectId == source.Project.ProjectId &&
+                request.Reason != null && request.Reason.StartsWith(reasonMarker)))
+        {
+            return;
+        }
+
+        async Task EnsureAvailableAsync(string materialCode, decimal requiredQuantity)
+        {
+            var material = materials[materialCode];
+            var available = await context.CurrentInventories
+                .Where(inventory => inventory.ProjectId == source.Project.ProjectId &&
+                                    inventory.MaterialId == material.MaterialId &&
+                                    inventory.UnitId == material.BaseUnitId)
+                .Select(inventory => inventory.Quantity)
+                .SingleOrDefaultAsync();
+            if (available < requiredQuantity)
+            {
+                throw new InvalidOperationException(
+                    $"Không đủ tồn thực tế {materialCode} để xử lý vật tư hoàn lại của Nguyễn Xiển.");
+            }
+        }
+
+        await EnsureAvailableAsync("GACH-POR-600", 5m);
+        await EnsureAvailableAsync("WEBER-ST250", 2m);
+
+        var createdAt = new DateTime(2026, 5, 21, 2, 0, 0, DateTimeKind.Utc);
+        var surplus = new SurplusRequest
+        {
+            ProjectId = source.Project.ProjectId,
+            Reason = $"{reasonMarker}; đã tách riêng và xử lý hết trước khi nghiệm thu bàn giao dự án.",
+            Status = SurplusRequestStatus.Processed,
+            CreatedAt = createdAt,
+            CreatedBy = source.Leader.UserId
+        };
+        context.SurplusRequests.Add(surplus);
+        await context.SaveChangesAsync();
+
+        async Task<SurplusRequestItem> AddItemAsync(
+            string materialCode, string unitCode, decimal quantity, string closeReason)
+        {
+            var material = materials[materialCode];
+            var unit = master.Units[unitCode];
+            var item = new SurplusRequestItem
+            {
+                SurplusRequestId = surplus.SurplusRequestId,
+                MaterialId = material.MaterialId,
+                UnitId = unit.UnitId,
+                Quantity = quantity,
+                ProcessedQuantity = quantity,
+                ConversionRate = await GetConversionRateAsync(context, material, unit),
+                Status = SurplusRequestItemStatus.Completed,
+                CloseReason = closeReason,
+                CreatedAt = createdAt,
+                CreatedBy = source.Leader.UserId
+            };
+            context.SurplusRequestItems.Add(item);
+            await context.SaveChangesAsync();
+            return item;
+        }
+
+        var tileItem = await AddItemAsync(
+            "GACH-POR-600", "M2", 5m,
+            "Đã điều chuyển đủ 5 m² gạch nguyên hộp sang dự án đang thi công.");
+        var adhesiveItem = await AddItemAsync(
+            "WEBER-ST250", "BAO", 2m,
+            "Nhà cung cấp đã nhận lại đủ 2 bao còn nguyên và xác nhận hoàn tiền.");
+
+        var transfer = new SurplusTransfer
+        {
+            SurplusRequestItemId = tileItem.SurplusRequestItemId,
+            FromProjectId = source.Project.ProjectId,
+            ToProjectId = target.Project.ProjectId,
+            TransferQuantity = 5m,
+            Status = SurplusTransferStatus.Received,
+            ApprovedBy = technicalManager.UserId,
+            ApprovedAt = createdAt.AddDays(1),
+            DispatchedBy = source.Leader.UserId,
+            DispatchedAt = createdAt.AddDays(2),
+            ReceivedBy = target.Leader.UserId,
+            ReceivedAt = createdAt.AddDays(3),
+            CreatedAt = createdAt,
+            CreatedBy = source.Leader.UserId
+        };
+        context.SurplusTransfers.Add(transfer);
+        await context.SaveChangesAsync();
+        await ApplyStockAsync(
+            context, source.Project, materials["GACH-POR-600"], -(5m / tileItem.ConversionRate),
+            InventoryTransactionType.TransferOut, transfer.SurplusTransferId, EntityType.SurplusTransferDispatch,
+            source.Leader.UserId, transfer.DispatchedAt!.Value);
+        await ApplyStockAsync(
+            context, target.Project, materials["GACH-POR-600"], 5m / tileItem.ConversionRate,
+            InventoryTransactionType.TransferIn, transfer.SurplusTransferId, EntityType.SurplusTransferReceive,
+            target.Leader.UserId, transfer.ReceivedAt!.Value);
+
+        var supplierReturn = new SurplusReturnSupplier
+        {
+            SurplusRequestItemId = adhesiveItem.SurplusRequestItemId,
+            SupplierId = master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"].SupplierId,
+            ReturnQuantity = 2m,
+            RefundAmount = 420_000m,
+            Note = "Nhà cung cấp nhận lại 2 bao keo nguyên đai, khấu trừ theo đơn giá lô mua ban đầu.",
+            CreatedAt = createdAt.AddDays(4),
+            CreatedBy = accountant.UserId
+        };
+        context.SurplusReturnSuppliers.Add(supplierReturn);
+        await context.SaveChangesAsync();
+        await ApplyStockAsync(
+            context, source.Project, materials["WEBER-ST250"], -(2m / adhesiveItem.ConversionRate),
+            InventoryTransactionType.ReturnToSupplier, supplierReturn.SurplusReturnSupplierId,
+            EntityType.SurplusReturnSupplier, accountant.UserId, supplierReturn.CreatedAt);
+
+        context.Attachments.Add(new Attachment
+        {
+            EntityType = EntityType.SurplusRequest,
+            EntityId = surplus.SurplusRequestId,
+            AttachmentType = AttachmentType.SurplusEvidence,
+            FileName = "doi-soat-vat-tu-hoan-lai-nguyen-xien.jpg",
+            FileUrl = SeedImageDelivery,
+            ContentType = "image/jpeg",
+            FileSizeBytes = 365_000,
+            CreatedAt = createdAt,
+            CreatedBy = source.Leader.UserId
+        });
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task NormalizeNguyenXienCompletedProjectHistoryAsync(
+        AppDbContext context,
+        ProjectBundle source,
+        ProjectBundle target,
+        Dictionary<string, MaterialCatalog> materials)
+    {
+        var issuance = await context.MaterialIssuances
+            .SingleAsync(item => item.IssuanceNo == "PXK-NGUYEN-XIEN-20260425-01");
+        var issuanceItems = await context.MaterialIssuanceItems
+            .Where(item => item.MaterialIssuanceId == issuance.MaterialIssuanceId)
+            .ToListAsync();
+
+        async Task SetIssuanceQuantityAsync(string materialCode, decimal quantity)
+        {
+            var material = materials[materialCode];
+            var item = issuanceItems.Single(line => line.MaterialId == material.MaterialId);
+            item.Quantity = quantity;
+            var transaction = await context.InventoryTransactions.SingleAsync(movement =>
+                movement.ProjectId == source.Project.ProjectId &&
+                movement.MaterialId == material.MaterialId &&
+                movement.ReferenceId == issuance.MaterialIssuanceId &&
+                movement.ReferenceType == EntityType.MaterialIssuance);
+            transaction.QuantityChange = -(quantity / item.ConversionRate);
+        }
+
+        // Khối lượng dư phải phản ánh phần còn lại hợp lý của một công trình cải tạo,
+        // không phải 30-35% lô gạch/keo cuối kỳ như phiên bản seed cũ.
+        await SetIssuanceQuantityAsync("GACH-POR-600", 90m);
+        await SetIssuanceQuantityAsync("WEBER-ST250", 55m);
+        await SetIssuanceQuantityAsync("SON-NOI-18", 11m);
+
+        var requests = await context.SurplusRequests
+            .Include(request => request.Items)
+            .Where(request => request.ProjectId == source.Project.ProjectId)
+            .ToListAsync();
+        var primary = requests.Single(request => request.Items.Count == 3 &&
+            request.Items.Any(item => item.MaterialId == materials["SON-NOI-18"].MaterialId));
+        var returned = requests.Single(request => request.Items.Count == 2 &&
+            request.Items.Any(item => item.MaterialId == materials["GACH-POR-600"].MaterialId) &&
+            request.Items.Any(item => item.MaterialId == materials["WEBER-ST250"].MaterialId));
+
+        var primaryCreatedAt = new DateTime(2026, 5, 15, 2, 0, 0, DateTimeKind.Utc);
+        primary.Reason = "Đối soát vật tư trước nghiệm thu bàn giao; toàn bộ phần dư được điều chuyển, trả NCC hoặc thanh lý trước khi đóng dự án.";
+        primary.Status = SurplusRequestStatus.Processed;
+        primary.CreatedAt = primaryCreatedAt;
+        primary.UpdatedAt = primaryCreatedAt.AddDays(5);
+
+        SurplusRequestItem SetCompletedItem(
+            SurplusRequest request, string materialCode, decimal quantity, string closeReason)
+        {
+            var item = request.Items.Single(row => row.MaterialId == materials[materialCode].MaterialId);
+            item.Quantity = quantity;
+            item.ProcessedQuantity = quantity;
+            item.Status = SurplusRequestItemStatus.Completed;
+            item.CloseReason = closeReason;
+            item.CreatedAt = request.CreatedAt;
+            item.UpdatedAt = request.UpdatedAt;
+            return item;
+        }
+
+        var primaryTile = SetCompletedItem(primary, "GACH-POR-600", 10m,
+            "Đã điều chuyển đủ 10 m² sang dự án đang thi công.");
+        var primaryAdhesive = SetCompletedItem(primary, "WEBER-ST250", 5m,
+            "Nhà cung cấp đã nhận lại đủ 5 bao nguyên kiện và hoàn tiền.");
+        var primaryPaint = SetCompletedItem(primary, "SON-NOI-18", 1m,
+            "Đã thanh lý 1 thùng còn niêm phong theo biên bản.");
+
+        var primaryTransfer = await context.SurplusTransfers
+            .SingleAsync(action => action.SurplusRequestItemId == primaryTile.SurplusRequestItemId);
+        primaryTransfer.TransferQuantity = 10m;
+        primaryTransfer.Status = SurplusTransferStatus.Received;
+        primaryTransfer.CreatedAt = primaryCreatedAt;
+        primaryTransfer.ApprovedAt = primaryCreatedAt.AddDays(1);
+        primaryTransfer.DispatchedAt = primaryCreatedAt.AddDays(2);
+        primaryTransfer.ReceivedAt = primaryCreatedAt.AddDays(3);
+        primaryTransfer.UpdatedAt = primaryTransfer.ReceivedAt;
+
+        var primarySupplierReturn = await context.SurplusReturnSuppliers
+            .SingleAsync(action => action.SurplusRequestItemId == primaryAdhesive.SurplusRequestItemId);
+        primarySupplierReturn.ReturnQuantity = 5m;
+        primarySupplierReturn.RefundAmount = 1_050_000m;
+        primarySupplierReturn.Note = "NCC nhận lại 5 bao keo nguyên đai và hoàn tiền theo đơn giá thỏa thuận.";
+        primarySupplierReturn.CreatedAt = primaryCreatedAt.AddDays(4);
+
+        var primaryLiquidation = await context.SurplusLiquidations
+            .SingleAsync(action => action.SurplusRequestItemId == primaryPaint.SurplusRequestItemId);
+        primaryLiquidation.LiquidationQuantity = 1m;
+        primaryLiquidation.TotalAmount = 1_600_000m;
+        primaryLiquidation.CreatedAt = primaryCreatedAt.AddDays(5);
+
+        var returnedCreatedAt = new DateTime(2026, 5, 21, 2, 0, 0, DateTimeKind.Utc);
+        returned.Reason = "Đối soát riêng vật tư nguyên kiện đã hoàn lại từ công trường Nguyễn Xiển; đã tách riêng và xử lý hết trước khi nghiệm thu bàn giao dự án.";
+        returned.Status = SurplusRequestStatus.Processed;
+        returned.CreatedAt = returnedCreatedAt;
+        returned.UpdatedAt = returnedCreatedAt.AddDays(4);
+        var returnedTile = SetCompletedItem(returned, "GACH-POR-600", 5m,
+            "Đã điều chuyển đủ 5 m² gạch nguyên hộp sang dự án đang thi công.");
+        var returnedAdhesive = SetCompletedItem(returned, "WEBER-ST250", 2m,
+            "Nhà cung cấp đã nhận lại đủ 2 bao còn nguyên và xác nhận hoàn tiền.");
+
+        var returnedTransfer = await context.SurplusTransfers
+            .SingleAsync(action => action.SurplusRequestItemId == returnedTile.SurplusRequestItemId);
+        returnedTransfer.TransferQuantity = 5m;
+        returnedTransfer.Status = SurplusTransferStatus.Received;
+        returnedTransfer.CreatedAt = returnedCreatedAt;
+        returnedTransfer.ApprovedAt = returnedCreatedAt.AddDays(1);
+        returnedTransfer.DispatchedAt = returnedCreatedAt.AddDays(2);
+        returnedTransfer.ReceivedAt = returnedCreatedAt.AddDays(3);
+        returnedTransfer.UpdatedAt = returnedTransfer.ReceivedAt;
+
+        var returnedSupplierReturn = await context.SurplusReturnSuppliers
+            .SingleAsync(action => action.SurplusRequestItemId == returnedAdhesive.SurplusRequestItemId);
+        returnedSupplierReturn.ReturnQuantity = 2m;
+        returnedSupplierReturn.RefundAmount = 420_000m;
+        returnedSupplierReturn.CreatedAt = returnedCreatedAt.AddDays(4);
+
+        async Task SetMovementAsync(
+            long projectId, long materialId, long referenceId, string referenceType,
+            decimal quantityChange, DateTime createdAt)
+        {
+            var movement = await context.InventoryTransactions.SingleAsync(transaction =>
+                transaction.ProjectId == projectId &&
+                transaction.MaterialId == materialId &&
+                transaction.ReferenceId == referenceId &&
+                transaction.ReferenceType == referenceType);
+            movement.QuantityChange = quantityChange;
+            movement.CreatedAt = createdAt;
+        }
+
+        var tile = materials["GACH-POR-600"];
+        var adhesive = materials["WEBER-ST250"];
+        var paint = materials["SON-NOI-18"];
+        await SetMovementAsync(source.Project.ProjectId, tile.MaterialId,
+            primaryTransfer.SurplusTransferId, EntityType.SurplusTransferDispatch,
+            -(primaryTransfer.TransferQuantity / primaryTile.ConversionRate), primaryTransfer.DispatchedAt!.Value);
+        await SetMovementAsync(target.Project.ProjectId, tile.MaterialId,
+            primaryTransfer.SurplusTransferId, EntityType.SurplusTransferReceive,
+            primaryTransfer.TransferQuantity / primaryTile.ConversionRate, primaryTransfer.ReceivedAt!.Value);
+        await SetMovementAsync(source.Project.ProjectId, adhesive.MaterialId,
+            primarySupplierReturn.SurplusReturnSupplierId, EntityType.SurplusReturnSupplier,
+            -(primarySupplierReturn.ReturnQuantity / primaryAdhesive.ConversionRate), primarySupplierReturn.CreatedAt);
+        await SetMovementAsync(source.Project.ProjectId, paint.MaterialId,
+            primaryLiquidation.SurplusLiquidationId, EntityType.SurplusLiquidation,
+            -(primaryLiquidation.LiquidationQuantity / primaryPaint.ConversionRate), primaryLiquidation.CreatedAt);
+        await SetMovementAsync(source.Project.ProjectId, tile.MaterialId,
+            returnedTransfer.SurplusTransferId, EntityType.SurplusTransferDispatch,
+            -(returnedTransfer.TransferQuantity / returnedTile.ConversionRate), returnedTransfer.DispatchedAt!.Value);
+        await SetMovementAsync(target.Project.ProjectId, tile.MaterialId,
+            returnedTransfer.SurplusTransferId, EntityType.SurplusTransferReceive,
+            returnedTransfer.TransferQuantity / returnedTile.ConversionRate, returnedTransfer.ReceivedAt!.Value);
+        await SetMovementAsync(source.Project.ProjectId, adhesive.MaterialId,
+            returnedSupplierReturn.SurplusReturnSupplierId, EntityType.SurplusReturnSupplier,
+            -(returnedSupplierReturn.ReturnQuantity / returnedAdhesive.ConversionRate), returnedSupplierReturn.CreatedAt);
+
+        var requestIds = new[] { primary.SurplusRequestId, returned.SurplusRequestId };
+        var evidence = await context.Attachments
+            .Where(file => file.EntityType == EntityType.SurplusRequest && requestIds.Contains(file.EntityId))
+            .ToListAsync();
+        foreach (var file in evidence)
+        {
+            file.CreatedAt = file.EntityId == primary.SurplusRequestId ? primaryCreatedAt : returnedCreatedAt;
+        }
+
+        await context.SaveChangesAsync();
+
+        async Task RebuildInventoryBalanceAsync(Project project, MaterialCatalog material)
+        {
+            var movements = await context.InventoryTransactions
+                .Where(transaction => transaction.ProjectId == project.ProjectId &&
+                                      transaction.MaterialId == material.MaterialId)
+                .OrderBy(transaction => transaction.CreatedAt)
+                .ThenBy(transaction => transaction.TransactionId)
+                .ToListAsync();
+            decimal balance = 0;
+            foreach (var movement in movements)
+            {
+                balance += movement.QuantityChange;
+                if (balance < 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Lịch sử kho Nguyễn Xiển không hợp lệ tại giao dịch {movement.TransactionId}: số dư {balance}.");
+                }
+                movement.BalanceAfter = balance;
+            }
+
+            var inventory = await context.CurrentInventories.SingleAsync(item =>
+                item.ProjectId == project.ProjectId &&
+                item.MaterialId == material.MaterialId &&
+                item.UnitId == material.BaseUnitId);
+            inventory.Quantity = balance;
+            if (inventory.ReservedQuantity > balance) inventory.ReservedQuantity = balance;
+            inventory.LastUpdated = movements.Count == 0 ? SeedUtc : movements[^1].CreatedAt;
+        }
+
+        await RebuildInventoryBalanceAsync(source.Project, tile);
+        await RebuildInventoryBalanceAsync(source.Project, adhesive);
+        await RebuildInventoryBalanceAsync(source.Project, paint);
+        await RebuildInventoryBalanceAsync(target.Project, tile);
+        await context.SaveChangesAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // COMPLETED PROJECT REPORT SHOWCASE: keep two finished projects rich enough
+    // to demonstrate every report tab. This patch is idempotent so it can enrich
+    // an existing current seed without resetting the whole database.
+    // -------------------------------------------------------------------------
+    public static async Task SeedCompletedProjectReportShowcaseAsync(AppDbContext context)
+    {
+        const string moLaoName = "Nhà ở liền kề LK4B Mỗ Lao – Hà Đông";
+        const string nguyenXienName = "Cải tạo nhà phố Nguyễn Xiển – Thanh Xuân";
+        const string transferTargetName = "Biệt thự nhà chú Công – khu San Hô, Vinhomes Ocean Park 2";
+
+        async Task<ProjectBundle> LoadBundleAsync(string projectName)
+        {
+            var project = await context.Projects.SingleAsync(p => p.Name == projectName);
+            var phases = await context.Phases
+                .Where(p => p.ProjectId == project.ProjectId)
+                .OrderBy(p => p.OrderIndex)
+                .ToListAsync();
+            var phaseIds = phases.Select(p => p.PhaseId).ToList();
+            var tasks = await context.Tasks
+                .Where(t => phaseIds.Contains(t.PhaseId))
+                .OrderBy(t => t.OrderIndex)
+                .ToListAsync();
+            var members = await context.ProjectMembers
+                .Include(member => member.User)
+                .Where(member => member.ProjectId == project.ProjectId)
+                .OrderByDescending(member => member.IsLeader)
+                .ThenBy(member => member.ProjectMemberId)
+                .ToListAsync();
+            var leader = members.First(member => member.IsLeader).User;
+            var engineers = members.Where(member => !member.IsLeader).Select(member => member.User).ToList();
+
+            return new ProjectBundle(
+                project,
+                leader,
+                engineers.ElementAtOrDefault(0) ?? leader,
+                engineers.ElementAtOrDefault(1) ?? leader,
+                phases,
+                phases.ToDictionary(
+                    phase => phase.PhaseId,
+                    phase => tasks.Where(task => task.PhaseId == phase.PhaseId).ToList()));
+        }
+
+        var users = await context.Users.ToDictionaryAsync(user => user.Email, StringComparer.OrdinalIgnoreCase);
+        var master = new MasterData(
+            await context.Units.ToDictionaryAsync(unit => unit.UnitCode),
+            await context.MaterialCategories.ToDictionaryAsync(category => category.CategoryName),
+            await context.Suppliers.ToDictionaryAsync(supplier => supplier.SupplierName));
+        var materials = await context.MaterialCatalogs.ToDictionaryAsync(material => material.Code);
+        var moLao = await LoadBundleAsync(moLaoName);
+        var nguyenXien = await LoadBundleAsync(nguyenXienName);
+        var transferTarget = await LoadBundleAsync(transferTargetName);
+
+        if (!await context.PurchaseOrders.AnyAsync(po => po.PONumber == "PO-NGUYEN-XIEN-202604-01"))
+        {
+            var bundles = new Dictionary<string, ProjectBundle>
+            {
+                [nguyenXienName] = nguyenXien,
+                [transferTargetName] = transferTarget
+            };
+            await SeedCompletedProjectSurplusAsync(context, bundles, users, master, materials);
+        }
+
+        var accountant = users["ketoan@bpg.com"];
+        var director = users["giamdoc@bpg.com"];
+        var technicalManager = users["tpkt@bpg.com"];
+
+        await SeedNguyenXienDailyLogHistoryAsync(context, nguyenXien);
+        await SeedNguyenXienProcurementHistoryAsync(
+            context, nguyenXien, accountant, director, master, materials);
+
+        // Nguyễn Xiển: real historical progress so the S-curve does not jump
+        // straight from zero to 100% at task creation.
+        var nguyenXienTaskIds = nguyenXien.TasksByPhase.Values.SelectMany(tasks => tasks)
+            .Select(task => task.TaskId)
+            .ToList();
+        if (!await context.TaskProgressLogs.AnyAsync(log => nguyenXienTaskIds.Contains(log.TaskId)))
+        {
+            foreach (var task in nguyenXien.TasksByPhase.Values.SelectMany(tasks => tasks))
+            {
+                var duration = Math.Max(0, task.EndDate.DayNumber - task.StartDate.DayNumber);
+                DateTime At(int percent, int hour) => DateTime.SpecifyKind(
+                    task.StartDate.AddDays(duration * percent / 100).ToDateTime(new TimeOnly(hour, 0)),
+                    DateTimeKind.Utc);
+                var firstAt = At(30, 1);
+                var secondAt = At(70, 2);
+                var completedAt = DateTime.SpecifyKind(task.EndDate.ToDateTime(new TimeOnly(3, 0)), DateTimeKind.Utc);
+                context.TaskProgressLogs.AddRange(
+                    new TaskProgressLog
+                    {
+                        TaskId = task.TaskId, OldProgress = 0, NewProgress = 30,
+                        UpdateReason = "Hoàn thành chuẩn bị và khối lượng đầu kỳ.",
+                        CreatedAt = firstAt, UpdatedAt = firstAt, CreatedBy = nguyenXien.EngineerA.UserId
+                    },
+                    new TaskProgressLog
+                    {
+                        TaskId = task.TaskId, OldProgress = 30, NewProgress = 75,
+                        UpdateReason = "Khối lượng chính đã thi công và được kiểm tra nội bộ.",
+                        CreatedAt = secondAt, UpdatedAt = secondAt, CreatedBy = nguyenXien.Leader.UserId
+                    },
+                    new TaskProgressLog
+                    {
+                        TaskId = task.TaskId, OldProgress = 75, NewProgress = 100,
+                        UpdateReason = "Hoàn thành, nghiệm thu và khóa khối lượng công việc.",
+                        CreatedAt = completedAt, UpdatedAt = completedAt, CreatedBy = nguyenXien.Leader.UserId
+                    });
+            }
+            await context.SaveChangesAsync();
+        }
+
+        var nguyenXienIssuance = await context.MaterialIssuances
+            .SingleAsync(issuance => issuance.IssuanceNo == "PXK-NGUYEN-XIEN-20260425-01");
+        var finishingLeafTask = FindLeafTask(nguyenXien, nguyenXien.Phases[2], "Lát gạch sàn khu khô");
+        nguyenXienIssuance.TaskId = finishingLeafTask.TaskId;
+        nguyenXienIssuance.Purpose =
+            "Xuất gạch, keo dán gạch và sơn theo khối lượng thi công hoàn thiện đã được duyệt.";
+        await context.SaveChangesAsync();
+        if (!await context.MaterialReturns.AnyAsync(ret => ret.ReturnNo == "PTRA-NGUYEN-XIEN-20260502-01"))
+        {
+            var materialReturn = new MaterialReturn
+            {
+                ReturnNo = "PTRA-NGUYEN-XIEN-20260502-01",
+                OriginalIssuanceId = nguyenXienIssuance.MaterialIssuanceId,
+                Reason = "Hoàn lại gạch và keo còn nguyên sau khi chốt khối lượng hoàn thiện.",
+                CreatedAt = new DateTime(2026, 5, 2, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = nguyenXien.Leader.UserId
+            };
+            context.MaterialReturns.Add(materialReturn);
+            await context.SaveChangesAsync();
+            await AddReturnLineAsync(context, materialReturn, nguyenXien.Project,
+                materials["GACH-POR-600"], master.Units["M2"], 5m,
+                nguyenXien.Leader.UserId, materialReturn.CreatedAt);
+            await AddReturnLineAsync(context, materialReturn, nguyenXien.Project,
+                materials["WEBER-ST250"], master.Units["BAO"], 2m,
+                nguyenXien.Leader.UserId, materialReturn.CreatedAt);
+        }
+
+        var directPurchaseDate = new DateTime(2026, 5, 8, 2, 0, 0, DateTimeKind.Utc);
+        var touchUpTask = FindLeafTask(nguyenXien, nguyenXien.Phases[3], "Dặm vá sơn");
+        var directPurchase = await context.DirectPurchaseRequests.SingleOrDefaultAsync(dp =>
+            dp.ProjectId == nguyenXien.Project.ProjectId && dp.PurchaseDate == directPurchaseDate);
+        if (directPurchase == null)
+        {
+            var phase = nguyenXien.Phases[3];
+            await SeedDirectPurchaseAsync(
+                context, nguyenXien.Project, phase, touchUpTask, nguyenXien.EngineerA, accountant, director,
+                materials["SON-NOI-18"], master.Units["THUNG"], 2m, 2_620_000m,
+                directPurchaseDate);
+            directPurchase = await context.DirectPurchaseRequests.SingleAsync(dp =>
+                dp.ProjectId == nguyenXien.Project.ProjectId && dp.PurchaseDate == directPurchaseDate);
+        }
+
+        directPurchase.TaskId = touchUpTask.TaskId;
+        directPurchase.Reason =
+            "Mua bổ sung 2 thùng sơn đúng mã màu để dặm vá các vị trí va quệt sau lắp đặt thiết bị, tránh gián đoạn bàn giao.";
+        await context.SaveChangesAsync();
+
+        const string directPurchaseIssuanceNo = "PXK-NGUYEN-XIEN-20260509-DP";
+        if (!await context.MaterialIssuances.AnyAsync(issuance => issuance.IssuanceNo == directPurchaseIssuanceNo))
+        {
+            var directPurchaseIssuance = new MaterialIssuance
+            {
+                IssuanceNo = directPurchaseIssuanceNo,
+                TaskId = touchUpTask.TaskId,
+                Purpose = "Xuất 2 thùng sơn mua bổ sung để dặm vá lỗi hoàn thiện trước nghiệm thu nội bộ.",
+                CreatedAt = directPurchaseDate.AddDays(1),
+                CreatedBy = nguyenXien.Leader.UserId
+            };
+            context.MaterialIssuances.Add(directPurchaseIssuance);
+            await context.SaveChangesAsync();
+            await AddIssuanceLineAsync(
+                context, directPurchaseIssuance, nguyenXien.Project,
+                materials["SON-NOI-18"], master.Units["THUNG"], 2m,
+                nguyenXien.Leader.UserId, directPurchaseIssuance.CreatedAt);
+        }
+
+        var nguyenXienPoItems = await context.PurchaseOrderItems
+            .Where(item => item.PurchaseOrder.ProjectId == nguyenXien.Project.ProjectId)
+            .ToListAsync();
+        foreach (var poItem in nguyenXienPoItems)
+        {
+            poItem.Notes =
+                "Đơn giá đã được đối chiếu theo báo giá nhà cung cấp tại thời điểm lập đơn và chưa bao gồm biến động sau ngày đặt hàng.";
+        }
+        await context.SaveChangesAsync();
+
+        // Chỉ dùng các loại sự cố mà luồng nghiệp vụ thực tế hỗ trợ. Mỗi sự cố lịch sử
+        // của dự án đã hoàn thành phải được khắc phục, xác nhận và đóng trước ngày bàn giao.
+        const string safetyIncidentMarker = "Kiểm tra giàn giáo khu vực mặt tiền sau mưa";
+        const string waterproofIncidentMarker = "Phát hiện thấm cục bộ chân tường khu vệ sinh tầng 2";
+        const string tileIncidentMarker = "Phản ánh chênh màu gạch giữa hai lô giao hàng cuối kỳ";
+
+        var phase1 = nguyenXien.Phases[0];
+        var phase2 = nguyenXien.Phases[1];
+        var phase3 = nguyenXien.Phases[2];
+        var safetyTask = FindLeafTask(nguyenXien, phase1, "Bố trí biển báo");
+        var waterproofTask = FindLeafTask(nguyenXien, phase2, "Ngâm thử nước tối thiểu 48 giờ");
+        var tileInspectionTask = FindLeafTask(nguyenXien, phase3, "Kiểm tra lô gạch");
+
+        async Task<Incident> GetOrCreateIncidentAsync(string marker, Func<Incident> create)
+        {
+            var incident = await context.Incidents.FirstOrDefaultAsync(item =>
+                item.ProjectId == nguyenXien.Project.ProjectId &&
+                item.Description.StartsWith(marker));
+            if (incident != null) return incident;
+
+            incident = create();
+            context.Incidents.Add(incident);
+            await context.SaveChangesAsync();
+            return incident;
+        }
+
+        var safetyIncident = await GetOrCreateIncidentAsync(safetyIncidentMarker, () => new Incident
+        {
+            ProjectId = nguyenXien.Project.ProjectId,
+            ReportedBy = nguyenXien.EngineerA.UserId,
+            CreatedBy = nguyenXien.EngineerA.UserId,
+            Description = safetyIncidentMarker
+        });
+        safetyIncident.PhaseId = phase1.PhaseId;
+        safetyIncident.TaskId = safetyTask.TaskId;
+        safetyIncident.ReviewedBy = nguyenXien.Leader.UserId;
+        safetyIncident.IncidentType = "Construction";
+        safetyIncident.Description = $"{safetyIncidentMarker}; một vị trí neo giằng bị lỏng và đã được cô lập ngay.";
+        safetyIncident.Status = IncidentStatus.Closed;
+        safetyIncident.DamageDescription = "Không có thiệt hại về người, thiết bị hoặc vật tư.";
+        safetyIncident.EstimatedMaterialLoss = 0;
+        safetyIncident.EstimatedLaborDays = 0.5m;
+        safetyIncident.EstimatedDelayDays = 0;
+        safetyIncident.ProposedAction = "Siết lại neo giằng, bổ sung biển cảnh báo và kiểm tra chéo trước khi làm việc.";
+        safetyIncident.HandlingInstruction = "Chỉ huy trưởng đã nghiệm thu lại điều kiện an toàn và đóng sự cố.";
+        safetyIncident.IsEmergency = false;
+        safetyIncident.CreatedAt = new DateTime(2026, 1, 25, 2, 0, 0, DateTimeKind.Utc);
+        safetyIncident.UpdatedAt = new DateTime(2026, 1, 26, 2, 0, 0, DateTimeKind.Utc);
+        safetyIncident.UpdatedBy = nguyenXien.Leader.UserId;
+
+        var waterproofIncident = await GetOrCreateIncidentAsync(waterproofIncidentMarker, () => new Incident
+        {
+            ProjectId = nguyenXien.Project.ProjectId,
+            ReportedBy = nguyenXien.Leader.UserId,
+            CreatedBy = nguyenXien.Leader.UserId,
+            Description = waterproofIncidentMarker
+        });
+        waterproofIncident.PhaseId = phase2.PhaseId;
+        waterproofIncident.TaskId = waterproofTask.TaskId;
+        waterproofIncident.ReviewedBy = technicalManager.UserId;
+        waterproofIncident.IncidentType = "Construction";
+        waterproofIncident.Description = $"{waterproofIncidentMarker} khi ngâm thử nước 48 giờ.";
+        waterproofIncident.Status = IncidentStatus.Closed;
+        waterproofIncident.DamageDescription = "Khoanh vùng và thi công lại 5 m² chống thấm; không ảnh hưởng kết cấu.";
+        waterproofIncident.EstimatedMaterialLoss = 2_450_000m;
+        waterproofIncident.EstimatedLaborDays = 2;
+        waterproofIncident.EstimatedDelayDays = 1;
+        waterproofIncident.ProposedAction = "Xử lý lại lớp chống thấm và ngâm thử đủ 48 giờ.";
+        waterproofIncident.HandlingInstruction = "Kết quả thử lại đạt, biên bản khắc phục đã được xác nhận và sự cố đã đóng.";
+        waterproofIncident.IsEmergency = false;
+        waterproofIncident.CreatedAt = new DateTime(2026, 3, 8, 2, 0, 0, DateTimeKind.Utc);
+        waterproofIncident.UpdatedAt = new DateTime(2026, 3, 11, 2, 0, 0, DateTimeKind.Utc);
+        waterproofIncident.UpdatedBy = technicalManager.UserId;
+
+        var tileIncident = await GetOrCreateIncidentAsync(tileIncidentMarker, () => new Incident
+        {
+            ProjectId = nguyenXien.Project.ProjectId,
+            ReportedBy = nguyenXien.EngineerB.UserId,
+            CreatedBy = nguyenXien.EngineerB.UserId,
+            Description = tileIncidentMarker
+        });
+        tileIncident.PhaseId = phase3.PhaseId;
+        tileIncident.TaskId = tileInspectionTask.TaskId;
+        tileIncident.ReviewedBy = technicalManager.UserId;
+        tileIncident.IncidentType = "InventoryDamage";
+        tileIncident.Description = $"{tileIncidentMarker}; 6 m² chưa xuất dùng được tách riêng để kiểm tra.";
+        tileIncident.Status = IncidentStatus.Closed;
+        tileIncident.DamageDescription = "Không phát sinh hao hụt: nhà cung cấp đổi đủ 6 m² gạch đúng lô màu trước khi thi công.";
+        tileIncident.EstimatedMaterialLoss = 0;
+        tileIncident.EstimatedLaborDays = 0.5m;
+        tileIncident.EstimatedDelayDays = 0;
+        tileIncident.ProposedAction = "Cách ly lô chênh màu, đối chiếu mẫu duyệt và yêu cầu nhà cung cấp đổi hàng.";
+        tileIncident.HandlingInstruction = "Đã nhận đủ hàng thay thế, kiểm tra đồng màu đạt và đóng sự cố.";
+        tileIncident.IsEmergency = false;
+        tileIncident.CreatedAt = new DateTime(2026, 3, 22, 2, 0, 0, DateTimeKind.Utc);
+        tileIncident.UpdatedAt = new DateTime(2026, 3, 24, 2, 0, 0, DateTimeKind.Utc);
+        tileIncident.UpdatedBy = technicalManager.UserId;
+        await context.SaveChangesAsync();
+
+        // AuditInterceptor luôn gán UpdatedAt = thời điểm chạy seed cho entity Modified.
+        // Ghi lại mốc đóng lịch sử sau SaveChanges để dữ liệu demo không mang ngày đóng giả ở hiện tại.
+        await context.Incidents
+            .Where(incident => incident.IncidentId == safetyIncident.IncidentId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(incident => incident.UpdatedAt, new DateTime(2026, 1, 26, 2, 0, 0, DateTimeKind.Utc))
+                .SetProperty(incident => incident.UpdatedBy, nguyenXien.Leader.UserId));
+        await context.Incidents
+            .Where(incident => incident.IncidentId == waterproofIncident.IncidentId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(incident => incident.UpdatedAt, new DateTime(2026, 3, 11, 2, 0, 0, DateTimeKind.Utc))
+                .SetProperty(incident => incident.UpdatedBy, technicalManager.UserId));
+        await context.Incidents
+            .Where(incident => incident.IncidentId == tileIncident.IncidentId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(incident => incident.UpdatedAt, new DateTime(2026, 3, 24, 2, 0, 0, DateTimeKind.Utc))
+                .SetProperty(incident => incident.UpdatedBy, technicalManager.UserId));
+
+        await SeedNguyenXienReturnedSurplusAsync(
+            context, nguyenXien, transferTarget, accountant, technicalManager, master, materials);
+        await NormalizeNguyenXienCompletedProjectHistoryAsync(
+            context, nguyenXien, transferTarget, materials);
+
+        const string moLaoSurplusReason = "Vật tư còn sau bàn giao LK4B Mỗ Lao";
+        if (!await context.SurplusRequests.AnyAsync(request =>
+                request.ProjectId == moLao.Project.ProjectId &&
+                request.Reason != null && request.Reason.StartsWith(moLaoSurplusReason)))
+        {
+            var surplus = new SurplusRequest
+            {
+                ProjectId = moLao.Project.ProjectId,
+                Reason = $"{moLaoSurplusReason}; phân loại điều chuyển, trả nhà cung cấp, thanh lý và chờ xử lý.",
+                Status = SurplusRequestStatus.Processing,
+                CreatedAt = new DateTime(2025, 11, 27, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = moLao.Leader.UserId
+            };
+            context.SurplusRequests.Add(surplus);
+            await context.SaveChangesAsync();
+
+            async Task<SurplusRequestItem> AddSurplusItemAsync(
+                string materialCode, string unitCode, decimal quantity, decimal processedQuantity, string status)
+            {
+                var material = materials[materialCode];
+                var unit = master.Units[unitCode];
+                var conversionRate = await GetConversionRateAsync(context, material, unit);
+                var available = await context.CurrentInventories
+                    .Where(inv => inv.ProjectId == moLao.Project.ProjectId &&
+                                  inv.MaterialId == material.MaterialId &&
+                                  inv.UnitId == material.BaseUnitId)
+                    .Select(inv => inv.Quantity)
+                    .SingleOrDefaultAsync();
+                if (available < quantity / conversionRate)
+                    throw new InvalidOperationException($"Không đủ tồn {materialCode} để tạo dữ liệu báo cáo Mỗ Lao.");
+
+                var item = new SurplusRequestItem
+                {
+                    SurplusRequestId = surplus.SurplusRequestId,
+                    MaterialId = material.MaterialId,
+                    UnitId = unit.UnitId,
+                    Quantity = quantity,
+                    ProcessedQuantity = processedQuantity,
+                    ConversionRate = conversionRate,
+                    Status = status,
+                    CloseReason = status == SurplusRequestItemStatus.Completed ? "Đã xử lý đủ số lượng." : null,
+                    CreatedAt = surplus.CreatedAt,
+                    CreatedBy = moLao.Leader.UserId
+                };
+                context.SurplusRequestItems.Add(item);
+                await context.SaveChangesAsync();
+                return item;
+            }
+
+            var tile = await AddSurplusItemAsync("GACH-POR-600", "M2", 10m, 10m, SurplusRequestItemStatus.Completed);
+            var adhesive = await AddSurplusItemAsync("WEBER-ST250", "BAO", 3m, 3m, SurplusRequestItemStatus.Completed);
+            var paint = await AddSurplusItemAsync("SON-NOI-18", "THUNG", 1m, 1m, SurplusRequestItemStatus.Completed);
+            await AddSurplusItemAsync("XM-VICEM-PCB40", "BAO", 5m, 0m, SurplusRequestItemStatus.Pending);
+
+            var transfer = new SurplusTransfer
+            {
+                SurplusRequestItemId = tile.SurplusRequestItemId,
+                FromProjectId = moLao.Project.ProjectId,
+                ToProjectId = transferTarget.Project.ProjectId,
+                TransferQuantity = 10m,
+                Status = SurplusTransferStatus.Received,
+                ApprovedBy = technicalManager.UserId,
+                ApprovedAt = new DateTime(2025, 11, 28, 2, 0, 0, DateTimeKind.Utc),
+                DispatchedBy = moLao.Leader.UserId,
+                DispatchedAt = new DateTime(2025, 11, 29, 2, 0, 0, DateTimeKind.Utc),
+                ReceivedBy = transferTarget.Leader.UserId,
+                ReceivedAt = new DateTime(2025, 11, 30, 2, 0, 0, DateTimeKind.Utc),
+                CreatedAt = new DateTime(2025, 11, 28, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = moLao.Leader.UserId
+            };
+            context.SurplusTransfers.Add(transfer);
+            await context.SaveChangesAsync();
+            await ApplyStockAsync(context, moLao.Project, materials["GACH-POR-600"], -(10m / tile.ConversionRate),
+                InventoryTransactionType.TransferOut, transfer.SurplusTransferId, EntityType.SurplusTransferDispatch,
+                moLao.Leader.UserId, transfer.DispatchedAt!.Value);
+            await ApplyStockAsync(context, transferTarget.Project, materials["GACH-POR-600"], 10m / tile.ConversionRate,
+                InventoryTransactionType.TransferIn, transfer.SurplusTransferId, EntityType.SurplusTransferReceive,
+                transferTarget.Leader.UserId, transfer.ReceivedAt!.Value);
+
+            var supplierReturn = new SurplusReturnSupplier
+            {
+                SurplusRequestItemId = adhesive.SurplusRequestItemId,
+                SupplierId = master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"].SupplierId,
+                ReturnQuantity = 3m,
+                RefundAmount = 630_000m,
+                Note = "Nhà cung cấp nhận lại 3 bao keo còn nguyên.",
+                CreatedAt = new DateTime(2025, 12, 1, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = moLao.Leader.UserId
+            };
+            context.SurplusReturnSuppliers.Add(supplierReturn);
+            await context.SaveChangesAsync();
+            await ApplyStockAsync(context, moLao.Project, materials["WEBER-ST250"], -(3m / adhesive.ConversionRate),
+                InventoryTransactionType.ReturnToSupplier, supplierReturn.SurplusReturnSupplierId, EntityType.SurplusReturnSupplier,
+                moLao.Leader.UserId, supplierReturn.CreatedAt);
+
+            var liquidation = new SurplusLiquidation
+            {
+                SurplusRequestItemId = paint.SurplusRequestItemId,
+                BuyerName = "Tổ hoàn thiện dân dụng Hà Đông",
+                LiquidationQuantity = 1m,
+                TotalAmount = 1_650_000m,
+                CreatedAt = new DateTime(2025, 12, 2, 2, 0, 0, DateTimeKind.Utc),
+                CreatedBy = accountant.UserId
+            };
+            context.SurplusLiquidations.Add(liquidation);
+            await context.SaveChangesAsync();
+            await ApplyStockAsync(context, moLao.Project, materials["SON-NOI-18"], -(1m / paint.ConversionRate),
+                InventoryTransactionType.Liquidation, liquidation.SurplusLiquidationId, EntityType.SurplusLiquidation,
+                accountant.UserId, liquidation.CreatedAt);
+        }
+
+        foreach (var bundle in new[] { moLao, nguyenXien })
+        {
+            var projectId = bundle.Project.ProjectId;
+            var phaseIds = bundle.Phases.Select(phase => phase.PhaseId).ToList();
+            var taskIds = bundle.TasksByPhase.Values.SelectMany(tasks => tasks).Select(task => task.TaskId).ToList();
+            var issuanceIds = await context.MaterialIssuances
+                .Where(issuance => taskIds.Contains(issuance.TaskId))
+                .Select(issuance => issuance.MaterialIssuanceId)
+                .ToListAsync();
+            var purchaseOrderCount = await context.PurchaseOrders.CountAsync(po => po.ProjectId == projectId);
+            var returnCount = await context.MaterialReturns.CountAsync(ret => issuanceIds.Contains(ret.OriginalIssuanceId));
+            var incidentCount = await context.Incidents.CountAsync(incident => incident.ProjectId == projectId);
+            var surplusCount = await context.SurplusRequests.CountAsync(request => request.ProjectId == projectId);
+            var progressLogCount = await context.TaskProgressLogs.CountAsync(log => taskIds.Contains(log.TaskId));
+            var dailyLogCount = await context.DailyLogs.CountAsync(log => taskIds.Contains(log.TaskId));
+            var boqCount = await context.BOQItems.CountAsync(item => phaseIds.Contains(item.PhaseId));
+            var materialRequestCount = await context.MaterialRequests.CountAsync(request => phaseIds.Contains(request.PhaseId));
+            var hasFullCoverage = purchaseOrderCount > 0
+                && issuanceIds.Count > 0
+                && returnCount > 0
+                && incidentCount >= 3
+                && surplusCount > 0
+                && progressLogCount > 0
+                && dailyLogCount > 0
+                && boqCount > 0;
+
+            if (projectId == nguyenXien.Project.ProjectId)
+            {
+                var tasks = bundle.TasksByPhase.Values.SelectMany(items => items).ToList();
+                var parentTaskIds = tasks
+                    .Where(task => task.ParentTaskId.HasValue)
+                    .Select(task => task.ParentTaskId!.Value)
+                    .ToHashSet();
+                var completedLeafIds = tasks
+                    .Where(task => !parentTaskIds.Contains(task.TaskId))
+                    .Where(task => task.ProgressPercent == 100 &&
+                                   task.Status is TaskStatusConstants.Completed or TaskStatusConstants.Approved)
+                    .Select(task => task.TaskId)
+                    .ToList();
+                var leafIdsWithDailyLog = await context.DailyLogs
+                    .Where(log => completedLeafIds.Contains(log.TaskId))
+                    .Select(log => log.TaskId)
+                    .Distinct()
+                    .CountAsync();
+                var invalidTaskStatusCount = tasks.Count(task =>
+                    task.Status != TaskStatusConstants.Approved ||
+                    task.ProgressPercent != 100 ||
+                    !task.IsLocked);
+                var invalidPhaseStatusCount = bundle.Phases.Count(phase => phase.Status != PhaseStatus.Approved);
+                var unfinishedMaterialRequestCount = await context.MaterialRequests.CountAsync(request =>
+                    phaseIds.Contains(request.PhaseId) && request.Status != MaterialRequestStatus.Approved);
+                var unfinishedPurchaseOrderCount = await context.PurchaseOrders.CountAsync(po =>
+                    po.ProjectId == projectId &&
+                    po.Status != PurchaseOrderStatus.FullyReceived &&
+                    po.Status != PurchaseOrderStatus.Closed);
+                var unapprovedReceiptCount = await context.GoodsReceipts
+                    .Where(receipt => receipt.PurchaseOrder.ProjectId == projectId)
+                    .CountAsync(receipt => receipt.Status != GoodsReceiptStatus.Approved);
+                var nonZeroInventoryCount = await context.CurrentInventories.CountAsync(inventory =>
+                    inventory.ProjectId == projectId && inventory.Quantity != 0);
+                var nonClosedIncidentCount = await context.Incidents.CountAsync(incident =>
+                    incident.ProjectId == projectId && incident.Status != IncidentStatus.Closed);
+                var invalidIncidentTypeCount = await context.Incidents.CountAsync(incident =>
+                    incident.ProjectId == projectId &&
+                    incident.IncidentType != "Construction" &&
+                    incident.IncidentType != "InventoryLoss" &&
+                    incident.IncidentType != "InventoryDamage");
+                var unfinishedSurplusRequestCount = await context.SurplusRequests.CountAsync(request =>
+                    request.ProjectId == projectId && request.Status != SurplusRequestStatus.Processed);
+                var unfinishedSurplusItemCount = await context.SurplusRequestItems.CountAsync(item =>
+                    item.SurplusRequest.ProjectId == projectId &&
+                    (item.Status != SurplusRequestItemStatus.Completed ||
+                     item.ProcessedQuantity != item.Quantity));
+                var surplusCreatedAfterProjectEndCount = context.SurplusRequests
+                    .Where(request => request.ProjectId == projectId)
+                    .AsEnumerable()
+                    .Count(request => DateOnly.FromDateTime(request.CreatedAt) > bundle.Project.PlannedEnd);
+
+                hasFullCoverage = hasFullCoverage
+                    && completedLeafIds.Count > 0
+                    && leafIdsWithDailyLog == completedLeafIds.Count
+                    && invalidTaskStatusCount == 0
+                    && invalidPhaseStatusCount == 0
+                    && unfinishedMaterialRequestCount == 0
+                    && unfinishedPurchaseOrderCount == 0
+                    && unapprovedReceiptCount == 0
+                    && nonZeroInventoryCount == 0
+                    && nonClosedIncidentCount == 0
+                    && invalidIncidentTypeCount == 0
+                    && unfinishedSurplusRequestCount == 0
+                    && unfinishedSurplusItemCount == 0
+                    && surplusCreatedAfterProjectEndCount == 0;
+
+                Console.WriteLine(
+                    $"Nguyễn Xiển business invariants: DailyLog {leafIdsWithDailyLog}/{completedLeafIds.Count} việc lá; " +
+                    $"Task sai trạng thái {invalidTaskStatusCount}; Phase sai trạng thái {invalidPhaseStatusCount}; " +
+                    $"chứng từ chưa hoàn tất {unfinishedMaterialRequestCount + unfinishedPurchaseOrderCount + unapprovedReceiptCount}; " +
+                    $"sự cố chưa đóng/khác loại hợp lệ {nonClosedIncidentCount}/{invalidIncidentTypeCount}; " +
+                    $"vật tư thừa chưa xử lý/tạo sau hạn {unfinishedSurplusRequestCount + unfinishedSurplusItemCount}/{surplusCreatedAfterProjectEndCount}; " +
+                    $"dòng tồn kho khác 0 {nonZeroInventoryCount}.");
+            }
+            if (!hasFullCoverage)
+                throw new InvalidOperationException($"Dữ liệu báo cáo chưa đủ coverage cho dự án {bundle.Project.Name}.");
+
+            Console.WriteLine(
+                $"Report seed verified: {bundle.Project.Name} | BOQ {boqCount} | YCVT {materialRequestCount} | PO {purchaseOrderCount} | " +
+                $"PXK {issuanceIds.Count} | Hoàn trả {returnCount} | Sự cố {incidentCount} | " +
+                $"Vật tư thừa {surplusCount} | DailyLog {dailyLogCount} | Nhật ký tiến độ {progressLogCount}.");
+        }
+    }
+
     // -------------------------------------------------------------------------
     // COMPLETED PROJECT SURPLUS: transfer + supplier return + liquidation.
     // -------------------------------------------------------------------------
@@ -3364,16 +4523,16 @@ public static class DbSeeder
         };
         context.MaterialIssuances.Add(historicalIssuance);
         await context.SaveChangesAsync();
-        await AddIssuanceLineAsync(context, historicalIssuance, source.Project, materials["WEBER-ST250"], master.Units["BAO"], 50m, source.Leader.UserId, historicalIssuance.CreatedAt);
-        await AddIssuanceLineAsync(context, historicalIssuance, source.Project, materials["GACH-POR-600"], master.Units["M2"], 70m, source.Leader.UserId, historicalIssuance.CreatedAt);
-        await AddIssuanceLineAsync(context, historicalIssuance, source.Project, materials["SON-NOI-18"], master.Units["THUNG"], 10m, source.Leader.UserId, historicalIssuance.CreatedAt);
+        await AddIssuanceLineAsync(context, historicalIssuance, source.Project, materials["WEBER-ST250"], master.Units["BAO"], 55m, source.Leader.UserId, historicalIssuance.CreatedAt);
+        await AddIssuanceLineAsync(context, historicalIssuance, source.Project, materials["GACH-POR-600"], master.Units["M2"], 90m, source.Leader.UserId, historicalIssuance.CreatedAt);
+        await AddIssuanceLineAsync(context, historicalIssuance, source.Project, materials["SON-NOI-18"], master.Units["THUNG"], 11m, source.Leader.UserId, historicalIssuance.CreatedAt);
 
         var surplus = new SurplusRequest
         {
             ProjectId = source.Project.ProjectId,
-            Reason = "Tổng hợp vật tư còn thừa sau khi hoàn thành dự án; ưu tiên điều chuyển nội bộ trước, phần còn lại trả NCC/thanh lý.",
+            Reason = "Đối soát vật tư trước nghiệm thu bàn giao; toàn bộ phần dư được điều chuyển, trả NCC hoặc thanh lý trước khi đóng dự án.",
             Status = SurplusRequestStatus.Processed,
-            CreatedAt = new DateTime(2026,6,2,2,0,0,DateTimeKind.Utc),
+            CreatedAt = new DateTime(2026,5,15,2,0,0,DateTimeKind.Utc),
             CreatedBy = source.Leader.UserId
         };
         context.SurplusRequests.Add(surplus);
@@ -3401,23 +4560,23 @@ public static class DbSeeder
             return item;
         }
 
-        var tileItem = await AddItem("GACH-POR-600", "M2", 30m);
-        var adhesiveItem = await AddItem("WEBER-ST250", "BAO", 10m);
-        var paintItem = await AddItem("SON-NOI-18", "THUNG", 2m);
+        var tileItem = await AddItem("GACH-POR-600", "M2", 10m);
+        var adhesiveItem = await AddItem("WEBER-ST250", "BAO", 5m);
+        var paintItem = await AddItem("SON-NOI-18", "THUNG", 1m);
 
         var transfer = new SurplusTransfer
         {
             SurplusRequestItemId = tileItem.SurplusRequestItemId,
             FromProjectId = source.Project.ProjectId,
             ToProjectId = target.Project.ProjectId,
-            TransferQuantity = 30m,
+            TransferQuantity = 10m,
             Status = SurplusTransferStatus.Received,
             ApprovedBy = tpkt.UserId,
-            ApprovedAt = new DateTime(2026,6,18,2,0,0,DateTimeKind.Utc),
+            ApprovedAt = new DateTime(2026,5,16,2,0,0,DateTimeKind.Utc),
             DispatchedBy = source.Leader.UserId,
-            DispatchedAt = new DateTime(2026,6,19,2,0,0,DateTimeKind.Utc),
+            DispatchedAt = new DateTime(2026,5,17,2,0,0,DateTimeKind.Utc),
             ReceivedBy = target.Leader.UserId,
-            ReceivedAt = new DateTime(2026,6,20,2,0,0,DateTimeKind.Utc),
+            ReceivedAt = new DateTime(2026,5,18,2,0,0,DateTimeKind.Utc),
             CreatedAt = surplus.CreatedAt,
             CreatedBy = source.Leader.UserId
         };
@@ -3436,15 +4595,15 @@ public static class DbSeeder
         {
             SurplusRequestItemId = adhesiveItem.SurplusRequestItemId,
             SupplierId = master.Suppliers["Đại lý VLXD Minh Phát Hà Đông"].SupplierId,
-            ReturnQuantity = 10m,
-            RefundAmount = 2_100_000m,
-            Note = "NCC nhận lại 10 bao keo còn nguyên, hoàn tiền theo thỏa thuận.",
-            CreatedAt = new DateTime(2026,6,21,2,0,0,DateTimeKind.Utc),
+            ReturnQuantity = 5m,
+            RefundAmount = 1_050_000m,
+            Note = "NCC nhận lại 5 bao keo còn nguyên, hoàn tiền theo thỏa thuận.",
+            CreatedAt = new DateTime(2026,5,19,2,0,0,DateTimeKind.Utc),
             CreatedBy = source.Leader.UserId
         };
         context.SurplusReturnSuppliers.Add(returnSupplier);
         await context.SaveChangesAsync();
-        await ApplyStockAsync(context, source.Project, materials["WEBER-ST250"], -(10m / adhesiveItem.ConversionRate),
+        await ApplyStockAsync(context, source.Project, materials["WEBER-ST250"], -(5m / adhesiveItem.ConversionRate),
             InventoryTransactionType.ReturnToSupplier, returnSupplier.SurplusReturnSupplierId, EntityType.SurplusReturnSupplier,
             source.Leader.UserId, returnSupplier.CreatedAt);
 
@@ -3452,14 +4611,14 @@ public static class DbSeeder
         {
             SurplusRequestItemId = paintItem.SurplusRequestItemId,
             BuyerName = "Đội hoàn thiện dân dụng địa phương",
-            LiquidationQuantity = 2m,
-            TotalAmount = 3_200_000m,
-            CreatedAt = new DateTime(2026,6,22,2,0,0,DateTimeKind.Utc),
+            LiquidationQuantity = 1m,
+            TotalAmount = 1_600_000m,
+            CreatedAt = new DateTime(2026,5,20,2,0,0,DateTimeKind.Utc),
             CreatedBy = accountant.UserId
         };
         context.SurplusLiquidations.Add(liquidation);
         await context.SaveChangesAsync();
-        await ApplyStockAsync(context, source.Project, materials["SON-NOI-18"], -(2m / paintItem.ConversionRate),
+        await ApplyStockAsync(context, source.Project, materials["SON-NOI-18"], -(1m / paintItem.ConversionRate),
             InventoryTransactionType.Liquidation, liquidation.SurplusLiquidationId, EntityType.SurplusLiquidation,
             accountant.UserId, liquidation.CreatedAt);
 

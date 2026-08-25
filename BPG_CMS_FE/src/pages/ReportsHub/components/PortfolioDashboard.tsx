@@ -87,6 +87,7 @@ export const PortfolioDashboard: React.FC = () => {
       progress: p.progress,
       projectId: p.projectId
     }));
+  const actionableWarnings = warnings.filter(w => w.warningType === 'Critical' || w.warningType === 'Red');
 
   return (
     <div className="flex flex-col gap-6 p-6 animate-fade-in">
@@ -198,15 +199,15 @@ export const PortfolioDashboard: React.FC = () => {
       {/* Global Warnings */}
       <div className="card p-5 bg-[hsl(var(--bg-card))] border border-[hsl(var(--border))] shadow-sm mt-2">
         <h3 className="text-[1.05rem] font-semibold mb-4 text-[hsl(var(--text-primary))] flex items-center gap-2">
-          <AlertTriangle size={18} className="text-[hsl(var(--danger))]" /> Cảnh báo rủi ro toàn hệ thống ({warnings.length})
+          <AlertTriangle size={18} className="text-[hsl(var(--danger))]" /> Công việc cần xử lý ngay ({actionableWarnings.length})
         </h3>
-        {warnings.length === 0 ? (
+        {actionableWarnings.length === 0 ? (
           <div className="text-center py-8 text-[hsl(var(--success))] font-medium">
-            Tuyệt vời! Không có cảnh báo đỏ hoặc vàng nào trên toàn bộ các dự án.
+            Không có công việc quá hạn hoặc cảnh báo khẩn cấp.
           </div>
         ) : (
           <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {warnings.map((w, idx) => (
+            {actionableWarnings.map((w, idx) => (
               <div
                 key={idx}
                 className={`flex items-start justify-between gap-3 p-4 border rounded-md cursor-pointer hover:shadow-md transition-shadow ${w.warningType === 'Critical' ? 'bg-[hsl(var(--danger)/0.1)] border-[hsl(var(--danger)/0.4)] text-[hsl(var(--danger))]' :

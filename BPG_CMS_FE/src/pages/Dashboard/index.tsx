@@ -657,8 +657,8 @@ export const Dashboard: React.FC = () => {
 
     const statsProjectLeader = projectExecData ? [
       { title: 'Công việc hoàn thành', value: `${projectExecData.completedTasks} / ${projectExecData.totalTasks}`, change: `${Math.round((projectExecData.completedTasks / Math.max(1, projectExecData.totalTasks)) * 100)}% theo số lượng công việc`, isPositive: true, icon: <CheckSquare size={24} />, color: 'hsl(var(--success))' },
-      { title: 'Công việc trễ hạn (Đỏ)', value: projectExecData.delayedTasks.toString(), change: 'Cần giải quyết ngay', isPositive: false, icon: <AlertCircle size={24} />, color: 'hsl(var(--danger))' },
-      { title: 'Công việc nguy cơ (Vàng)', value: projectExecData.atRiskTasks.toString(), change: 'Cần theo dõi tiến độ', isPositive: false, icon: <Clock size={24} />, color: 'hsl(var(--warning))' },
+      { title: 'Công việc trễ hạn', value: projectExecData.delayedTasks.toString(), change: 'Cần giải quyết ngay', isPositive: false, icon: <AlertCircle size={24} />, color: 'hsl(var(--danger))' },
+      { title: 'Công việc nguy cơ', value: projectExecData.atRiskTasks.toString(), change: 'Cần theo dõi tiến độ', isPositive: false, icon: <Clock size={24} />, color: 'hsl(var(--warning))' },
       { title: 'Vật tư vượt dự toán', value: projectExecData.materialsExceedingBOQ.toString(), change: 'Yêu cầu vượt dự toán', isPositive: false, icon: <Boxes size={24} />, color: 'hsl(346_84%_35%)' },
     ] : [];
 

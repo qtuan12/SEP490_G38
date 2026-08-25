@@ -309,7 +309,7 @@ public record MonthlyBoqConsumptionTrendDto
     public int Year { get; init; }
     public int Month { get; init; }
     public string MonthLabel { get; init; } = string.Empty;
-    public int MaterialRequestCount { get; init; }
+    public int IssuanceSlipCount { get; init; }
     public decimal ConsumedValueVnd { get; init; }
 }
 

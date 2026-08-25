@@ -3,6 +3,7 @@ namespace BPG.Application.Features.Projects.Handlers;
 
 using BPG.Application.Features.Projects.DTOs;
 using BPG.Application.Features.Projects.Queries;
+using BPG.Application.Common.Helpers;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -49,8 +50,15 @@ public class GetDashboardMetricsQueryHandler : IRequestHandler<GetDashboardMetri
             ActiveProjectsProgress = projects.Where(p => p.Status == ProjectStatus.InProgress || p.Status == ProjectStatus.Paused)
                 .Select(p => 
                 {
-                    var allTasks = p.Phases?.SelectMany(ph => ph.Tasks).Where(t => t.Status != BPG.Domain.Constants.TaskStatus.Obsolete).ToList() ?? new List<BPG.Domain.Entities.ProjectTask>();
-                    int progress = allTasks.Any() ? (int)allTasks.Average(t => t.ProgressPercent) : 0;
+                    var allTasks = p.Phases?.SelectMany(ph => ph.Tasks).ToList() ?? new List<ProjectTask>();
+                    var parentTaskIds = allTasks
+                        .Where(t => t.ParentTaskId.HasValue)
+                        .Select(t => t.ParentTaskId!.Value)
+                        .ToHashSet();
+                    var leafTasks = allTasks
+                        .Where(t => !parentTaskIds.Contains(t.TaskId) && t.Status != BPG.Domain.Constants.TaskStatus.Obsolete)
+                        .ToList();
+                    int progress = decimal.ToInt32(Math.Round(ProgressCalculator.CalculateWbsWeightedProgress(leafTasks)));
                     return new DashboardProjectProgressDto
                     {
                         ProjectId = p.ProjectId,

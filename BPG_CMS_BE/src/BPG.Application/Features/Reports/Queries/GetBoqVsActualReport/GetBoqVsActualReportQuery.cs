@@ -124,10 +124,6 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             issuanceQuery = issuanceQuery.Where(i => accessibleIds.Contains(i.Issuance!.Task.Phase.ProjectId));
         }
 
-        if (fromDt.HasValue)
-        {
-            issuanceQuery = issuanceQuery.Where(i => i.Issuance!.CreatedAt >= fromDt.Value);
-        }
         if (toDt.HasValue)
         {
             issuanceQuery = issuanceQuery.Where(i => i.Issuance!.CreatedAt <= toDt.Value);
@@ -157,10 +153,6 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             returnQuery = returnQuery.Where(r => accessibleIds.Contains(r.Return.OriginalIssuance.Task.Phase.ProjectId));
         }
 
-        if (fromDt.HasValue)
-        {
-            returnQuery = returnQuery.Where(r => r.Return.CreatedAt >= fromDt.Value);
-        }
         if (toDt.HasValue)
         {
             returnQuery = returnQuery.Where(r => r.Return.CreatedAt <= toDt.Value);
@@ -392,7 +384,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 Year = currentM.Year,
                 Month = currentM.Month,
                 MonthLabel = $"T{currentM.Month:D2}/{currentM.Year}",
-                MaterialRequestCount = monthIssuance.Select(i => i.MaterialIssuanceId).Distinct().Count(),
+                IssuanceSlipCount = monthIssuance.Select(i => i.MaterialIssuanceId).Distinct().Count(),
                 ConsumedValueVnd = Math.Max(0m, consumedVal)
             });
 

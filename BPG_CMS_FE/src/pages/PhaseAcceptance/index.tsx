@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import type { WBSPhase, WBSTask, Project } from '../../types/common';
@@ -31,6 +32,7 @@ export const PhaseAcceptance: React.FC = () => {
   const { projectId, phaseId } = useParams<{ projectId: string; phaseId: string }>();
   const navigate = useNavigate();
   const { canManageAcceptance } = useProjectAccess(projectId);
+  const queryClient = useQueryClient();
 
   const [project, setProject] = useState<Project | null>(null);
   const [phase, setPhase] = useState<WBSPhase | null>(null);
@@ -189,6 +191,12 @@ export const PhaseAcceptance: React.FC = () => {
       setIsRevoking(false);
       setRevokeReason('');
       console.log(message || 'Đã hủy nghiệm thu giai đoạn.');
+
+      // Invalidate WBS data cache so WBSWorkspace reflects the updated phase status
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['wbsData', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['wbsData', `p-${projectId}`] });
+      }
 
       // Navigate to the history view of the revoked acceptance
       navigate(`/projects/${projectId}/phases/${phaseId}/acceptance?historyId=${targetId}`, { replace: true });

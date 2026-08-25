@@ -4,6 +4,7 @@ using BPG.Application.Features.Reports.Queries.GetConstructionProgressReport;
 using BPG.Application.Features.Reports.Queries.GetExecutiveDashboard;
 using BPG.Application.Features.Reports.Queries.GetIncidentReport;
 using BPG.Application.Features.Reports.Queries.GetProcurementReport;
+using BPG.Application.Features.Reports.Queries.GetMaterialReturnsAndSurplusReport;
 using BPG.Application.IRepositories;
 using BPG.Application.IServices;
 using BPG.Domain.Constants;
@@ -111,6 +112,106 @@ public class ReportQueryHandlerTests
         item.UnitPrice.Should().Be(2_000m);
         item.ConsumptionValue.Should().Be(2_000_000m);
         item.IsExceeding.Should().BeFalse();
+
+        var rangedResult = await handler.Handle(
+            new GetBoqVsActualReportQuery(
+                ProjectId,
+                new DateTime(2026, 2, 1),
+                new DateTime(2026, 2, 28)),
+            CancellationToken.None);
+
+        var rangedItem = rangedResult.Data!.Items.Should().ContainSingle().Subject;
+        rangedItem.TotalIssued.Should().Be(1_000m,
+            "the BOQ comparison is cumulative through the report end date");
+        rangedResult.Data.MonthlyTrends.Should().ContainSingle()
+            .Which.IssuanceSlipCount.Should().Be(0,
+                "the start date only limits the monthly activity chart");
+    }
+
+    [Fact]
+    public async Task ReturnsAndSurplusReport_ShouldFilterActionsByActionDate()
+    {
+        var project = new Project
+        {
+            ProjectId = ProjectId,
+            Name = "Project A",
+            Status = ProjectStatus.Completed,
+            PlannedStart = new DateOnly(2026, 1, 1),
+            PlannedEnd = new DateOnly(2027, 12, 31)
+        };
+        var unit = new Unit { UnitId = 1, UnitName = "kg" };
+        var material = new MaterialCatalog
+        {
+            MaterialId = MaterialId,
+            Code = "STEEL",
+            Name = "Steel",
+            BaseUnitId = unit.UnitId,
+            BaseUnit = unit
+        };
+        var request = new SurplusRequest
+        {
+            SurplusRequestId = 100,
+            ProjectId = ProjectId,
+            Project = project,
+            CreatedAt = new DateTime(2026, 1, 10)
+        };
+        var requestItem = new SurplusRequestItem
+        {
+            SurplusRequestItemId = 101,
+            SurplusRequestId = request.SurplusRequestId,
+            SurplusRequest = request,
+            MaterialId = MaterialId,
+            Material = material,
+            UnitId = unit.UnitId,
+            Unit = unit,
+            Quantity = 10m
+        };
+        request.Items.Add(requestItem);
+        requestItem.Liquidations.Add(new SurplusLiquidation
+        {
+            SurplusLiquidationId = 102,
+            SurplusRequestItemId = requestItem.SurplusRequestItemId,
+            SurplusRequestItem = requestItem,
+            BuyerName = "Buyer",
+            LiquidationQuantity = 4m,
+            TotalAmount = 400_000m,
+            CreatedAt = new DateTime(2026, 2, 15)
+        });
+
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var projectRepository = SetupRepository(unitOfWork, project);
+        projectRepository.Setup(r => r.GetByIdAsync(ProjectId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(project);
+        SetupRepository<DirectPurchaseRequest>(unitOfWork);
+        SetupRepository<PurchaseOrderItem>(unitOfWork);
+        SetupRepository<MaterialReturn>(unitOfWork);
+        SetupRepository(unitOfWork, request);
+
+        var handler = new GetMaterialReturnsAndSurplusReportQueryHandler(
+            unitOfWork.Object,
+            AccessibleProjects());
+
+        var result = await handler.Handle(
+            new GetMaterialReturnsAndSurplusReportQuery(
+                ProjectId,
+                new DateTime(2026, 2, 1),
+                new DateTime(2026, 2, 28)),
+            CancellationToken.None);
+
+        result.Data!.TotalSurplusItems.Should().Be(0,
+            "the surplus request itself was created outside the selected period");
+        result.Data.TotalLiquidationAmount.Should().Be(400_000m,
+            "the liquidation action occurred inside the selected period");
+        result.Data.SurplusActions.Should().ContainSingle()
+            .Which.ActionId.Should().Be(102);
+
+        var unfilteredResult = await handler.Handle(
+            new GetMaterialReturnsAndSurplusReportQuery(ProjectId),
+            CancellationToken.None);
+
+        unfilteredResult.Data!.MonthlyTrends.Sum(month => month.FinancialRecoveryAmountVnd)
+            .Should().Be(400_000m,
+                "a finished project's chart should end at its latest dated activity, not its planned end");
     }
 
     [Fact]
@@ -591,11 +692,12 @@ public class ReportQueryHandlerTests
         return service.Object;
     }
 
-    private static void SetupRepository<T>(Mock<IUnitOfWork> unitOfWork, params T[] data)
+    private static Mock<IGenericRepository<T>> SetupRepository<T>(Mock<IUnitOfWork> unitOfWork, params T[] data)
         where T : class
     {
         var repository = new Mock<IGenericRepository<T>>();
         repository.Setup(r => r.Query()).Returns(data.AsQueryable().BuildMock());
         unitOfWork.Setup(u => u.Repository<T>()).Returns(repository.Object);
+        return repository;
     }
 }

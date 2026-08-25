@@ -365,7 +365,7 @@ export const ProjectIncidents: React.FC<Props> = ({ projectId, projectName }) =>
             <CheckCircle size={20} />
           </div>
           <div>
-            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ PHÊ DUYỆT / XỬ LÝ</span>
+            <span className="block text-[0.75rem] text-[hsl(var(--text-muted))] font-semibold">ĐÃ ĐÓNG / XỬ LÝ XONG</span>
             <strong className="text-[1.4rem] font-bold">
               {incidents.filter(i => ['Approved', 'Confirmed', 'Resolved', 'Closed'].includes(i.status)).length}
             </strong>

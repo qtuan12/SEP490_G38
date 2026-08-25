@@ -5,7 +5,7 @@ import { projectService } from '../../services/projectService';
 import type { Project } from '../../types/common';
 import { ArrowLeft, AlertTriangle, PackageCheck, TrendingUp, Search, X } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { getPreferredReportYear } from '../../utils/reportYearHelpers';
 import { formatNumber } from '../../utils/formatNumber';
 
@@ -31,7 +31,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
   // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'safe' | 'earnedExceeding' | 'exceeding'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unused' | 'within' | 'exceeding'>('all');
   const [usageFilter, setUsageFilter] = useState<'all' | 'consumed' | 'inStock' | 'hasReturned'>('all');
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
           setProject(projs.find(p => p.id === projectId) || null);
           setItems(report.items || []);
           setMonthlyTrends(trends);
-          setSelectedYear(getPreferredReportYear(trends, (t: MonthlyBoqConsumptionTrendDto) => (t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0));
+          setSelectedYear(getPreferredReportYear(trends, (t: MonthlyBoqConsumptionTrendDto) => (t.issuanceSlipCount || 0) > 0));
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Lỗi tải báo cáo đối chiếu dự toán');
@@ -135,15 +135,11 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Dự toán Khối lượng</span>
+                <span>Danh mục Vật Tư</span>
                 <PackageCheck size={18} className="text-indigo-500" />
               </div>
               <div className="text-xl font-black text-slate-900 dark:text-white mt-2">{items.length} Loại vật tư</div>
-              <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">
-                {items.reduce((acc, i) => acc + (i.boqTotalValue || 0), 0) > 0
-                  ? `~${(items.reduce((acc, i) => acc + (i.boqTotalValue || 0), 0) / 1000000).toFixed(1)} triệu VNĐ`
-                  : 'Chưa cập nhật giá'}
-              </div>
+              <div className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mt-1">Định mức theo đơn vị của từng vật tư</div>
             </div>
 
             <div className="bg-gradient-to-br from-emerald-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl p-4 shadow-sm">
@@ -168,23 +164,21 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
             <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500">
-                <span>Giá trị tiêu hao</span>
+                <span>Chưa phát sinh</span>
                 <PackageCheck size={18} className="text-purple-500" />
               </div>
               <div className="text-xl font-black text-purple-700 dark:text-purple-300 mt-2">
-                {items.reduce((acc, i) => acc + (i.consumptionValue || 0), 0) > 0
-                  ? `${(items.reduce((acc, i) => acc + (i.consumptionValue || 0), 0) / 1000000).toFixed(1)}M đ`
-                  : `${formatNumber(items.reduce((acc, i) => acc + i.netConsumption, 0))} đơn vị`}
+                {items.filter(i => i.netConsumption <= 0).length} loại vật tư
               </div>
-              <div className="text-xs font-semibold text-purple-600 mt-1">Tổng xuất kho ròng thực tế</div>
+              <div className="text-xs font-semibold text-purple-600 mt-1">Chưa có xuất kho ròng</div>
             </div>
           </div>
 
           {/* Monthly Consumption Trend Chart */}
           {(monthlyTrends || []).length > 0 && (() => {
-            const hasAnyDataYear = (monthlyTrends || []).some(t => (t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0);
+            const hasAnyDataYear = (monthlyTrends || []).some(t => (t.issuanceSlipCount || 0) > 0);
             const availableYears = Array.from(new Set((monthlyTrends || []).map(t => t.year)))
-              .filter(y => !hasAnyDataYear || (monthlyTrends || []).some(t => t.year === y && ((t.consumedValueVnd || 0) > 0 || (t.materialRequestCount || 0) > 0)))
+              .filter(y => !hasAnyDataYear || (monthlyTrends || []).some(t => t.year === y && (t.issuanceSlipCount || 0) > 0))
               .sort((a, b) => b - a);
             const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
             const filteredTrends = (monthlyTrends || []).filter(t => t.year === activeYear);
@@ -194,9 +188,9 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
-                      <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Xu hướng Tiêu thụ Khối lượng 12 Tháng Theo Năm
+                      <TrendingUp size={16} className="text-indigo-500" /> Số phiếu xuất kho theo tháng
                     </h4>
-                    <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh chi phí tiêu thụ vật tư & số lượng phiếu xuất hàng tháng</p>
+                    <p className="text-xs text-slate-500 m-0 mt-0.5">Thống kê theo ngày lập phiếu xuất kho</p>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -214,23 +208,13 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
 
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={filteredTrends} margin={{ top: 10, right: 20, left: 20, bottom: 0 }}>
+                    <BarChart data={filteredTrends} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                       <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
-                      <YAxis yAxisId="left" tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 11 }} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} label={{ value: 'Số phiếu yêu cầu (MR)', angle: -90, position: 'insideRight', style: { fontSize: 10 } }} />
-                      <RechartsTooltip
-                        formatter={(value, name) => [
-                          name === 'Chi phí tiêu thụ (VNĐ)'
-                            ? `${formatNumber(Number(value || 0))} VNĐ`
-                            : value,
-                          String(name || '')
-                        ]}
-                      />
-                      <Legend wrapperStyle={{ fontSize: '12px' }} />
-                      <Bar yAxisId="left" dataKey="consumedValueVnd" name="Chi phí tiêu thụ (VNĐ)" fill="#8b5cf6" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                      <Line yAxisId="right" type="monotone" dataKey="materialRequestCount" name="Số phiếu yêu cầu" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
-                    </ComposedChart>
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                      <RechartsTooltip formatter={(value) => [`${formatNumber(Number(value || 0))} phiếu`, 'Phiếu xuất kho']} />
+                      <Bar dataKey="issuanceSlipCount" name="Phiếu xuất kho" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={36} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
@@ -248,12 +232,11 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                 if (!matchCode && !matchName && !matchUnit) return false;
               }
 
-              if (statusFilter === 'exceeding' && !item.isExceeding) return false;
-              if (statusFilter === 'earnedExceeding' && (!item.isEarnedExceeding || item.isExceeding)) return false;
-              if (statusFilter === 'safe' && (item.isExceeding || item.isEarnedExceeding)) return false;
-
               const totalReturned = item.totalReturned || 0;
               const netConsumption = item.netConsumption ?? Math.max(0, (item.totalIssued || 0) - totalReturned);
+              if (statusFilter === 'exceeding' && !item.isExceeding) return false;
+              if (statusFilter === 'within' && (item.isExceeding || netConsumption <= 0)) return false;
+              if (statusFilter === 'unused' && netConsumption > 0) return false;
               if (usageFilter === 'consumed' && netConsumption <= 0) return false;
               if (usageFilter === 'inStock' && (item.stockRemaining || 0) <= 0) return false;
               if (usageFilter === 'hasReturned' && totalReturned <= 0) return false;
@@ -305,8 +288,8 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                         className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
                       >
                         <option value="all">Tất cả trạng thái</option>
-                        <option value="safe">Trong định mức / chưa phát sinh</option>
-                        <option value="earnedExceeding">Tiêu hao nhanh hơn tiến độ</option>
+                        <option value="unused">Chưa phát sinh</option>
+                        <option value="within">Trong định mức</option>
                         <option value="exceeding">Vượt định mức</option>
                       </select>
                     </div>
@@ -319,7 +302,7 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                         className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
                       >
                         <option value="all">Tất cả vật tư</option>
-                        <option value="consumed">Có tiêu thụ ròng</option>
+                        <option value="consumed">Có xuất dùng ròng</option>
                         <option value="inStock">Còn tồn kho</option>
                         <option value="hasReturned">Có hoàn trả</option>
                       </select>
@@ -357,14 +340,13 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-[11.5px]">
                       {filteredItems.map((item) => {
                         const isExceeding = !!item?.isExceeding;
-                        const isEarnedExceeding = !!item?.isEarnedExceeding;
                         const totalReturned = item?.totalReturned || 0;
                         const netConsumption = item?.netConsumption ?? Math.max(0, (item?.totalIssued || 0) - totalReturned);
                         const remainingAllowance = Math.max(0, (item?.boqLimit || 0) - netConsumption);
                         return (
                           <tr
                             key={item.materialId}
-                            className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isExceeding ? 'bg-red-50/30 dark:bg-red-950/10' : isEarnedExceeding ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''}`}
+                            className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${isExceeding ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}
                           >
                             <td className="px-3 py-2.5 leading-tight">
                               <div className="font-bold text-slate-900 dark:text-white line-clamp-2" title={item?.materialName}>
@@ -384,13 +366,6 @@ export const BoqVsActualReport: React.FC<Props> = ({ embeddedProjectId, fromDate
                               {isExceeding ? (
                                 <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap">
                                   <AlertTriangle size={10} /> VƯỢT ĐỊNH MỨC
-                                </span>
-                              ) : isEarnedExceeding ? (
-                                <span
-                                  className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold whitespace-nowrap"
-                                  title="Tiêu hao đang cao hơn mức tham chiếu theo tiến độ chung, nhưng chưa vượt định mức"
-                                >
-                                  <AlertTriangle size={10} /> NHANH HƠN TIẾN ĐỘ
                                 </span>
                               ) : netConsumption <= 0 ? (
                                 <span className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-2 py-0.5 rounded-full text-[9.5px] font-bold whitespace-nowrap">

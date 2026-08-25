@@ -7,6 +7,8 @@ export interface WbsTask {
   orderIndex: number;
   startDate: string;
   endDate: string;
+  actualStartDate?: string | null;
+  actualEndDate?: string | null;
   status: string;
   progressPercent: number;
   isLocked: boolean;

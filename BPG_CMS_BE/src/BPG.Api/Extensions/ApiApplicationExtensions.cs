@@ -10,7 +10,9 @@ public static class ApiApplicationExtensions
 {
     public static async Task<bool> TryRunSeedAsync(this WebApplication app, string[] args)
     {
-        if (!args.Contains("--seed"))
+        var seedAll = args.Contains("--seed");
+        var seedReports = args.Contains("--seed-reports");
+        if (!seedAll && !seedReports)
         {
             return false;
         }
@@ -18,9 +20,29 @@ public static class ApiApplicationExtensions
         using var scope = app.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        Console.WriteLine("Applying migrations and seeding database...");
-        await DbSeeder.SeedAsync(context);
-        Console.WriteLine("Seeding completed successfully.");
+        Console.WriteLine(seedReports
+            ? "Applying migrations and enriching completed-project reports..."
+            : "Applying migrations and seeding database...");
+        try
+        {
+            if (seedReports)
+            {
+                await context.Database.MigrateAsync();
+                await DbSeeder.SeedCompletedProjectReportShowcaseAsync(context);
+            }
+            else
+            {
+                await DbSeeder.SeedAsync(context);
+            }
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Database seeding failed: {exception}");
+            throw;
+        }
+        Console.WriteLine(seedReports
+            ? "Completed-project report data enriched successfully."
+            : "Seeding completed successfully.");
 
         return true;
     }
