@@ -47,6 +47,7 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             }
 
             Incident? linkedIncident = null;
+            InventoryAdjustment? adjustmentToResubmit = null;
             if (request.IncidentId.HasValue)
             {
                 linkedIncident = await _unitOfWork.Repository<Incident>().GetByIdAsync(
@@ -82,28 +83,34 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                         "Chỉ có thể tạo phiếu giảm tồn khi sự cố đang chờ Kế toán xác minh hoặc đang xử lý.");
                 }
 
-                var alreadyHasAdjustment = await _unitOfWork.Repository<InventoryAdjustment>()
-                    .AnyAsync(
-                        adjustment => adjustment.IncidentId == request.IncidentId.Value
-                            && adjustment.Status == InventoryAdjustmentStatus.Pending,
-                        cancellationToken);
-                if (alreadyHasAdjustment)
+                var linkedAdjustments = await _unitOfWork.Repository<InventoryAdjustment>()
+                    .Query()
+                    .Include(adjustment => adjustment.Items)
+                    .Where(adjustment => adjustment.IncidentId == request.IncidentId.Value)
+                    .OrderByDescending(adjustment => adjustment.AdjustmentId)
+                    .ToListAsync(cancellationToken);
+
+                if (linkedAdjustments.Any(
+                    adjustment => adjustment.Status == InventoryAdjustmentStatus.Pending))
                 {
                     throw new BusinessException(
                         "ERR_INCIDENT_ALREADY_ADJUSTED",
                         "Sự cố này đã có phiếu giảm tồn đang chờ duyệt.");
                 }
+
+                // A director rejection is a request to revise the same document, not
+                // permission to create another adjustment for the same incident.
+                adjustmentToResubmit = linkedAdjustments.FirstOrDefault(
+                    adjustment => adjustment.Status == InventoryAdjustmentStatus.RevisionRequired);
             }
 
-            var adjustment = new InventoryAdjustment
+            var isResubmission = adjustmentToResubmit != null;
+            var adjustment = adjustmentToResubmit ?? new InventoryAdjustment
             {
                 ProjectId = request.ProjectId,
                 PhaseId = request.PhaseId,
                 IncidentId = linkedIncident?.IncidentId,
                 AdjustmentType = InventoryAdjustmentType.Decrease,
-                Reason = request.Reason,
-                Description = request.Description,
-                Status = InventoryAdjustmentStatus.Pending, // Accountant creates, must be approved by Director
                 CreatedBy = _currentUserService.GetRequiredUserId()
             };
 
@@ -142,6 +149,13 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 });
             }
 
+            adjustment.Reason = request.Reason;
+            adjustment.Description = request.Description;
+            adjustment.Status = InventoryAdjustmentStatus.Pending;
+            adjustment.RejectedReason = null;
+            adjustment.ApprovedBy = null;
+            adjustment.ApprovedAt = null;
+
             if (linkedIncident != null)
             {
                 linkedIncident.Status = IncidentStatus.UnderResolution;
@@ -152,7 +166,26 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
                 _unitOfWork.Repository<Incident>().Update(linkedIncident);
             }
 
-            await _unitOfWork.Repository<InventoryAdjustment>().AddAsync(adjustment);
+            if (isResubmission)
+            {
+                var oldItems = adjustment.Items
+                    .Where(item => item.AdjustmentItemId > 0)
+                    .ToList();
+                if (oldItems.Count > 0)
+                {
+                    _unitOfWork.Repository<AdjustmentItem>().RemoveRange(oldItems);
+                    foreach (var oldItem in oldItems)
+                    {
+                        adjustment.Items.Remove(oldItem);
+                    }
+                }
+
+                _unitOfWork.Repository<InventoryAdjustment>().Update(adjustment);
+            }
+            else
+            {
+                await _unitOfWork.Repository<InventoryAdjustment>().AddAsync(adjustment);
+            }
 
             try
             {
@@ -177,8 +210,12 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             var userId = _currentUserService.GetRequiredUserId();
             await _notificationService.SendNotificationToRoleAsync(
                 BPG.Domain.Constants.UserRole.Director,
-                "Phiếu điều chỉnh giảm tồn kho cần phê duyệt",
-                $"Kế toán vừa tạo phiếu giảm tồn kho #{adjustment.AdjustmentId} tại dự án {project.Name} đang chờ Giám đốc phê duyệt.",
+                isResubmission
+                    ? "Phiếu giảm tồn kho đã điều chỉnh, cần phê duyệt lại"
+                    : "Phiếu điều chỉnh giảm tồn kho cần phê duyệt",
+                isResubmission
+                    ? $"Kế toán vừa điều chỉnh và gửi lại phiếu giảm tồn kho #{adjustment.AdjustmentId} tại dự án {project.Name}."
+                    : $"Kế toán vừa tạo phiếu giảm tồn kho #{adjustment.AdjustmentId} tại dự án {project.Name} đang chờ Giám đốc phê duyệt.",
                 BPG.Domain.Constants.NotificationType.Procurement,
                 userId,
                 $"/projects/{request.ProjectId}/workspace/inventoryadjustments",
@@ -189,18 +226,26 @@ namespace BPG.Application.Features.InventoryAdjustments.Commands
             // Realtime: broadcast to all members currently viewing this project
             await _realtimeSender.SendToGroupAsync(
                 HubMethodNames.GroupProject + request.ProjectId,
-                HubMethodNames.InventoryAdjustmentCreated,
+                isResubmission
+                    ? HubMethodNames.InventoryAdjustmentUpdated
+                    : HubMethodNames.InventoryAdjustmentCreated,
                 adjustment.AdjustmentId,
                 cancellationToken);
 
             // Realtime: broadcast to all members viewing global incidents (Project_0)
             await _realtimeSender.SendToGroupAsync(
                 HubMethodNames.GroupProject + 0,
-                HubMethodNames.InventoryAdjustmentCreated,
+                isResubmission
+                    ? HubMethodNames.InventoryAdjustmentUpdated
+                    : HubMethodNames.InventoryAdjustmentCreated,
                 adjustment.AdjustmentId,
                 cancellationToken);
 
-            return ApiResponse<long>.SuccessResult(adjustment.AdjustmentId, "Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt");
+            return ApiResponse<long>.SuccessResult(
+                adjustment.AdjustmentId,
+                isResubmission
+                    ? "Đã cập nhật và gửi lại phiếu giảm tồn, chờ phê duyệt"
+                    : "Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt");
         }
 
         private static bool IsIncidentAdjustmentUniqueViolation(DbUpdateException exception)

@@ -711,7 +711,7 @@ namespace BPG.Infrastructure.Migrations
 
                     b.HasIndex("IncidentId")
                         .IsUnique()
-                        .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0 AND [Status] = N'Pending'");
+                        .HasFilter("[IncidentId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.HasIndex("PhaseId");
 

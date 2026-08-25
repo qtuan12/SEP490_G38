@@ -91,8 +91,8 @@ namespace BPG.Application.Features.DirectPurchases.Services
                 decimal requiredBaseQty = item.Quantity / conversionRate;
                 if (material.BaseUnit != null && material.BaseUnit.IsDiscrete && requiredBaseQty % 1 != 0)
                 {
-                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity, 
-                        $"Vật tư '{material.Name}' được quản lý bằng đơn vị gốc '{material.BaseUnit.UnitName}' (số nguyên). Việc quy đổi {item.Quantity} {unit.UnitName} sẽ dẫn đến số lượng lẻ ({requiredBaseQty} {material.BaseUnit.UnitName}), hệ thống không cho phép.");
+                    throw new BusinessException(ErrorCodes.InvalidUnitQuantity,
+                        $"Vật tư '{material.Name}' được quản lý bằng đơn vị gốc '{material.BaseUnit.UnitName}' (số nguyên). Việc quy đổi {item.Quantity:0.###} {unit.UnitName} sẽ dẫn đến số lượng lẻ ({requiredBaseQty:0.###} {material.BaseUnit.UnitName}), hệ thống không cho phép.");
                 }
 
                 result.Add(new ResolvedDirectPurchaseItem

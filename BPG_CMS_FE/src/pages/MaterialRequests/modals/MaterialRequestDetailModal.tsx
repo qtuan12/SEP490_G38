@@ -202,10 +202,17 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                 <strong className="text-slate-800 font-semibold">{request.requesterName}</strong>
               </div>
               <div className="flex items-center gap-2 text-slate-600 text-sm">
-                <Layers size={16} className="text-slate-400" />
-                <span>Giai đoạn:</span>
+                <Layers size={16} className="text-slate-400 shrink-0" />
+                <span className="shrink-0 whitespace-nowrap">Giai đoạn:</span>
                 <strong className="text-slate-800 font-semibold">{request.phaseName || 'N/A'}</strong>
               </div>
+              {request.checkedByName && (request.status !== 'rejected' || !!request.approvedByName) && request.checkedByName !== request.approvedByName && (
+                <div className="flex items-center gap-2 text-slate-600 text-sm">
+                  <User size={16} className="text-slate-400" />
+                  <span>Người thẩm định:</span>
+                  <strong className="text-slate-800 font-semibold">{request.checkedByName}</strong>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -230,6 +237,20 @@ export const MaterialRequestDetailModal: React.FC<MaterialRequestDetailModalProp
                   <Info size={16} className="text-slate-400" />
                   <span>Phương án xử lý:</span>
                   <strong className="text-slate-800 font-semibold">{handlingPlan}</strong>
+                </div>
+              )}
+              {request.status === 'rejected' && (request.approvedByName || request.checkedByName) && (
+                <div className="flex items-center gap-2 text-slate-600 text-sm">
+                  <User size={16} className="text-slate-400" />
+                  <span>Người từ chối:</span>
+                  <strong className="text-slate-800 font-semibold">{request.approvedByName || request.checkedByName}</strong>
+                </div>
+              )}
+              {(request.status === 'approved' || request.status === 'disbursed') && (request.approvedByName || request.checkedByName) && (
+                <div className="flex items-center gap-2 text-slate-600 text-sm">
+                  <User size={16} className="text-slate-400" />
+                  <span>Người phê duyệt:</span>
+                  <strong className="text-slate-800 font-semibold">{request.approvedByName || request.checkedByName}</strong>
                 </div>
               )}
             </div>

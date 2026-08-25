@@ -99,8 +99,14 @@ namespace BPG.Application.Features.PurchaseOrders.Handlers
 
             var totalCount = await query.CountAsync(cancellationToken);
 
+            // OrderDate luôn bị chốt về nửa đêm (không mang giờ tạo thật — xem
+            // CreatePurchaseOrderCommandHandler), nên nhiều PO tạo cùng ngày sẽ bằng nhau ở khóa
+            // này. Không có tie-breaker thì SQL Server không đảm bảo thứ tự giữa các dòng bằng
+            // nhau — đơn vừa tạo có thể không nổi lên đầu. Thêm POId giảm dần (tăng theo thời
+            // gian tạo) để thứ tự luôn ổn định và mới nhất luôn ở đầu.
             var pos = await query
                 .OrderByDescending(po => po.OrderDate)
+                .ThenByDescending(po => po.POId)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .ToListAsync(cancellationToken);

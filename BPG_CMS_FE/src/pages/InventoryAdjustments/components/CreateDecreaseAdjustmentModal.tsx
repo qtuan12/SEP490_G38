@@ -55,6 +55,7 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   useEffect(() => {
     if (isOpen) {
       setLocalError(null);
+      setCreatedAdjustmentId(null);
       loadData();
       if (incident) {
         setReason('Xử lý sự cố');
@@ -344,7 +345,11 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         setCreatedAdjustmentId(newAdjustmentId);
       }
 
-      onSuccess(createdAdjustmentId ? 'Xác minh thành công' : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt');
+      onSuccess(
+        incident?.latestAdjustmentStatus === 'RevisionRequired'
+          ? 'Đã cập nhật và gửi lại phiếu giảm tồn, chờ phê duyệt'
+          : 'Tạo phiếu điều chỉnh giảm tồn thành công, chờ phê duyệt'
+      );
     } catch (err: any) {
       setLocalError(err.message || 'Có lỗi xảy ra, vui lòng thử lại.');
     } finally {
@@ -353,7 +358,14 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tạo Phiếu Giảm Tồn Kho (Theo Giai đoạn)" width="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={incident?.latestAdjustmentStatus === 'RevisionRequired'
+        ? 'Chỉnh Sửa Phiếu Giảm Tồn Kho'
+        : 'Tạo Phiếu Giảm Tồn Kho (Theo Giai đoạn)'}
+      width="lg"
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         {localError && (
           <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-fade-in">
@@ -362,34 +374,26 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
         )}
 
         <FormItem label="Lý do điều chỉnh (*)">
-          {incident ? (
-            <input
-              type="text"
-              className="w-full px-3 py-2 border rounded-lg bg-gray-100 cursor-not-allowed font-medium text-gray-700"
-              value={reason}
-              disabled
-            />
-          ) : (
-            <div className="flex flex-col gap-2">
-              <select
-                className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
-                value={presetReason}
-                onChange={e => {
-                  const val = e.target.value;
-                  setPresetReason(val);
-                  if (val !== 'Khác (Nhập lý do chi tiết)') {
-                    setReason(val);
-                  } else {
-                    setReason(customReason);
-                  }
-                }}
-              >
-                <option value="Xử lý sự cố">Xử lý sự cố</option>
-                <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
-                <option value="Hao hụt vật tư trong dự toán cho phép">Hao hụt vật tư trong dự toán cho phép</option>
-                <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
-                <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
-              </select>
+          <div className="flex flex-col gap-2">
+            <select
+              className="w-full px-3 py-2 border rounded-lg bg-white font-medium text-gray-800"
+              value={presetReason}
+              onChange={e => {
+                const val = e.target.value;
+                setPresetReason(val);
+                if (val !== 'Khác (Nhập lý do chi tiết)') {
+                  setReason(val);
+                } else {
+                  setReason(customReason);
+                }
+              }}
+            >
+              <option value="Xử lý sự cố">Xử lý sự cố</option>
+              <option value="Cân bằng tồn kho sau kiểm kê định kỳ">Cân bằng tồn kho sau kiểm kê định kỳ</option>
+              <option value="Hao hụt vật tư trong dự toán cho phép">Hao hụt vật tư trong dự toán cho phép</option>
+              <option value="Xuất hủy vật tư hết hạn / hư hỏng lưu kho">Xuất hủy vật tư hết hạn / hư hỏng lưu kho</option>
+              <option value="Khác (Nhập lý do chi tiết)">Khác (Nhập lý do chi tiết)</option>
+            </select>
             {presetReason === 'Khác (Nhập lý do chi tiết)' && (
               <input
                 type="text"
@@ -404,7 +408,6 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
               />
             )}
           </div>
-          )}
         </FormItem>
         <FormItem label="Giai đoạn liên quan (*)">
           <select
@@ -738,7 +741,9 @@ export const CreateDecreaseAdjustmentModal: React.FC<Props> = ({ isOpen, onClose
 
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="ghost" onClick={onClose}>Hủy</Button>
-          <Button type="submit" variant="primary" isLoading={loading}>Xác Nhận</Button>
+          <Button type="submit" variant="primary" isLoading={loading}>
+            {incident?.latestAdjustmentStatus === 'RevisionRequired' ? 'Gửi Lại' : 'Xác Nhận'}
+          </Button>
         </div>
       </form>
     </Modal>

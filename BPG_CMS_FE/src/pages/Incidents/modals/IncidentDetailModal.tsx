@@ -53,23 +53,34 @@ const INCIDENT_META: Record<string, { label: string; color: string; bg: string; 
 };
 
 function extractMetaFromDesc(description: string): { mainDesc: string; meta: Record<string, string> } {
-  // Split the leading body from metadata lines prefixed with **Key:**
   const lines = description.split('\n');
   const metaLines: Record<string, string> = {};
   const bodyLines: string[] = [];
-  let metaStarted = false;
+  let currentKey: string | null = null;
+  let currentVal: string[] = [];
+
+  const flushCurrentKey = () => {
+    if (currentKey !== null) {
+      metaLines[currentKey] = currentVal.join('\n').trim();
+      currentKey = null;
+      currentVal = [];
+    }
+  };
 
   for (const line of lines) {
     const match = line.match(/^\*\*([^*:]+):\*\*\s*(.*)$/);
     if (match) {
-      metaStarted = true;
-      metaLines[match[1].trim()] = match[2].trim();
-    } else if (metaStarted && line.trim() === '') {
-      // skip blank after meta
+      flushCurrentKey();
+      currentKey = match[1].trim();
+      currentVal = [match[2]];
+    } else if (currentKey !== null) {
+      // continuation of the current meta value (including blank separator lines)
+      currentVal.push(line);
     } else {
       bodyLines.push(line);
     }
   }
+  flushCurrentKey();
 
   return { mainDesc: bodyLines.join('\n').trim(), meta: metaLines };
 }
@@ -1325,7 +1336,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
                   )}
 
                   {isRegularConstruction && Object.entries(damageMetaClean).map(([key, val]) => {
-                    const isFullWidth = key.toLowerCase().includes('ước tính thiệt hại') || key.toLowerCase().includes('thiệt hại');
+                    const isFullWidth = key.toLowerCase().includes('ước tính thiệt hại') || key.toLowerCase().includes('thiệt hại') || key.toLowerCase().includes('khối lượng') || key.toLowerCase().includes('ghi chú');
                     return (
                       <div
                         key={key}
@@ -1433,7 +1444,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               )}
 
               {/* Damage description as Markdown (only for construction incidents or if there is extra text) */}
-              {damageDescClean && !isInventoryIncident && (
+              {damageDescClean && !isInventoryIncident && (!isRegularConstruction || damageDescClean.startsWith('[')) && (
                 <div style={{ marginTop: '2px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'hsl(var(--text-muted))', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
                     {damageDescClean.startsWith('[') ? 'Danh sách tài sản/vật tư bị thiệt hại' : 'Ghi chú thiệt hại bổ sung'}
@@ -1939,7 +1950,7 @@ export const IncidentDetailModal: React.FC<IncidentDetailModalProps> = ({
               disabled={!isProjectActive}
               title={!isProjectActive ? 'Chỉ có thể tạo phiếu khi dự án đang thực hiện' : undefined}
             >
-              📦 {incident.latestAdjustmentStatus === 'RevisionRequired' ? 'Lập lại phiếu giảm tồn' : 'Tạo phiếu giảm tồn'}
+              📦 {incident.latestAdjustmentStatus === 'RevisionRequired' ? 'Chỉnh sửa và gửi lại phiếu giảm tồn' : 'Tạo phiếu giảm tồn'}
             </button>
           </div>
         )

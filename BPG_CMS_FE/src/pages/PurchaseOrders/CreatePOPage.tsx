@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { supplierService } from '../../services/supplierService';
 import { projectService } from '../../services/projectService';
@@ -74,6 +74,7 @@ const label: React.CSSProperties = {
 
 export const CreatePOPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const queryProjectId = searchParams.get('projectId');
   const queryRequestId = searchParams.get('requestId');
@@ -389,6 +390,11 @@ export const CreatePOPage: React.FC = () => {
       }),
     onSuccess: (result) => {
       toast.success(result.message || 'Đã tạo đơn mua hàng.');
+      // Không invalidate thì list PO (trang chung lẫn tab của dự án) vẫn giữ cache cũ sau khi
+      // điều hướng về — phải load lại trang mới thấy đơn vừa tạo.
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['project-purchase-orders', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['approved-requests-po', projectId] });
       navigate(backPath);
     },
     onError: (err: any) => {
