@@ -6,6 +6,7 @@ import {
   getMaterialRequestBusinessStatus,
   getMaterialRequestBusinessStatusVariant,
   getMaterialRequestDetailTableState,
+  getMaterialRequestReviewNoteState,
   getProcurementDecisionLabel,
   getProjectMaterialRequestBusinessStatus,
   getProjectMaterialRequestBusinessStatusVariant,
@@ -20,11 +21,11 @@ const requestWith = (
 
 describe('getMaterialRequestBusinessStatus', () => {
   it.each([
-    ['InternalTransfer', 'Đề nghị điều chuyển nội bộ'],
-    ['WaitSupply', 'Chờ cung ứng'],
+    ['InternalTransfer', 'Đã thẩm định'],
+    ['WaitSupply', 'Đã thẩm định'],
     ['NeedMoreInfo', 'Từ chối'],
     ['NotApproved', 'Từ chối'],
-    ['ExternalPurchase', 'Không chấp thuận mua ngoài'],
+    ['ExternalPurchase', 'Từ chối'],
   ] as const)('diễn giải Rejected + %s thành trạng thái nghiệp vụ', (decision, expected) => {
     expect(getMaterialRequestBusinessStatus(requestWith('rejected', decision))).toBe(expected);
   });
@@ -37,7 +38,7 @@ describe('getMaterialRequestBusinessStatus', () => {
   });
 
   it('giữ nhãn tương thích cho phiếu cũ chưa có ProcurementDecision', () => {
-    expect(getMaterialRequestBusinessStatus(requestWith('rejected'))).toBe('Không chấp thuận');
+    expect(getMaterialRequestBusinessStatus(requestWith('rejected'))).toBe('Từ chối');
     expect(getMaterialRequestBusinessStatus(requestWith('pending_accountant'))).toBe('Chờ phê duyệt');
   });
 
@@ -103,14 +104,64 @@ describe('MaterialRequestDetailModal item table state', () => {
   });
 });
 
+describe('MaterialRequestDetailModal review notes', () => {
+  it('chỉ hiện ghi chú Kế toán khi đang chờ Giám đốc', () => {
+    expect(getMaterialRequestReviewNoteState({
+      status: 'pending_director',
+      procurementDecision: 'ExternalPurchase',
+      isOverBOQ: true,
+    })).toEqual({ title: 'Kế toán thẩm định', showDirectorNote: false });
+  });
+
+  it.each([
+    [false, false],
+    [true, true],
+  ] as const)('hiện ghi chú phê duyệt đúng với isOverBOQ=%s', (isOverBOQ, showDirectorNote) => {
+    expect(getMaterialRequestReviewNoteState({
+      status: 'approved',
+      procurementDecision: 'ExternalPurchase',
+      isOverBOQ,
+    })).toEqual({ title: 'Phê duyệt', showDirectorNote });
+  });
+
+  it('hiện đủ hai cấp ghi chú khi Giám đốc từ chối', () => {
+    expect(getMaterialRequestReviewNoteState({
+      status: 'rejected',
+      procurementDecision: 'ExternalPurchase',
+      isOverBOQ: true,
+      approvalNote: 'Không phê duyệt khối lượng vượt dự toán.',
+    })).toEqual({ title: 'Từ chối', showDirectorNote: true });
+  });
+
+  it.each([
+    ['InternalTransfer'],
+    ['WaitSupply'],
+    ['NotApproved'],
+  ] as const)('không can thiệp block hiện có của %s', (procurementDecision) => {
+    expect(getMaterialRequestReviewNoteState({
+      status: 'rejected',
+      procurementDecision,
+      isOverBOQ: false,
+      approvalNote: undefined,
+    })).toBeNull();
+  });
+
+  it('không can thiệp block hủy yêu cầu hiện có', () => {
+    expect(getMaterialRequestReviewNoteState({
+      status: 'cancelled',
+      isOverBOQ: false,
+    })).toBeNull();
+  });
+});
+
 describe('ProjectMaterialRequestsTab state UI', () => {
   it.each([
     ['NeedMoreInfo', 'Từ chối'],
     ['NotApproved', 'Từ chối'],
     ['ExternalPurchase', 'Từ chối'],
     [undefined, 'Từ chối'],
-    ['InternalTransfer', 'Đề nghị điều chuyển nội bộ'],
-    ['WaitSupply', 'Tạm hoãn cung ứng'],
+    ['InternalTransfer', 'Đã thẩm định'],
+    ['WaitSupply', 'Đã thẩm định'],
   ] as const)('hiển thị Rejected + %s thành %s', (decision, expected) => {
     expect(getProjectMaterialRequestBusinessStatus(requestWith('rejected', decision))).toBe(expected);
   });

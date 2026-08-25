@@ -119,6 +119,29 @@ export const getMaterialRequestDetailTableState = (
   } as const;
 };
 
+export const getMaterialRequestReviewNoteState = (
+  request: Pick<
+    MaterialRequest,
+    'status' | 'procurementDecision' | 'isOverBOQ' | 'approvalNote'
+  >,
+): { title: 'Kế toán thẩm định' | 'Phê duyệt' | 'Từ chối'; showDirectorNote: boolean } | null => {
+  if (request.status === 'pending_director') {
+    return { title: 'Kế toán thẩm định', showDirectorNote: false };
+  }
+
+  if (request.status === 'approved') {
+    return { title: 'Phê duyệt', showDirectorNote: request.isOverBOQ };
+  }
+
+  const isDirectorRejected = request.status === 'rejected'
+    && request.procurementDecision === 'ExternalPurchase'
+    && Boolean(request.approvalNote);
+
+  return isDirectorRejected
+    ? { title: 'Từ chối', showDirectorNote: true }
+    : null;
+};
+
 export type ProjectMaterialRequestStatusFilter =
   | ''
   | 'pending_accountant'
