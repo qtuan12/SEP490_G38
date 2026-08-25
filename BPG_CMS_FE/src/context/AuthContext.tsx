@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { hasAnyRole as checkAnyRole } from '../auth/roles';
-import { ApiError } from '../services/api';
+import { ACCESS_TOKEN_CHANGED_EVENT, ApiError } from '../services/api';
 import { authService } from '../services/authService';
 import type { LoginCredentials, UserProfile } from '../services/authService';
 
@@ -56,7 +56,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw new Error(INACTIVE_ACCOUNT_MESSAGE);
         }
 
-        setToken(storedToken);
+        // /auth/me may have refreshed an expired access token. Do not put the
+        // stale value captured before that request back into React state.
+        const currentToken = localStorage.getItem('bpg_token');
+        if (!currentToken) {
+          setToken(null);
+          setUser(null);
+          return;
+        }
+
+        setToken(currentToken);
         setUser(sessionUser);
         localStorage.setItem('bpg_user', JSON.stringify(sessionUser));
       } catch (error) {
@@ -70,8 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Không clear cache query ở nhánh này: phiên vẫn còn hiệu lực, xóa đi chỉ tốn thêm
           // một vòng tải lại dữ liệu ngay khi mạng hồi phục.
           const cachedUser = localStorage.getItem('bpg_user');
-          if (cachedUser) {
-            setToken(storedToken);
+          const currentToken = localStorage.getItem('bpg_token');
+          if (cachedUser && currentToken) {
+            setToken(currentToken);
             setUser(JSON.parse(cachedUser) as UserProfile);
           } else {
             setToken(null);
@@ -84,6 +94,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     void initializeAuth();
+  }, [queryClient]);
+
+  useEffect(() => {
+    const syncStoredSession = () => {
+      const currentToken = localStorage.getItem('bpg_token');
+      const cachedUser = localStorage.getItem('bpg_user');
+
+      setToken(currentToken);
+      if (!currentToken) {
+        setUser(null);
+        queryClient.clear();
+        return;
+      }
+
+      if (cachedUser) {
+        try {
+          setUser(JSON.parse(cachedUser) as UserProfile);
+        } catch {
+          localStorage.removeItem('bpg_user');
+          setUser(null);
+        }
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (
+        event.key === 'bpg_token'
+        || event.key === 'bpg_refresh_token'
+        || event.key === 'bpg_user'
+        || event.key === null
+      ) {
+        syncStoredSession();
+      }
+    };
+
+    window.addEventListener(ACCESS_TOKEN_CHANGED_EVENT, syncStoredSession);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(ACCESS_TOKEN_CHANGED_EVENT, syncStoredSession);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [queryClient]);
 
   const login = async (credentials: LoginCredentials): Promise<UserProfile> => {

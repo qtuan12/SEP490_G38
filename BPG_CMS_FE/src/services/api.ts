@@ -10,6 +10,19 @@ const ACCESS_TOKEN_KEY = 'bpg_token';
 const REFRESH_TOKEN_KEY = 'bpg_refresh_token';
 const USER_KEY = 'bpg_user';
 
+/**
+ * localStorage's `storage` event is only emitted in other tabs. Dispatch a
+ * same-tab event as well so React state and long-lived connections immediately
+ * pick up an access token refreshed by the API client.
+ */
+export const ACCESS_TOKEN_CHANGED_EVENT = 'bpg:access-token-changed';
+
+const notifyAccessTokenChanged = (accessToken: string) => {
+  window.dispatchEvent(new CustomEvent(ACCESS_TOKEN_CHANGED_EVENT, {
+    detail: { accessToken },
+  }));
+};
+
 let activeApiRequestsCount = 0;
 
 interface RequestOptions extends RequestInit {
@@ -75,6 +88,7 @@ async function refreshAccessToken(): Promise<string | null> {
 
     localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+    notifyAccessTokenChanged(newAccessToken);
     return newAccessToken;
   } catch {
     return null;

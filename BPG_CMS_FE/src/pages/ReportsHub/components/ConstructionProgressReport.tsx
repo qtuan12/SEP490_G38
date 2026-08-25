@@ -91,8 +91,8 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
       if (!matchName && !matchAssignee) return false;
     }
     if (taskStatusFilter === 'delayed') return task.isDelayed;
-    if (taskStatusFilter === 'completed') return task.status === 'Approved' || task.status === 'Completed';
-    if (taskStatusFilter === 'inprogress') return task.status !== 'Approved' && task.status !== 'Completed' && !task.isDelayed;
+    if (taskStatusFilter === 'completed') return task.progressPercent >= 100;
+    if (taskStatusFilter === 'inprogress') return task.progressPercent > 0 && task.progressPercent < 100 && !task.isDelayed;
     return true;
   }) || [];
 
@@ -158,7 +158,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
             <div className="mt-3 flex items-baseline justify-between">
               <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{data.overallProgressPercent}%</div>
               <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${varianceBadgeClass}`}>
-                {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}%` : `${variancePercent.toFixed(1)}%`} so với Kế hoạch
+                {variancePercent >= 0 ? `+${variancePercent.toFixed(1)}` : variancePercent.toFixed(1)} điểm % so với Kế hoạch
               </span>
             </div>
           </div>
@@ -172,24 +172,24 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         <div className="bg-gradient-to-br from-red-50/70 to-white dark:from-slate-900 dark:to-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Độ lệch Tiến độ</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Công việc trễ lâu nhất</span>
               <div className="p-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl">
                 <Clock size={18} />
               </div>
             </div>
             <div className="mt-3 flex items-baseline justify-between">
               <div className={`text-3xl font-black ${(data.scheduleVarianceDays || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {(data.scheduleVarianceDays || 0) > 0 ? `-${data.scheduleVarianceDays}` : '0'} <span className="text-sm font-semibold">ngày</span>
+                {data.scheduleVarianceDays || 0} <span className="text-sm font-semibold">ngày</span>
               </div>
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${(data.scheduleVarianceDays || 0) > 0 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}`}>
-                {(data.scheduleVarianceDays || 0) > 0 ? 'Trễ hạn' : 'Đúng tiến độ'}
+                {(data.scheduleVarianceDays || 0) > 0 ? 'Quá hạn' : 'Không trễ'}
               </span>
             </div>
           </div>
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-red-100/60 dark:border-red-900/30 flex items-center justify-between">
             <span>Tình trạng:</span>
             <strong className="text-slate-700 dark:text-slate-200">
-              {(data.scheduleVarianceDays || 0) > 0 ? `Chậm ${data.scheduleVarianceDays} ngày` : 'Theo sát mốc dự kiến'}
+              {(data.scheduleVarianceDays || 0) > 0 ? `Đầu việc trễ lâu nhất ${data.scheduleVarianceDays} ngày` : 'Không có đầu việc quá hạn'}
             </strong>
           </div>
         </div>
@@ -236,7 +236,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
           <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-amber-100/60 dark:border-amber-900/30 flex items-center justify-between">
             <span>Tỷ lệ hoàn tất:</span>
             <strong className="text-slate-700 dark:text-slate-200">
-              {data.totalTasks > 0 ? `${Math.round((data.doneTasks / data.totalTasks) * 100)}% đầu việc` : '0%'}
+              {data.totalTasks > 0 ? `${Math.round((data.doneTasks / data.totalTasks) * 100)}% đầu việc thực thi` : '0%'}
             </strong>
           </div>
         </div>
@@ -247,8 +247,8 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
         <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 m-0">So sánh Tiến độ Kế hoạch Ban đầu vs Thực tế từng Giai đoạn (%)</h4>
-              <p className="text-xs text-slate-500 m-0 mt-0.5">Đối chiếu giữa mục tiêu kế hoạch ban đầu và tỷ lệ hoàn thành thực tế.</p>
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 m-0">So sánh Tiến độ Kế hoạch kỳ vọng vs Thực tế từng Giai đoạn (%)</h4>
+              <p className="text-xs text-slate-500 m-0 mt-0.5">Đối chiếu tiến độ phải đạt tại ngày báo cáo với tỷ lệ hoàn thành thực tế.</p>
             </div>
           </div>
           <div className="h-[260px]">
@@ -258,7 +258,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                 <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600 }} />
                 <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
                 <RechartsTooltip formatter={(value) => [`${value}%`, 'Tiến độ']} labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label} />
-                <Bar dataKey="expected" name="Kế hoạch Ban đầu (%)" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="expected" name="Kế hoạch kỳ vọng (%)" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={32} />
                 <Bar dataKey="actual" name="Thực tế Đạt được (%)" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={32}>
                   {phaseComparisonChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.actual < entry.expected ? '#ef4444' : '#10b981'} />
