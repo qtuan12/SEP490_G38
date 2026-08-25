@@ -43,7 +43,7 @@ public class PhaseAcceptancesController : BaseApiController
     public async Task<IActionResult> AcceptPhase([FromBody] BPG.Application.Features.PhaseAcceptances.Commands.AcceptPhase.AcceptPhaseCommand command, CancellationToken ct)
     {
         var acceptanceId = await Mediator.Send(command, ct);
-        return ApiOk(new { AcceptanceId = acceptanceId });
+        return ApiOk(new { AcceptanceId = acceptanceId }, "Đã nghiệm thu giai đoạn thành công.");
     }
 
     /// <summary>
