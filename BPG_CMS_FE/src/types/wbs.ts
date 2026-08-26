@@ -7,6 +7,8 @@ export interface WbsTask {
   orderIndex: number;
   startDate: string;
   endDate: string;
+  actualStartDate?: string | null;
+  actualEndDate?: string | null;
   status: string;
   progressPercent: number;
   isLocked: boolean;
@@ -32,6 +34,10 @@ export interface WbsPhase {
   endDate: string | null;
   status: string;
   progressPercent: number;
+  /** Ngày bắt đầu thực tế: MIN(actualStartDate của các task trong phase) */
+  actualStartDate?: string | null;
+  /** Ngày kết thúc thực tế: ngày nghiệm thu (nếu có) hoặc MAX(task.actualEndDate) khi 100% */
+  actualEndDate?: string | null;
   tasks: WbsTask[];
   materials?: { materialId: number; name: string; quantity: number; unitId: number; unit: string }[];
 }

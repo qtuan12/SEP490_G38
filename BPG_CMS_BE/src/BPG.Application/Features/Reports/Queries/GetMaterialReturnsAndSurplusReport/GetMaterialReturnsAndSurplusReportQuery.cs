@@ -172,18 +172,13 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             surplusQuery = surplusQuery.Where(s => accessibleIds.Contains(s.ProjectId));
         }
 
-        if (fromDt.HasValue)
-        {
-            surplusQuery = surplusQuery.Where(s => s.CreatedAt >= fromDt.Value);
-        }
-        if (toDt.HasValue)
-        {
-            surplusQuery = surplusQuery.Where(s => s.CreatedAt <= toDt.Value);
-        }
-
-        var surplusList = await surplusQuery
+        var allSurplusList = await surplusQuery
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(cancellationToken);
+        var surplusList = allSurplusList
+            .Where(s => (!fromDt.HasValue || s.CreatedAt >= fromDt.Value)
+                     && (!toDt.HasValue || s.CreatedAt <= toDt.Value))
+            .ToList();
 
         // 5. Map Users for creators
         var userIds = returnList.Where(r => r.CreatedBy.HasValue).Select(r => r.CreatedBy!.Value)
@@ -307,9 +302,23 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
                 CreatedAt = batch.CreatedAt,
                 CreatedByName = createdByName
             });
+        }
+
+        bool IsInActionPeriod(DateTime actionDate) =>
+            (!fromDt.HasValue || actionDate >= fromDt.Value)
+            && (!toDt.HasValue || actionDate <= toDt.Value);
+
+        var actionSourceItems = allSurplusList
+            .SelectMany(s => s.Items.Select(i => new { Batch = s, Item = i }))
+            .ToList();
+
+        foreach (var entry in actionSourceItems)
+        {
+            var batch = entry.Batch;
+            var item = entry.Item;
 
             // Action: Return to Supplier
-            foreach (var rSupplier in item.ReturnToSuppliers)
+            foreach (var rSupplier in item.ReturnToSuppliers.Where(action => IsInActionPeriod(action.CreatedAt)))
             {
                 returnSupplierActionsCount++;
                 returnSupplierQuantity += rSupplier.ReturnQuantity;
@@ -338,7 +347,7 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             }
 
             // Action: Transfers
-            foreach (var transfer in item.Transfers)
+            foreach (var transfer in item.Transfers.Where(action => IsInActionPeriod(action.CreatedAt)))
             {
                 totalTransferredQuantity += transfer.TransferQuantity;
                 totalTransferredActionsCount++;
@@ -363,7 +372,7 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             }
 
             // Action: Liquidations
-            foreach (var liq in item.Liquidations)
+            foreach (var liq in item.Liquidations.Where(action => IsInActionPeriod(action.CreatedAt)))
             {
                 liquidationActionsCount++;
                 liquidationQuantity += liq.LiquidationQuantity;
@@ -390,7 +399,11 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
         }
 
         decimal totalFinancialRecoveryAmount = totalSupplierRefundAmount + totalLiquidationAmount;
-        int totalTransferredItemsCount = allSurplusItems.Count(x => x.Item.Transfers.Any());
+        int totalTransferredItemsCount = surplusActionList
+            .Where(action => action.ActionType == "Transfer")
+            .Select(action => action.SurplusRequestItemId)
+            .Distinct()
+            .Count();
 
         var surplusMethodBreakdown = new SurplusMethodBreakdownDto
         {
@@ -412,8 +425,15 @@ public class GetMaterialReturnsAndSurplusReportQueryHandler
             : null;
         bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
 
+        var latestDatedActivity = returnList.Select(r => r.CreatedAt)
+            .Concat(surplusActionList.Select(a => a.ActionDate))
+            .Where(date => date > DateTime.MinValue)
+            .OrderByDescending(date => date)
+            .FirstOrDefault();
         var referenceEnd = toDt ?? (isProjectFinished
-            ? (returnList.Any() ? returnList.Max(r => r.CreatedAt) : project!.PlannedEnd.ToDateTime(TimeOnly.MaxValue))
+            ? (latestDatedActivity > DateTime.MinValue
+                ? latestDatedActivity
+                : project!.PlannedEnd.ToDateTime(TimeOnly.MaxValue))
             : DateTime.UtcNow);
         var monthlyTrends = new List<ReturnAndSurplusMonthlyTrendDto>();
 

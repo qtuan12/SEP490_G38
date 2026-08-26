@@ -124,10 +124,6 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             issuanceQuery = issuanceQuery.Where(i => accessibleIds.Contains(i.Issuance!.Task.Phase.ProjectId));
         }
 
-        if (fromDt.HasValue)
-        {
-            issuanceQuery = issuanceQuery.Where(i => i.Issuance!.CreatedAt >= fromDt.Value);
-        }
         if (toDt.HasValue)
         {
             issuanceQuery = issuanceQuery.Where(i => i.Issuance!.CreatedAt <= toDt.Value);
@@ -157,10 +153,6 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             returnQuery = returnQuery.Where(r => accessibleIds.Contains(r.Return.OriginalIssuance.Task.Phase.ProjectId));
         }
 
-        if (fromDt.HasValue)
-        {
-            returnQuery = returnQuery.Where(r => r.Return.CreatedAt >= fromDt.Value);
-        }
         if (toDt.HasValue)
         {
             returnQuery = returnQuery.Where(r => r.Return.CreatedAt <= toDt.Value);
@@ -341,10 +333,10 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             : null;
         bool isProjectFinished = project != null && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed);
 
-        if (fromDt.HasValue)
+        if (request.FromDate.HasValue)
         {
-            startMonth = fromDt.Value;
-            endMonth = toDt ?? now;
+            startMonth = request.FromDate.Value.Date;
+            endMonth = request.ToDate?.Date ?? now;
         }
         else if (isProjectFinished)
         {
@@ -353,14 +345,14 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
             int startYear = Math.Min(issMin, issMax);
             int endYear = Math.Max(issMin, issMax);
             startMonth = new DateTime(startYear, 1, 1);
-            endMonth = toDt ?? new DateTime(endYear, 12, 31);
+            endMonth = request.ToDate?.Date ?? new DateTime(endYear, 12, 31);
         }
         else
         {
             var issMin = issuanceItems.Any() ? issuanceItems.Min(i => i.Issuance!.CreatedAt) : now;
             int startYear = Math.Min(issMin.Year, now.Year);
             startMonth = new DateTime(startYear, 1, 1);
-            endMonth = toDt ?? new DateTime(now.Year, 12, 31);
+            endMonth = request.ToDate?.Date ?? new DateTime(now.Year, 12, 31);
         }
 
         var currentM = new DateTime(startMonth.Year, startMonth.Month, 1);
@@ -392,7 +384,7 @@ public class GetBoqVsActualReportQueryHandler : IRequestHandler<GetBoqVsActualRe
                 Year = currentM.Year,
                 Month = currentM.Month,
                 MonthLabel = $"T{currentM.Month:D2}/{currentM.Year}",
-                MaterialRequestCount = monthIssuance.Select(i => i.MaterialIssuanceId).Distinct().Count(),
+                IssuanceSlipCount = monthIssuance.Select(i => i.MaterialIssuanceId).Distinct().Count(),
                 ConsumedValueVnd = Math.Max(0m, consumedVal)
             });
 

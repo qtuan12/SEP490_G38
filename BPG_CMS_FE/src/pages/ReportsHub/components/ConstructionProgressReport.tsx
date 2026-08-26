@@ -145,7 +145,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Top Stat Analytics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Metric 1: Actual vs Expected Progress */}
         <div className="bg-gradient-to-br from-indigo-50/70 to-white dark:from-slate-900 dark:to-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
           <div>
@@ -194,28 +194,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
           </div>
         </div>
 
-        {/* Metric 3: Forecasted Completion Date */}
-        <div className="bg-gradient-to-br from-purple-50/70 to-white dark:from-slate-900 dark:to-purple-950/30 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Dự báo Bàn giao</span>
-              <div className="p-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl">
-                <CheckCircle size={18} />
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="text-2xl font-black text-purple-700 dark:text-purple-300">
-                {data.forecastedEndDate || 'Đang cập nhật'}
-              </div>
-            </div>
-          </div>
-          <div className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2.5 pt-2 border-t border-purple-100/60 dark:border-purple-900/30 flex items-center justify-between">
-            <span>Dự kiến:</span>
-            <strong className="text-slate-700 dark:text-slate-200">Hoàn thành công trình</strong>
-          </div>
-        </div>
-
-        {/* Metric 4: Tasks Progress & Delayed Count */}
+        {/* Metric 3: Tasks Progress & Delayed Count */}
         <div className="bg-gradient-to-br from-amber-50/70 to-white dark:from-slate-900 dark:to-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-4 shadow-sm flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center justify-between">
@@ -278,6 +257,20 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
           .sort((a, b) => b - a);
         const activeYear = availableYears.includes(selectedYear) ? selectedYear : (availableYears[0] ?? selectedYear);
         const filteredTrends = (data.monthlyTrends || []).filter(t => t.year === activeYear);
+        const projectEndMonthKey = data.phases
+          .map(phase => phase.endDate?.slice(0, 7))
+          .filter((value): value is string => Boolean(value))
+          .sort()
+          .at(-1);
+        const chartTrends = filteredTrends.map(trend => {
+          const trendMonthKey = `${trend.year}-${String(trend.month).padStart(2, '0')}`;
+          const isAfterProjectEnd = Boolean(projectEndMonthKey && trendMonthKey > projectEndMonthKey);
+          return {
+            ...trend,
+            plannedProgressPercent: isAfterProjectEnd ? null : trend.plannedProgressPercent,
+            actualProgressPercent: isAfterProjectEnd ? null : trend.actualProgressPercent,
+          };
+        });
 
         return (
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
@@ -305,7 +298,7 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
 
             <div className="h-72 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={filteredTrends} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                <ComposedChart data={chartTrends} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                   <XAxis dataKey="monthLabel" tick={{ fontSize: 11, fontWeight: 600 }} />
                   <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
@@ -313,53 +306,14 @@ export const ConstructionProgressReport: React.FC<Props> = ({ projectId, fromDat
                   <Legend wrapperStyle={{ fontSize: '12px' }} />
                   <Bar dataKey="plannedMonthlyVolume" name="SL Kế hoạch" fill="#f59e0b" maxBarSize={22} radius={[3, 3, 0, 0]} />
                   <Bar dataKey="actualMonthlyVolume" name="SL Thực tế" fill="#06b6d4" maxBarSize={22} radius={[3, 3, 0, 0]} />
-                  <Line type="monotone" dataKey="plannedProgressPercent" name="Kế hoạch lũy kế" stroke="#2563eb" strokeDasharray="5 5" strokeWidth={2.5} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="actualProgressPercent" name="Thực tế lũy kế" stroke="#10b981" strokeWidth={3.5} dot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="plannedProgressPercent" name="Kế hoạch lũy kế" stroke="#2563eb" strokeDasharray="5 5" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                  <Line type="monotone" dataKey="actualProgressPercent" name="Thực tế lũy kế" stroke="#10b981" strokeWidth={3.5} dot={{ r: 5 }} connectNulls={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
         );
       })()}
-
-      {/* Assignee / Subcontractor Performance Matrix */}
-      {(data.assigneePerformance || []).length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
-              <CheckCircle size={16} className="text-indigo-500" /> Bảng Phân tích Hiệu suất Kỹ sư / Nhân sự Phụ trách Thi công
-            </h4>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-4 py-3">Người Phụ trách</th>
-                  <th className="px-4 py-3 text-center">Tổng công việc</th>
-                  <th className="px-4 py-3 text-center">Đã Hoàn thành</th>
-                  <th className="px-4 py-3 text-center">Công việc trễ</th>
-                  <th className="px-4 py-3 text-right">Tỷ lệ Đúng hạn (%)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {data.assigneePerformance?.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{item.assigneeName}</td>
-                    <td className="px-4 py-3 text-center font-semibold text-slate-700 dark:text-slate-300">{item.totalTasks}</td>
-                    <td className="px-4 py-3 text-center font-bold text-emerald-600">{item.completedTasks}</td>
-                    <td className={`px-4 py-3 text-center font-bold ${item.delayedTasks > 0 ? 'text-red-600' : 'text-slate-400'}`}>{item.delayedTasks}</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`font-extrabold ${item.onTimeRatePercent >= 80 ? 'text-emerald-600' : item.onTimeRatePercent >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                        {item.onTimeRatePercent}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Unified Compact Phase & Task Workspace Container */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">

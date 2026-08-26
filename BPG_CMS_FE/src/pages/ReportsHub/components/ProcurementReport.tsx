@@ -153,7 +153,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
           <span><strong>Lưu ý:</strong> Dữ liệu chi phí dựa trên tổng giá trị đơn hàng và mua trực tiếp khẩn cấp. Hạch toán chính thức theo kỳ cần phần mềm kế toán riêng.</span>
         </div>
         <div className="bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">So sánh Chi phí Mua sắm giữa các Dự án</h4>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">So sánh Giá trị Mua sắm giữa các Dự án</h4>
           {allProjectsData.length > 0 ? (
             <div className="h-[380px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -171,7 +171,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} />
                   <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend verticalAlign="top" height={36} />
-                  <Bar dataKey="po" name="Đơn hàng đã duyệt" stackId="a" fill="#6366f1" maxBarSize={50} />
+                  <Bar dataKey="po" name="PO hợp lệ" stackId="a" fill="#6366f1" maxBarSize={50} />
                   <Bar dataKey="dp" name="Mua ngoài khẩn cấp" stackId="a" fill="#ef4444" maxBarSize={50} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -191,30 +191,19 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
       {/* Notice Banner */}
       <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 rounded-2xl text-xs font-semibold">
         <AlertCircle size={18} className="shrink-0 text-amber-600" />
-        <span><strong>Lưu ý:</strong> Báo cáo chi phí dựa trên tổng giá trị đơn hàng đã duyệt và các phiếu mua trực tiếp khẩn cấp.</span>
+        <span><strong>Lưu ý:</strong> Đây là giá trị mua sắm đã cam kết theo PO hợp lệ và phiếu mua trực tiếp đã duyệt, không phải số tiền đã thanh toán.</span>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-indigo-200 dark:border-indigo-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-3">
           <div className="p-3 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl shrink-0">
             <ShoppingCart size={22} />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Đơn Mua sắm (Nhập kho)</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Giá trị vật tư theo dự toán</div>
             <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(data.totalPoCost)}</div>
             <div className="text-[10px] font-semibold text-slate-400 mt-0.5">{data.purchaseOrders.length} đơn hàng</div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-800/80 border border-purple-200 dark:border-purple-900/50 rounded-2xl p-4 shadow-sm flex items-center gap-3">
-          <div className="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl shrink-0">
-            <DollarSign size={22} />
-          </div>
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Thi công Thực tế (Xuất kho)</div>
-            <div className="text-lg font-black text-purple-700 dark:text-purple-300 mt-0.5">{formatCurrency(data.totalMaterialIssuanceValue || 0)}</div>
-            <div className="text-[10px] font-semibold text-purple-600 mt-0.5">Giá trị ước tính vật tư đã xuất dùng</div>
           </div>
         </div>
 
@@ -234,7 +223,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
             <DollarSign size={22} />
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng Mua sắm (Dòng tiền)</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Tổng giá trị</div>
             <div className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(data.totalCost)}</div>
           </div>
         </div>
@@ -254,9 +243,9 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 m-0">
-                  <TrendingUp size={16} className="text-indigo-500" /> Biểu đồ Chi phí Mua sắm 12 Tháng Theo Năm
+                  <TrendingUp size={16} className="text-indigo-500" /> Giá trị Mua sắm Theo Tháng
                 </h4>
-                <p className="text-xs text-slate-500 m-0 mt-0.5">So sánh chi phí đơn đặt hàng vs Mua ngoài khẩn cấp hàng tháng</p>
+                <p className="text-xs text-slate-500 m-0 mt-0.5">Theo ngày đặt PO và ngày mua trực tiếp đã được duyệt</p>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
@@ -280,7 +269,7 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                   <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}Tr`} tick={{ fontSize: 11 }} />
                   <RechartsTooltip formatter={(value) => [formatCurrency(Number(value || 0)), 'Giá trị']} />
                   <Legend wrapperStyle={{ fontSize: '12px' }} />
-                  <Bar dataKey="poCostVnd" name="Đơn đặt hàng" stackId="month" fill="#6366f1" maxBarSize={36} />
+                  <Bar dataKey="poCostVnd" name="PO hợp lệ" stackId="month" fill="#6366f1" maxBarSize={36} />
                   <Bar dataKey="directPurchaseCostVnd" name="Mua khẩn cấp" stackId="month" fill="#ef4444" maxBarSize={36} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -399,12 +388,12 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                   <tr>
                     <th className="px-4 py-3 text-center w-12 shrink-0">STT</th>
-                    <th className="px-4 py-3 w-36 min-w-[130px]">Mã Đơn Hàng</th>
-                    <th className="px-4 py-3 min-w-[200px]">Nhà cung cấp</th>
-                    <th className="px-4 py-3 text-right w-36 min-w-[120px]">Tổng giá trị</th>
-                    <th className="px-4 py-3 w-28 min-w-[90px]">Ngày đặt</th>
-                    <th className="px-4 py-3 w-32 min-w-[100px]">Giao hàng dự kiến</th>
-                    <th className="px-4 py-3 text-center w-36 min-w-[130px]">Trạng thái</th>
+                    <th className="px-4 py-3 w-40 min-w-[140px] whitespace-nowrap">Mã Đơn Hàng</th>
+                    <th className="px-4 py-3 min-w-[180px]">Nhà cung cấp</th>
+                    <th className="px-4 py-3 text-right w-44 min-w-[150px] whitespace-nowrap">Tổng giá trị</th>
+                    <th className="px-4 py-3 w-32 min-w-[100px] whitespace-nowrap">Ngày đặt</th>
+                    <th className="px-4 py-3 w-36 min-w-[120px] whitespace-nowrap">Giao hàng dự kiến</th>
+                    <th className="px-4 py-3 text-center w-36 min-w-[130px] whitespace-nowrap">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -426,10 +415,10 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                           </Link>
                         </td>
                         <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{getPOSupplierDisplayName(po.supplierName, po.poNumber) || '—'}</td>
-                        <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(po.totalAmount)} VNĐ</td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.orderDate)}</td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatOrderDate(po.expectedDeliveryDate)}</td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white whitespace-nowrap">{formatNumber(po.totalAmount)} VNĐ</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{formatOrderDate(po.orderDate)}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{formatOrderDate(po.expectedDeliveryDate)}</td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap">
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusInfo.colorClass}`}>
                             {statusInfo.label}
                           </span>
@@ -552,11 +541,11 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                 <thead className="sticky top-0 z-10 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 uppercase tracking-wider font-bold border-b border-slate-200 dark:border-slate-700 shadow-sm">
                   <tr>
                     <th className="px-4 py-3 text-center w-12 shrink-0">STT</th>
-                    <th className="px-4 py-3 w-36 min-w-[130px]">Mã phiếu</th>
-                    <th className="px-4 py-3 min-w-[200px]">Người yêu cầu</th>
-                    <th className="px-4 py-3 text-right w-36 min-w-[120px]">Tổng giá trị</th>
-                    <th className="px-4 py-3 w-36 min-w-[120px]">Ngày tạo</th>
-                    <th className="px-4 py-3 text-center w-36 min-w-[130px]">Trạng thái</th>
+                    <th className="px-4 py-3 w-36 min-w-[130px] whitespace-nowrap">Mã phiếu</th>
+                    <th className="px-4 py-3 min-w-[180px]">Người yêu cầu</th>
+                    <th className="px-4 py-3 text-right w-44 min-w-[150px] whitespace-nowrap">Tổng giá trị</th>
+                    <th className="px-4 py-3 w-36 min-w-[120px] whitespace-nowrap">Ngày tạo</th>
+                    <th className="px-4 py-3 text-center w-36 min-w-[130px] whitespace-nowrap">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -576,9 +565,9 @@ export const ProcurementReport: React.FC<Props> = ({ projectId, fromDate, toDate
                         </Link>
                       </td>
                       <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">{dp.requestedByName}</td>
-                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white">{formatNumber(dp.totalAmount)} VNĐ</td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{formatTimestamp(dp.createdAt)}</td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-right font-extrabold text-slate-900 dark:text-white whitespace-nowrap">{formatNumber(dp.totalAmount)} VNĐ</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{formatTimestamp(dp.createdAt)}</td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                           {DP_STATUS_LABELS[dp.status] || dp.status}
                         </span>

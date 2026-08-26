@@ -284,13 +284,51 @@ export const WBSTree = () => {
                           borderRadius: 'var(--radius-sm)',
                           whiteSpace: 'nowrap'
                         }}
+                        title="Thời gian kế hoạch"
                       >
-                        📅 {ph.startDate.split('-').reverse().join('-')} → {ph.endDate.split('-').reverse().join('-')}
+                        📅 <span style={{ fontWeight: 600, opacity: 0.7 }}>Dự kiến:</span> {ph.startDate.split('-').reverse().join('/')} → {ph.endDate.split('-').reverse().join('/')}
                       </span>
                     )}
 
-
-
+                    {/* Actual dates badge — chỉ hiển thị khi có ít nhất 1 ngày thực tế */}
+                    {(ph.actualStartDate || ph.actualEndDate) && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          color: ph.actualEndDate
+                            ? 'hsl(var(--success))'
+                            : 'hsl(var(--warning))',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          border: `1px solid ${ph.actualEndDate ? 'hsl(var(--success) / 0.4)' : 'hsl(var(--warning) / 0.4)'}`,
+                          backgroundColor: ph.actualEndDate
+                            ? 'hsl(var(--success-glow) / 0.1)'
+                            : 'hsl(var(--warning) / 0.06)',
+                          padding: '1px 5px',
+                          borderRadius: 'var(--radius-sm)',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 500,
+                        }}
+                        title={
+                          ph.actualEndDate
+                            ? `Thực tế: Bắt đầu ${ph.actualStartDate ? ph.actualStartDate.split('-').reverse().join('/') : '?'} — Nghiệm thu ${ph.actualEndDate.split('-').reverse().join('/')}`
+                            : `Thực tế: Bắt đầu ${ph.actualStartDate ? ph.actualStartDate.split('-').reverse().join('/') : '?'} — Chưa hoàn thành`
+                        }
+                      >
+                        {ph.actualEndDate ? '✅' : '🕐'}
+                        {' '}
+                        <span style={{ fontWeight: 700 }}>Thực tế:</span>
+                        {' '}
+                        {ph.actualStartDate
+                          ? ph.actualStartDate.split('-').reverse().join('/')
+                          : '?'}
+                        {' → '}
+                        {ph.actualEndDate
+                          ? ph.actualEndDate.split('-').reverse().join('/')
+                          : '…'}
+                      </span>
+                    )}
 
                     {/* Badge */}
                     {isFrozen ? (
@@ -784,7 +822,7 @@ export const WBSTree = () => {
 
                                         {project?.status !== 'draft' && (
                                           <>
-                                            {isPL ? (
+                                            {isPL && !hasChildren ? (
                                               <div
                                                 style={menuItemStyle}
                                                 onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'hsl(var(--warning-glow))'}
@@ -813,7 +851,7 @@ export const WBSTree = () => {
                                               <History size={12} style={{ color: 'hsl(var(--primary))' }} /><span>Xem nhật ký thi công</span>
                                             </div>
 
-                                            {isPL && (() => {
+                                            {isPL && !hasChildren && (() => {
                                               const hasIncompletePredecessor = t.predecessorTaskIds && t.predecessorTaskIds.length > 0 && t.predecessorTaskIds.some(preId => {
                                                 const predecessor = tasks.find(p => p.id === String(preId) || p.id === `t-${preId}`);
                                                 if (!predecessor) return false;

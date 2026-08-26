@@ -59,10 +59,13 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         var fromDt = dateRange.From;
         var toDt = dateRange.ToInclusive;
 
-        var allTasks = phases.SelectMany(p => p.Tasks)
-            .Where(t => t.Status != TaskStatus.Obsolete)
-            .Where(t => (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
-                     && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
+        var allProjectTasks = phases.SelectMany(p => p.Tasks).ToList();
+        var parentTaskIds = allProjectTasks
+            .Where(t => t.ParentTaskId.HasValue)
+            .Select(t => t.ParentTaskId!.Value)
+            .ToHashSet();
+        var allTasks = allProjectTasks
+            .Where(t => !parentTaskIds.Contains(t.TaskId) && t.Status != TaskStatus.Obsolete)
             .ToList();
 
         var now = DateTime.UtcNow;
@@ -139,14 +142,12 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         // Phase breakdown with weighted progress
         var phaseBreakdown = phases.Select(phase =>
         {
-            var phaseTasks = phase.Tasks
-                .Where(t => t.Status != TaskStatus.Obsolete)
-                .Where(t => (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
-                         && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
+            var phaseTasks = allTasks
+                .Where(t => t.PhaseId == phase.PhaseId)
                 .ToList();
             int ptTotal = phaseTasks.Count;
             int ptDone = phaseTasks.Count(t => ReportProgress(t) >= 100m);
-            decimal pProgress = CalculateWeightedProgressAt(phaseTasks, ReportProgress);
+            decimal pProgress = ProgressCalculator.CalculateWbsWeightedProgress(phaseTasks, ReportProgress);
 
             return new PhaseProgressSummaryDto
             {
@@ -382,12 +383,15 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         foreach (var proj in allAccessibleProjects)
         {
             var pPhases = comparisonPhases.Where(p => p.ProjectId == proj.ProjectId).ToList();
-            var pTasks = pPhases.SelectMany(p => p.Tasks)
-                .Where(t => t.Status != TaskStatus.Obsolete)
-                .Where(t => (!fromDt.HasValue || t.EndDate.ToDateTime(TimeOnly.MaxValue) >= fromDt.Value)
-                         && (!toDt.HasValue || t.StartDate.ToDateTime(TimeOnly.MinValue) <= toDt.Value))
+            var projectTasks = pPhases.SelectMany(p => p.Tasks).ToList();
+            var projectParentTaskIds = projectTasks
+                .Where(t => t.ParentTaskId.HasValue)
+                .Select(t => t.ParentTaskId!.Value)
+                .ToHashSet();
+            var pTasks = projectTasks
+                .Where(t => !projectParentTaskIds.Contains(t.TaskId) && t.Status != TaskStatus.Obsolete)
                 .ToList();
-            decimal pProg = CalculateWeightedProgressAt(pTasks, ReportProgress);
+            decimal pProg = ProgressCalculator.CalculateWbsWeightedProgress(pTasks, ReportProgress);
             int pTotal = pTasks.Count;
             int pDelayed = pTasks.Count(t => t.EndDate.ToDateTime(TimeOnly.MinValue) < reportAsOf && ReportProgress(t) < 100m);
             int pAtRisk = pTasks.Count(t => IsTaskAtRisk(t, reportAsOf, ReportProgress(t)));
@@ -567,19 +571,6 @@ public class GetExecutiveDashboardQueryHandler : IRequestHandler<GetExecutiveDas
         }
 
         return 0m;
-    }
-
-    private static decimal CalculateWeightedProgressAt(
-        IEnumerable<ProjectTask> tasks,
-        Func<ProjectTask, decimal> progressSelector)
-    {
-        var list = tasks.ToList();
-        if (list.Count == 0) return 0m;
-
-        var totalWeight = list.Sum(ProgressCalculator.GetEffectiveWeight);
-        if (totalWeight <= 0m) return 0m;
-
-        return Math.Round(list.Sum(t => ProgressCalculator.GetEffectiveWeight(t) * progressSelector(t)) / totalWeight, 1);
     }
 
     private static bool IsTaskAtRisk(ProjectTask task, DateTime asOf, decimal progress)

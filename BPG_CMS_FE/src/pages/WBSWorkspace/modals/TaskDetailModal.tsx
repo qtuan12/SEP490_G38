@@ -172,7 +172,17 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   }
 
   const isParentTask = tasks.some(t => t.parentTaskId === selectedTask.id && t.status !== 'obsolete');
-  const isProjectInProgress = project?.status?.toLowerCase() === 'inprogress';
+  const normalizedProjectStatus = project?.status?.toLowerCase();
+  const isProjectInProgress = normalizedProjectStatus === 'inprogress';
+  const readOnlyReason = selectedTaskPhase?.status === 'frozen'
+    ? 'Giai đoạn đã được nghiệm thu và khóa, không thể thao tác thêm'
+    : normalizedProjectStatus === 'paused'
+      ? 'Dự án đang bị tạm dừng thi công, không thể thao tác'
+      : normalizedProjectStatus === 'done' || normalizedProjectStatus === 'completed' || normalizedProjectStatus === 'closed'
+        ? 'Dự án đã hoàn thành, không thể thao tác'
+        : normalizedProjectStatus === 'draft'
+          ? 'Dự án đang ở trạng thái bản nháp, không thể thao tác'
+          : 'Không xác định được trạng thái dự án; vui lòng tải lại dữ liệu';
   const canReportDailyLog = isProjectInProgress
     && canCreateDailyLog(selectedTask, user, isPL, isProjectMember)
     && !isParentTask;
@@ -414,13 +424,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '8px', backgroundColor: 'hsl(var(--danger-glow))', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid hsl(var(--danger) / 0.2)', fontSize: '0.85rem', color: 'hsl(var(--danger))' }}>
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                <span>
-                  {project?.status?.toLowerCase() === 'paused'
-                    ? 'Dự án đang bị tạm dừng thi công không thể thao tác được'
-                    : (project?.status?.toLowerCase() === 'completed' || project?.status?.toLowerCase() === 'closed')
-                    ? 'Dự án đã hoàn thành không thể thao tác được'
-                    : 'Dự án đang là bản nháp không thể thao tác được'}
-                </span>
+                <span>{readOnlyReason}</span>
               </div>
               <button 
                 onClick={() => { onClose(); navigate(`/projects/${project?.id}/tasks/${selectedTask.id}/logs`); }} 

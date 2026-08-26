@@ -48,7 +48,16 @@ public record WbsPhaseDto
     public DateOnly? EndDate { get; set; }
     public string Status { get; set; } = string.Empty;
     public byte ProgressPercent { get; set; }
-    
+
+    /// <summary>Ngày bắt đầu thực tế: MIN(ActualStartDate của các task trong phase)</summary>
+    public DateOnly? ActualStartDate { get; set; }
+
+    /// <summary>
+    /// Ngày kết thúc thực tế:
+    /// - Chỉ có giá trị khi phase đã được nghiệm thu: lấy PhaseAcceptance.AcceptanceDate
+    /// </summary>
+    public DateOnly? ActualEndDate { get; set; }
+
     public List<WbsBOQItemDto> BOQItems { get; set; } = new();
     public List<WbsTaskDto> Tasks { get; set; } = new();
     public List<PhaseMaterialItemDto> Materials { get; set; } = new();

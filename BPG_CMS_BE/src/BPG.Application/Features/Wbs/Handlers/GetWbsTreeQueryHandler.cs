@@ -48,6 +48,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
         var phases = await _unitOfWork.Repository<Phase>()
             .Query()
             .Where(p => p.ProjectId == request.ProjectId)
+            .Include(p => p.Acceptances)
             .OrderBy(p => p.OrderIndex)
             .ToListAsync(ct);
 
@@ -125,6 +126,32 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             else
             {
                 phaseDto.ProgressPercent = 0;
+            }
+
+            // ── Tính ActualStartDate / ActualEndDate cho Phase ──────────────
+            // ActualStartDate = MIN(ActualStartDate của tất cả tasks trong phase)
+            var allPhaseTaskDtos = phaseDto.Tasks
+                .SelectMany(t => FlattenTaskDtos(t))
+                .ToList();
+
+            var taskActualStarts = allPhaseTaskDtos
+                .Where(t => t.ActualStartDate.HasValue)
+                .Select(t => t.ActualStartDate!.Value)
+                .ToList();
+            if (taskActualStarts.Any())
+                phaseDto.ActualStartDate = taskActualStarts.Min();
+
+            // ActualEndDate:
+            //   Ưu tiên 1: PhaseAcceptance.AcceptanceDate (bản nghiệm thu chưa bị huỷ)
+            //   Ưu tiên 2 (fallback): MAX(task.ActualEndDate) khi phase progress = 100%
+            var activeAcceptance = phase.Acceptances
+                .Where(a => !a.IsCancelled)
+                .OrderByDescending(a => a.AcceptanceDate)
+                .FirstOrDefault();
+
+            if (activeAcceptance != null)
+            {
+                phaseDto.ActualEndDate = DateOnly.FromDateTime(activeAcceptance.AcceptanceDate);
             }
 
             result.Phases.Add(phaseDto);
@@ -224,7 +251,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
                 dto.SubTasks = BuildTaskTree(children, allTasks, project);
 
                 // For parent tasks, derive ActualStartDate and ActualEndDate from subtasks
-                var childStarts = dto.SubTasks.Where(c => c.ActualStartDate.HasValue).Select(c => c.ActualStartDate.Value).ToList();
+                var childStarts = dto.SubTasks.Where(c => c.ActualStartDate.HasValue).Select(c => c.ActualStartDate!.Value).ToList();
                 if (childStarts.Any())
                 {
                     dto.ActualStartDate = childStarts.Min();
@@ -232,7 +259,7 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
 
                 if (dto.ProgressPercent == 100)
                 {
-                    var childEnds = dto.SubTasks.Where(c => c.ActualEndDate.HasValue).Select(c => c.ActualEndDate.Value).ToList();
+                    var childEnds = dto.SubTasks.Where(c => c.ActualEndDate.HasValue).Select(c => c.ActualEndDate!.Value).ToList();
                     if (childEnds.Any())
                     {
                         dto.ActualEndDate = childEnds.Max();
@@ -243,5 +270,19 @@ public class GetWbsTreeQueryHandler : IRequestHandler<GetWbsTreeQuery, WbsTreeDt
             result.Add(dto);
         }
         return result;
+    }
+
+    /// <summary>
+    /// Duyệt đệ quy task tree, trả về danh sách phẳng tất cả task DTO (kể cả subtask lồng nhau).
+    /// Dùng để aggregate ActualStartDate / ActualEndDate lên cấp Phase.
+    /// </summary>
+    private static IEnumerable<WbsTaskDto> FlattenTaskDtos(WbsTaskDto task)
+    {
+        yield return task;
+        foreach (var sub in task.SubTasks)
+        {
+            foreach (var nested in FlattenTaskDtos(sub))
+                yield return nested;
+        }
     }
 }

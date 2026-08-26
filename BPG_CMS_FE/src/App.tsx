@@ -63,7 +63,6 @@ const DirectPurchaseList = lazy(() => import('./pages/DirectPurchases').then(m =
 // Reports (heavyweight — desktop only, large charts)
 const ReportsHub          = lazy(() => import('./pages/ReportsHub').then(m => ({ default: m.ReportsHub })));
 const BoqVsActualReport   = lazy(() => import('./pages/Reports/BoqVsActualReport').then(m => ({ default: m.BoqVsActualReport })));
-const CostReferenceReport = lazy(() => import('./pages/Reports/CostReferenceReport').then(m => ({ default: m.CostReferenceReport })));
 
 // Misc
 const InventoryAdjustmentsPage = lazy(() => import('./pages/InventoryAdjustments').then(m => ({ default: m.InventoryAdjustmentsPage })));
@@ -78,6 +77,11 @@ const PageFallback = () => (
     <span>Đang tải trang...</span>
   </div>
 );
+
+const LegacyCostReportRedirect = () => {
+  const { projectId } = useParams<{ projectId: string }>();
+  return <Navigate to={`/reports?projectId=${projectId || 'all'}&tab=procurement`} replace />;
+};
 
 // ─── Route Guards ─────────────────────────────────────────────────────────────
 const ProtectedRoute: React.FC<{
@@ -490,7 +494,7 @@ function App() {
                   <ProtectedRoute allowedRoles={RoleGroup.Reports}>
                     <ProjectRoute>
                       <DesktopOnlyGuard>
-                        <CostReferenceReport />
+                        <LegacyCostReportRedirect />
                       </DesktopOnlyGuard>
                     </ProjectRoute>
                   </ProtectedRoute>

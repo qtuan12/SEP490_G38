@@ -152,7 +152,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
       });
     },
     onSuccess: () => {
-      onSuccess('Báo cáo sự cố thi công đã được lưu và chuyển lên TPKT thẩm định.');
+      onSuccess('Báo cáo sự cố thi công đã được lưu và chuyển lên Trưởng phòng kĩ thuật thẩm định.');
       reset();
       setUploadedFiles([]);
       onClose();
@@ -517,7 +517,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                   <input type="number" className="input" placeholder="0" min={0} {...register('estimatedLaborDays', { valueAsNumber: true })} />
                   {(errors as any).estimatedLaborDays && <span style={{ color: 'hsl(var(--danger))', fontSize: '0.75rem' }}>{String((errors as any).estimatedLaborDays?.message)}</span>}
                 </div>
-              
+
               </>
 
 
