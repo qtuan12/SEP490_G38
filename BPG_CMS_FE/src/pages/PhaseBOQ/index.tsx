@@ -8,12 +8,11 @@ import { toast } from 'react-hot-toast';
 import { Loader2, Plus, Trash2, ArrowLeft, ClipboardList, AlertTriangle, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
-import { unitService } from '../../services/unitService';
 import type { WBSPhase, Project } from '../../types/common';
 import type { PhaseBOQImportPreview } from '../../types/boqImport';
 import { Button, Modal, SearchSelect, TableLoader } from '../../components/ui';
 import { isDiscreteUnit } from '../../utils/unitHelpers';
-import { downloadBOQImportTemplate, parseBOQExcelFile } from '../../utils/boqExcel';
+import { DEFAULT_BOQ_TEMPLATE_ROWS, downloadBOQImportTemplate, parseBOQExcelFile } from '../../utils/boqExcel';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useRealtimeDataRefresh } from '../../hooks/useRealtimeDataRefresh';
 import { RealtimeEntities, RealtimeEntityGroups } from '../../constants/realtimeEntities';
@@ -106,12 +105,6 @@ export const PhaseBOQ: React.FC = () => {
     queryFn: () => materialService.getMaterials({ pageNumber: 1, pageSize: 1000 })
   });
   const materialList = React.useMemo(() => materialsData?.items ?? [], [materialsData?.items]);
-
-  const { data: unitsData, isLoading: loadingUnits } = useQuery({
-    queryKey: ['unitListForBOQImport'],
-    queryFn: () => unitService.getUnits({ pageNumber: 1, pageSize: 1000 })
-  });
-  const unitList = React.useMemo(() => unitsData?.items ?? [], [unitsData?.items]);
 
   const { register, control, handleSubmit, reset, setValue, watch, trigger, formState: { errors, isDirty } } = useForm<PhaseBOQForm>({
     resolver: zodResolver(phaseBOQSchema),
@@ -290,21 +283,8 @@ export const PhaseBOQ: React.FC = () => {
 
   const handleDownloadImportTemplate = async () => {
     if (!phase) return;
-    const templateRows = watchedMaterials
-      .filter(item => item.materialId > 0)
-      .map(item => {
-        const material = materialList.find(x => x.materialId === item.materialId);
-        const unit = unitList.find(x => x.unitId === Number(item.unitId));
-        return {
-          materialCode: material?.code ?? '',
-          materialName: material?.name ?? '',
-          quantity: item.quantity,
-          unitCode: unit?.unitCode ?? '',
-          unitName: unit?.unitName ?? String(item.unit ?? ''),
-        };
-      });
     const safePhaseName = phase.name.replace(/[\\/:*?"<>|]/g, '_');
-    await downloadBOQImportTemplate(templateRows, `BOQ_${safePhaseName}.xlsx`);
+    await downloadBOQImportTemplate(DEFAULT_BOQ_TEMPLATE_ROWS, `BOQ_${safePhaseName}.xlsx`);
   };
 
   const handleImportFile = async (file: File) => {
@@ -363,7 +343,7 @@ export const PhaseBOQ: React.FC = () => {
     toast.success(`Đã áp dụng Excel vào biểu mẫu: thêm ${importPreview.newCount}, cập nhật ${importPreview.updatedCount}, xóa ${importPreview.deletedCount}. Vui lòng kiểm tra và bấm Lưu.`);
   };
 
-  if (loadingPhase || loadingMaterials || loadingUnits) {
+  if (loadingPhase || loadingMaterials) {
     return (
       <TableLoader isTable={false} message="Đang tải thông tin dự toán vật tư giai đoạn..." minHeight="350px" />
     );
