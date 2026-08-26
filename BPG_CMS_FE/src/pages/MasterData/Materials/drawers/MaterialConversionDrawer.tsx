@@ -147,7 +147,7 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 40px', gap: '12px', paddingBottom: '8px', borderBottom: '1px solid hsl(var(--border))', fontSize: '0.75rem', fontWeight: 600, color: 'hsl(var(--text-secondary))', textTransform: 'uppercase' }}>
                     <div>Đơn vị quy đổi</div>
-                    <div>Tỷ lệ (1 Đơn vị Mới = ? Đơn vị Gốc)</div>
+                    <div>Tỷ lệ (1 Đơn vị Gốc= ? Đơn vị Quy Đổi)</div>
                     <div></div>
                   </div>
                   
@@ -207,7 +207,7 @@ export const MaterialConversionDrawer: React.FC<MaterialConversionDrawerProps> =
             isLoading={isSubmitting || mutation.isPending}
             style={{ flex: 1, backgroundColor: 'hsl(var(--success))', color: 'white' }}
           >
-            <Save size={16} style={{ marginRight: '6px' }} /> Đồng bộ Lưu
+            <Save size={16} style={{ marginRight: '6px' }} /> Lưu
           </Button>
         </div>
       </div>

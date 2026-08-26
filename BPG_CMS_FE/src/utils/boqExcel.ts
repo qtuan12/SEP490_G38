@@ -4,6 +4,24 @@ import type { BOQTemplateRow, ParsedBOQWorkbook } from '../types/boqImport';
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_ROWS = 1000;
 
+export const DEFAULT_BOQ_TEMPLATE_ROWS: BOQTemplateRow[] = [
+  { materialCode: 'XM-VICEM-PCB40', materialName: 'Xi măng VICEM PCB40 đóng bao', quantity: 50, unitCode: 'BAO', unitName: 'Bao' },
+  { materialCode: 'BT-TUOI-M250', materialName: 'Bê tông thương phẩm M250', quantity: 40, unitCode: 'M3', unitName: 'Mét khối' },
+  { materialCode: 'THEP-HP-D16', materialName: 'Thép thanh vằn Hòa Phát D16 CB400-V', quantity: 150, unitCode: 'CAY', unitName: 'Cây' },
+  { materialCode: 'THEP-HP-D6', materialName: 'Thép cuộn Hòa Phát D6 CB240-T', quantity: 280, unitCode: 'KG', unitName: 'kg' },
+  { materialCode: 'DAY-THEP-BUOC-1', materialName: 'Dây thép buộc 1 mm', quantity: 30, unitCode: 'KG', unitName: 'kg' },
+  { materialCode: 'DINH-THEP-5CM', materialName: 'Đinh thép 5 cm', quantity: 10, unitCode: 'KG', unitName: 'kg' },
+  { materialCode: 'CAT-XAY-TO', materialName: 'Cát xây tô', quantity: 10, unitCode: 'M3', unitName: 'Mét khối' },
+  { materialCode: 'DA-1X2', materialName: 'Đá 1x2', quantity: 5, unitCode: 'M3', unitName: 'Mét khối' },
+  { materialCode: 'GACH-2LO-220', materialName: 'Gạch 2 lỗ 220x105x60', quantity: 4000, unitCode: 'VIEN', unitName: 'Viên' },
+  { materialCode: 'VAN-PHU-PHIM-18', materialName: 'Ván ép phủ phim 18 mm', quantity: 40, unitCode: 'TAM', unitName: 'Tấm' },
+  { materialCode: 'CAY-CHONG-THEP-3M', materialName: 'Cây chống thép tăng 3 m', quantity: 30, unitCode: 'CAY', unitName: 'Cây' },
+  { materialCode: 'TY-REN-COPPHA-D17', materialName: 'Bộ ty ren cốp pha D17', quantity: 24, unitCode: 'BO', unitName: 'Bộ' },
+  { materialCode: 'DAU-COPPHA-20L', materialName: 'Dầu chống dính cốp pha 20 lít', quantity: 2, unitCode: 'THUNG', unitName: 'Thùng' },
+  { materialCode: 'SIKA-TOP-107', materialName: 'SikaTop-107 Seal VN', quantity: 8, unitCode: 'BO', unitName: 'Bộ' },
+  { materialCode: 'SIKA-GROUT-214', materialName: 'SikaGrout 214-11 25 kg', quantity: 10, unitCode: 'BAO', unitName: 'Bao' },
+];
+
 const normalizeHeader = (value: string): string => value
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -14,7 +32,7 @@ const normalizeHeader = (value: string): string => value
 
 const HEADER_ALIASES = {
   materialCode: new Set(['mavattu', 'materialcode', 'code']),
-  quantity: new Set(['soluongdinhmuc', 'soluong', 'quantity', 'boqquantity']),
+  quantity: new Set(['soluongdutoan', 'soluongdinhmuc', 'soluong', 'quantity', 'boqquantity']),
   unitCode: new Set(['madvt', 'madonvitinh', 'unitcode']),
 };
 
